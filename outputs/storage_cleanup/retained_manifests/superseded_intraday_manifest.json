@@ -1,0 +1,113 @@
+{
+  "completed_at_utc": "2026-06-22T08:01:07.087898+00:00",
+  "experiment": "intraday_availability_smoke_no_strategy_returns",
+  "files": [
+    {
+      "bytes": 323883,
+      "path": "SPY_1m.csv",
+      "sha256": "8672713f97c209f95e4678b06eadf2b2889a1c4303ca72b2b88fbcd084234a56"
+    },
+    {
+      "bytes": 322992,
+      "path": "QQQ_1m.csv",
+      "sha256": "e7e31cfc7067e8b61562286fd5504204cd90548583247797db34f929d5a1df85"
+    },
+    {
+      "bytes": 235189,
+      "path": "NTCT_1m.csv",
+      "sha256": "c355e843cfb21900da4d4045054af75c87f40e35bd4adfb2d1885f09ba46638a"
+    },
+    {
+      "bytes": 222697,
+      "path": "CRUS_1m.csv",
+      "sha256": "9493a324a265ab963ecd44d63aae31e17fd81357351f65a3eec873141586dc7f"
+    },
+    {
+      "bytes": 311136,
+      "path": "EIX_1m.csv",
+      "sha256": "76e0ce83dd25e5a4e66d7fd0548094422d9c5a3859edcbf07583d7b339de4183"
+    },
+    {
+      "bytes": 240196,
+      "path": "CALM_1m.csv",
+      "sha256": "53067cdc5116087a3b8479ed06b30df371801a1b33fe504c4a14c442b0e0dabc"
+    },
+    {
+      "bytes": 557898,
+      "path": "SPY_5m.csv",
+      "sha256": "977cf92649890f0b1612d51b59c369662390ca8d14b941905fdd8ce66d0fc9db"
+    },
+    {
+      "bytes": 558619,
+      "path": "QQQ_5m.csv",
+      "sha256": "33f47e72f014bbe739391c7e2244db1794cdc50b541e5f75043d175f0b5f7010"
+    },
+    {
+      "bytes": 547241,
+      "path": "NTCT_5m.csv",
+      "sha256": "615811766be49afcb515259c93d352232cefdc720156b51cccc96a91179c1480"
+    },
+    {
+      "bytes": 559015,
+      "path": "CRUS_5m.csv",
+      "sha256": "6b10a97747cbda5b59c2ee2138352fc16af646866e460e6ddd7359d4a4491f00"
+    },
+    {
+      "bytes": 554030,
+      "path": "EIX_5m.csv",
+      "sha256": "76db0cbf031ec1d864e91c26d31ce57d3195f8d8685f4a5cf29ccc39dd3e119b"
+    },
+    {
+      "bytes": 547291,
+      "path": "CALM_5m.csv",
+      "sha256": "78e0663a7d97a5a1769a90de752fbb437e2b5f47148aaf318b04e0954062c7c0"
+    },
+    {
+      "bytes": 186654,
+      "path": "SPY_15m.csv",
+      "sha256": "a48290c74aba8d594001268622d0689e6222125bec8e51679067cecac13d56fc"
+    },
+    {
+      "bytes": 187135,
+      "path": "QQQ_15m.csv",
+      "sha256": "4b3bd044deb62790771bf315819ac05957b10c60b68a5164c0e5b75aef6f4adc"
+    },
+    {
+      "bytes": 188608,
+      "path": "NTCT_15m.csv",
+      "sha256": "e315b95619fd5b4e9753c6877669738b8c5ebd429c3fef826cf89c9553337b7b"
+    },
+    {
+      "bytes": 190070,
+      "path": "CRUS_15m.csv",
+      "sha256": "279e77bb02ff624ea4a69d4e5e561ee310cda3e4117dc79e72f475df618c15f2"
+    },
+    {
+      "bytes": 185240,
+      "path": "EIX_15m.csv",
+      "sha256": "3e6b78d623020ed7b94bad960fd5d39d0763896f385dbaeedeb19c779bfffef4"
+    },
+    {
+      "bytes": 184550,
+      "path": "CALM_15m.csv",
+      "sha256": "62755f2ce924e241ade1aa037497bf176fd29fc7c54048f786344237e21bfb26"
+    }
+  ],
+  "selection_rule": "Choose the finest interval with at least 20 observed sessions, complete 15:45-15:55 window coverage, zero duplicate timestamps, and zero missing OHLC inside that execution window. Missing inactive bars outside the window remain reason-coded.",
+  "specifications": {
+    "15m": "60d",
+    "1m": "7d",
+    "5m": "60d"
+  },
+  "started_at_utc": "2026-06-22T08:00:59.465557+00:00",
+  "strategy_returns_examined": false,
+  "tickers": [
+    "SPY",
+    "QQQ",
+    "NTCT",
+    "CRUS",
+    "EIX",
+    "CALM"
+  ],
+  "yfinance_version": "1.4.0"
+}

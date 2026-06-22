@@ -1,0 +1,32 @@
+{
+  "schema": "YF-STORAGE-POST-CLEANUP-1.0.0",
+  "archive_reconstruction": {
+    "logical_files": 20518,
+    "referenced_unique_objects": 17616,
+    "object_failures": 0,
+    "reconstructed_files": 20518,
+    "validation_pass": true
+  },
+  "score_reconstruction": {
+    "eligible_companies": 698,
+    "compared_outputs": 6,
+    "byte_identical_outputs": 6,
+    "pass": true
+  },
+  "tests": {
+    "runner": ".venv/bin/python -m unittest discover -s tests -v",
+    "tests_run": 48,
+    "failures": 0,
+    "errors": 0,
+    "pass": true
+  },
+  "daily_rehearsals": {
+    "runs": 2,
+    "tree_sha256_run_1": "34779f95136080d2fbfdf3a008b8ddfe08888ef2e1ed67dc4d86d51b1da5ecc4",
+    "tree_sha256_run_2": "34779f95136080d2fbfdf3a008b8ddfe08888ef2e1ed67dc4d86d51b1da5ecc4",
+    "strategy_state_sha256": "58582388d5164e4fa7e076331d0e846b39b55f8f281866f56f9054596017626d",
+    "benchmark_parity_pass": true,
+    "deterministic_pass": true
+  },
+  "activation_ready_after_cleanup": true
+}

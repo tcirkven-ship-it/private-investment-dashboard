@@ -1,8 +1,16 @@
 .venv/
 /data/
 /outputs/experiment_runs/
+/data/raw/yfinance_phase1b_checkpoint3/
+/data/metadata/yfinance_cache/
 **/__pycache__/
 *.pyc
+*.pyo
+*.swp
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
 .DS_Store
 *.rtf
 /outputs/checkpoint*/

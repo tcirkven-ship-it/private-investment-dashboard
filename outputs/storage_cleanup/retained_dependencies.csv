@@ -1,0 +1,9 @@
+path,classification,reason
+research/configs/yfinance_forward_simplified_v2.json,active,frozen strategy
+src/paper/simple_ledger.py,active,active ledger
+data/archive/yfinance_phase1b_cas/manifests/2026-06-22T_currentZ.json,active,canonical baseline snapshot
+outputs/storage_cleanup/retained_manifests/checkpoint2_full_universe_manifest.json,active,compact logical manifest
+outputs/experiment_runs/EXP-0014,audit,compact score/semantic evidence except regenerable factor-level table
+outputs/experiment_runs/EXP-0016/daily_rehearsal_2,audit,latest valid simplified rehearsal
+.venv,uncertain_retained,currently used tested environment
+data/raw/yfinance,uncertain_retained,Phase 1A non-CAS reconstruction dependency

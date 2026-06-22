@@ -1,0 +1,15 @@
+{
+  "all_objects_before": 17616,
+  "logical_files": 20518,
+  "logical_original_comparisons": 20518,
+  "logical_original_failures": [],
+  "manifest": "data/archive/yfinance_phase1b_cas/manifests/2026-06-22T_currentZ.json",
+  "object_failures": [],
+  "orphan_bytes": 0,
+  "orphan_objects": 0,
+  "orphans_deleted": 0,
+  "reconstructed_files": 20518,
+  "referenced_unique_objects": 17616,
+  "schema": "YF-CAS-CLEANUP-1.0.0",
+  "validation_pass": true
+}
