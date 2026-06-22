@@ -1,0 +1,96 @@
+{
+  "protocol_id": "RP-001-BEST-EFFORT-V1",
+  "frozen_at_utc": "2026-06-21T09:45:00Z",
+  "classification": "preliminary_free_data_research",
+  "decision_rule": "Complete the requested research using the best zero-cost evidence available, while retaining an automatic definitive-fail when a structural data-integrity gate fails.",
+  "raw_sources": {
+    "universe_snapshot": "data/raw/universe/2026-06-21/OEF_fund_data.xml",
+    "universe_as_of": "2026-06-18",
+    "prices": "Yahoo Finance via yfinance 1.4.0",
+    "benchmark_references": "FRED snapshot 2026-06-21"
+  },
+  "universe": {
+    "name": "current_OEF_equity_holdings_deduplicated",
+    "purpose": "bounded liquid US mega-cap prototype",
+    "filters": [
+      "asset_class equals Equity",
+      "location equals United States",
+      "currency equals USD",
+      "at least 252 prior valid adjusted-close observations",
+      "signal-date raw close at least USD 5",
+      "median prior-63-session dollar volume at least USD 5 million",
+      "one share class per issuer; retain the higher current OEF-weight class"
+    ],
+    "ticker_normalization": {
+      "BRKB": "BRK-B",
+      "BFB": "BF-B"
+    },
+    "known_bias": "Current 2026 holdings are projected backward. Survivorship, membership, and issuer-selection bias are unavoidable and disqualify definitive historical claims."
+  },
+  "calendar": {
+    "price_request": "max_daily",
+    "analysis_start": "2010-01-01",
+    "development_start": "2010-01-01",
+    "development_end": "2019-12-31",
+    "walk_forward_start": "2020-01-01",
+    "walk_forward_end": "2022-12-31",
+    "final_holdout_start": "2023-01-01",
+    "final_holdout_end": "2026-06-18",
+    "holdout_access_rule": "Run only after pre-holdout code, costs, primary candidate, and decision thresholds are frozen."
+  },
+  "candidates": {
+    "primary": {
+      "id": "C03-M",
+      "signal": "adjusted total return from 252 sessions before the signal date through 21 sessions before the signal date",
+      "direction": "higher_is_better",
+      "portfolio_size": 30,
+      "weighting": "equal_weight",
+      "selection": "month_end_signal_next_session_fill",
+      "rank_buffer": 60,
+      "weight_correction": "quarterly",
+      "weekly_contribution_orders_max": 3
+    },
+    "preregistered_diagnostics": [
+      {"id": "EW-ALL", "signal": "none", "portfolio_size": "all_eligible"},
+      {"id": "C03-M-6-1", "lookback_sessions": 126, "skip_sessions": 21, "portfolio_size": 30},
+      {"id": "C03-M-9-1", "lookback_sessions": 189, "skip_sessions": 21, "portfolio_size": 30},
+      {"id": "C03-M-N10", "lookback_sessions": 252, "skip_sessions": 21, "portfolio_size": 10},
+      {"id": "C03-M-N20", "lookback_sessions": 252, "skip_sessions": 21, "portfolio_size": 20},
+      {"id": "C03-M-N40", "lookback_sessions": 252, "skip_sessions": 21, "portfolio_size": 40},
+      {"id": "C03-M-N50", "lookback_sessions": 252, "skip_sessions": 21, "portfolio_size": 50},
+      {"id": "L-LOWVOL", "signal": "negative_252_session_volatility", "portfolio_size": 30},
+      {"id": "ML-EQUAL-RANK", "signal": "mean_percentile_12_1_momentum_and_negative_252_session_volatility", "portfolio_size": 30}
+    ],
+    "historical_fundamental_candidates": "not_testable_credibly_with_available_free_vintages",
+    "current_fundamental_overlay": "descriptive_forward_snapshot_only"
+  },
+  "contributions": {
+    "weekly": "USD 250 for each calendar Friday, mapped to the next trading session",
+    "biweekly": "aggregate consecutive weekly flows into USD 500 every second Friday",
+    "monthly": "aggregate all weekly flows in each calendar month to that month's last Friday, mapped to the next trading session",
+    "comparison_rule": "Each strategy and its benchmark receive byte-identical external flows within a scenario."
+  },
+  "execution": {
+    "fractional_shares": true,
+    "fill": "next_trading_session_adjusted_close_with_adverse_price_impact",
+    "no_margin": true,
+    "minimum_strategy_order_usd": 25.0,
+    "tie_break": "score_descending_then_63_day_dollar_volume_descending_then_ticker_ascending"
+  },
+  "cost_models": {
+    "low": {"commission_min_per_order_usd": 0.35, "one_way_price_impact_bps": 1.0},
+    "expected": {"commission_min_per_order_usd": 0.35, "one_way_price_impact_bps": 5.0},
+    "stressed": {"commission_min_per_order_usd": 1.0, "one_way_price_impact_bps": 10.0}
+  },
+  "benchmarks": ["SPY", "QQQ"],
+  "success_hurdles": {
+    "annualized_twr_advantage_vs_each": 0.01,
+    "xirr_advantage_vs_each": 0.01,
+    "stressed_active_return_positive_vs_each": true,
+    "volatility_vs_spy_max_multiple": 1.2,
+    "max_drawdown_vs_spy_max_worse_absolute": 0.05,
+    "turnover_max": 1.0,
+    "data_gate": "automatic_fail_for_definitive_or_conditional_pass_due_current_universe_and_missing_delisting_outcomes"
+  },
+  "random_seed": 20260621
+}

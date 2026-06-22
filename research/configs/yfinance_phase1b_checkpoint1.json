@@ -1,0 +1,102 @@
+{
+  "protocol_id": "RP-001-YFINANCE-1B-V1",
+  "status": "proposed_for_checkpoint_review_not_activated",
+  "created_at_utc": "2026-06-21T21:01:40Z",
+  "preserves_prior_fail": true,
+  "data_source": {
+    "allowed": "Yahoo Finance through Python yfinance only",
+    "yfinance_version": "1.4.0",
+    "capability_snapshot": "data/raw/yfinance_phase1b/2026-06-21T204918Z",
+    "snapshot_manifest_sha256": "f76313258c9bd11c768833bba5ad5753598f442dc540e64660d3fffc72cf2f91"
+  },
+  "evidence_tiers": {
+    "tier_1": "Historical price research on a current universe; survivor-biased",
+    "tier_2": "Exploratory non-point-in-time fundamental analysis using currently retrievable and potentially restated Yahoo Finance data",
+    "tier_3": "Prospective point-in-time paper portfolio from immutable retrieval snapshots"
+  },
+  "current_universe": {
+    "source": "yf.screen(EquityQuery), separately by Yahoo sector",
+    "region": "us",
+    "exchanges": ["NMS", "NYQ", "ASE"],
+    "screen_min_market_cap": 1000000000,
+    "screen_min_price": 5.0,
+    "screen_min_avg_daily_volume_3m": 200000,
+    "eligibility_min_market_cap": 2000000000,
+    "eligibility_min_price": 5.0,
+    "eligibility_min_trading_sessions": 504,
+    "signal_min_sessions": 252,
+    "liquidity_window_sessions": 63,
+    "liquidity_min_observations": 55,
+    "liquidity_min_median_dollar_volume": 5000000,
+    "country": "United States",
+    "trading_currency": "USD",
+    "fundamental_currency": "USD",
+    "excluded_sectors": ["Financial Services", "Real Estate"],
+    "excluded_types": ["foreign issuer or ADR", "limited partnership", "fund", "trust", "warrant", "unit", "ambiguous nonordinary equity", "recent IPO"],
+    "historical_universe_valid": false
+  },
+  "factor_admission": {
+    "minimum_core_overall_coverage": 0.8,
+    "minimum_core_each_sector_coverage": 0.7,
+    "supplemental_minimum_coverage": 0.6,
+    "missing_values": "never substitute zero",
+    "winsorization": "within current sector at 2.5% and 97.5%; market fallback when fewer than 20 valid sector names",
+    "ranking": "percentile, higher_is_better after direction normalization",
+    "redundancy_threshold_absolute_spearman": 0.85,
+    "admitted_price": ["M12_1", "M6_1", "TREND200", "VOL252"],
+    "admitted_quality": ["ROA", "GPA", "OP_MARGIN", "FCF_MARGIN", "DEBT_ASSETS", "DILUTION"],
+    "admitted_value": ["FCF_YIELD", "EBIT_EV", "SALES_EV", "BOOK_MARKET"],
+    "admitted_growth": ["REV_GROWTH", "MARGIN_CHANGE"],
+    "prospective_diagnostics": ["APPROX_ROIC", "CASH_CONVERSION", "NET_DEBT_EBITDA", "INTEREST_COVER", "EARN_YIELD", "OP_INC_GROWTH", "NI_GROWTH", "FCF_GROWTH", "ASSET_GROWTH", "EPS_REV_BREADTH", "EPS_TREND", "REV_EST_GROWTH", "SURPRISE4"],
+    "rejected": ["SHAREHOLDER_YIELD"]
+  },
+  "candidate_family": [
+    {"id": "YF-P", "categories": ["price"]},
+    {"id": "YF-QP", "categories": ["quality", "price"]},
+    {"id": "YF-QVP", "categories": ["quality", "value", "price"]},
+    {"id": "YF-QVGP", "categories": ["quality", "value", "growth", "price"]}
+  ],
+  "composite": {
+    "category_weights": "equal",
+    "factor_weights_within_category": "equal",
+    "minimum_present_factors_per_category": 2,
+    "minimum_present_fraction_per_category": 0.5,
+    "machine_learning": false,
+    "weight_grid_authorized": false
+  },
+  "portfolio": {
+    "primary_size": 30,
+    "size_sensitivities": [20, 40],
+    "weighting": "equal_target_weight",
+    "selection": "monthly",
+    "rank_buffer_multiple": 2.0,
+    "weight_correction": "quarterly",
+    "target_sector_cap": 0.25,
+    "sector_drift_review_cap": 0.3,
+    "target_industry_cap": 0.15,
+    "industry_drift_review_cap": 0.2,
+    "name_drift_cap": 0.075,
+    "gross_turnover_budget": 1.0,
+    "minimum_order_usd": 25.0,
+    "weekly_contribution_usd": 250.0,
+    "biweekly_sensitivity_usd": 500.0,
+    "contribution_orders_max": 3,
+    "fractional_primary": true,
+    "whole_share_sensitivity": true,
+    "benchmarks": ["SPY", "QQQ"]
+  },
+  "fundamental_historical_lag": {
+    "quarterly_calendar_days": 90,
+    "annual_calendar_days": 120,
+    "actual_filing_timestamps_available": false,
+    "restatement_vintages_available": false
+  },
+  "forward_experiment": {
+    "id": "YF-FWD-001",
+    "active": false,
+    "minimum_months": 36,
+    "preferred_months": 60,
+    "rule_change_creates_new_id": true
+  },
+  "checkpoint_stop": "No factor performance test, optimization, target portfolio, paper order, or live action is authorized before review"
+}

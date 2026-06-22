@@ -1,0 +1,81 @@
+{
+  "configuration_id": "YF-FWD-READINESS-1.0.0",
+  "status": "frozen_for_rehearsal_not_activated",
+  "strategy": {
+    "primary": "YF-QVP",
+    "categories": ["Quality", "Value", "Price"],
+    "ablations": ["YF-P", "YF-QP", "YF-QVGP"],
+    "portfolio_size": 30,
+    "equal_target_weight": 0.03333333333333333,
+    "selection_frequency": "monthly_after_complete_month_end_snapshot",
+    "retention_rank_max": 60,
+    "corrective_rebalance": "quarterly_after_March_June_September_December_reviews",
+    "weekly_contribution_usd": 250.0,
+    "contribution_schedule": "first_regular_trading_session_on_or_after_Friday",
+    "contribution_routing_max_names": 3,
+    "share_convention": "fractional",
+    "benchmarks": ["SPY", "QQQ"],
+    "sensitivities": {"portfolio_sizes": [20, 40], "share_convention": "whole", "biweekly_contribution_usd": 500.0}
+  },
+  "versions": {
+    "factor": "YF-FACTOR-1.0.0",
+    "alias": "YF-ALIAS-1.0.0",
+    "universe_query": "YF-UNIVERSE-1.0.0",
+    "universe_refresh": "YF-REFRESH-1.0.0",
+    "execution": "YF-EXEC-1.0.0",
+    "cost": "YF-COST-1.0.0",
+    "paper_ledger": "YF-LEDGER-1.0.0"
+  },
+  "execution": {
+    "interval": "5m",
+    "timezone": "America/New_York",
+    "submission_time": "15:45:00",
+    "window_end_inclusive": "15:55:00",
+    "regular_session_only": true,
+    "reference": "raw_Close_of_first_5m_bar_at_or_after_15:45",
+    "buy_limit_offset_bps": 10.0,
+    "sell_limit_offset_bps": 10.0,
+    "expiration": "15:55_America/New_York_same_session",
+    "partial_fill": "maximum_1_percent_of_first_crossed_5m_bar_volume; cancel_remainder_at_expiration",
+    "maximum_first_bar_volume_participation": 0.01,
+    "missing_or_stale_data": "unfilled_and_flagged; never substitute_daily_or_adjusted_close",
+    "unfilled_order": "cancel_at_expiration_and_retain_cash_or_position",
+    "retry": "one_new_order_next_regular_session_same_window_only_for_mandatory_exit_or_previously_approved_contribution; new_order_id_required",
+    "duplicate_order": "reject_same_order_id_or_same_ticker_side_decision_id",
+    "valuation_price": "raw_Close",
+    "adjusted_close_execution_prohibited": true
+  },
+  "costs": {
+    "broker_model": "IBKR_Pro_Tiered_US_direct_client_planning_model",
+    "whole_share_commission_per_share_usd": 0.0035,
+    "whole_share_minimum_usd": 0.35,
+    "maximum_fraction_of_trade_value": 0.01,
+    "fractional_commission_rate": 0.01,
+    "fractional_commission_minimum_usd": 0.01,
+    "expected_adverse_price_bps": 5.0,
+    "stressed_adverse_price_bps": 15.0,
+    "third_party_fees": "not modeled separately; readiness blocker before activation",
+    "verified_date": "2026-06-22",
+    "official_source": "https://www.interactivebrokers.com/en/pricing/commissions-stocks.php?re=amer"
+  },
+  "constraints": {
+    "minimum_order_usd": 25.0,
+    "target_sector_cap": 0.25,
+    "sector_drift_review_cap": 0.30,
+    "target_industry_cap": 0.15,
+    "industry_drift_review_cap": 0.20,
+    "name_drift_cap": 0.075,
+    "gross_discretionary_turnover_cap": 1.0,
+    "intended_order_notional_unfilled_threshold": 0.10
+  },
+  "success": {
+    "minimum_months": 36,
+    "preferred_months": 60,
+    "snapshot_reconstruction_minimum": 0.95,
+    "factor_coverage_overall_minimum": 0.80,
+    "factor_coverage_each_sector_minimum": 0.70,
+    "annualized_net_outperformance_each_benchmark": 0.01,
+    "paper_success_does_not_authorize_live_trading": true
+  },
+  "activation": {"active": false, "separate_explicit_user_instruction_required": true}
+}

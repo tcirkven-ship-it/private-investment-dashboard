@@ -1,0 +1,70 @@
+{
+  "configuration_id": "YF-FWD-SIMPLE-2.0.0",
+  "status": "frozen_not_activated",
+  "supersedes": "YF-FWD-READINESS-1.0.0",
+  "strategy": {
+    "primary": "YF-QVP",
+    "categories": ["Quality", "Value", "Price"],
+    "ablations": ["YF-P", "YF-QP", "YF-QVGP"],
+    "portfolio_size": 30,
+    "weighting": "equal_target_weight",
+    "selection_frequency": "monthly_after_final_completed_regular_session",
+    "retention_rank_max": 60,
+    "corrective_rebalance": "quarterly",
+    "contribution_routing_max_underweights": 3,
+    "fractional_primary": true,
+    "whole_share_sensitivity": true,
+    "benchmarks": ["SPY", "QQQ"]
+  },
+  "contributions": {
+    "amount": "external_nonnegative_input",
+    "date": "external_input",
+    "supported_examples_usd": [0, 250, 500, 1000],
+    "frequencies": ["weekly", "biweekly", "monthly", "irregular"],
+    "ranking_rules_independent_of_contribution": true,
+    "allocation": "add_cash_then_buy_at_most_three_largest_approved_underweights_without_contribution_driven_sales"
+  },
+  "execution": {
+    "version": "YF-DAILY-CLOSE-2.0.0",
+    "decision_time": "after_snapshot_and_final_completed_regular_session",
+    "paper_price": "next_trading_session_raw_official_Close",
+    "missing_price": "defer_to_next_session_with_valid_positive_raw_Close",
+    "same_day_execution_prohibited": true,
+    "adjusted_close_execution_prohibited": true,
+    "valuation_price": "raw_Close",
+    "intraday_data_required": false,
+    "broker_specific_assumptions": false
+  },
+  "costs": {
+    "primary_transaction_cost": 0.0,
+    "commissions": 0.0,
+    "spreads": 0.0,
+    "slippage": 0.0,
+    "market_impact": 0.0,
+    "taxes": 0.0,
+    "currency_conversion": 0.0,
+    "broker_specific_charges": 0.0,
+    "disclosure": "The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges."
+  },
+  "constraints": {
+    "target_sector_cap": 0.25,
+    "sector_drift_review_cap": 0.30,
+    "target_industry_cap": 0.15,
+    "industry_drift_review_cap": 0.20,
+    "name_drift_cap": 0.075,
+    "gross_discretionary_turnover_review_level": 1.0
+  },
+  "versions": {
+    "factor": "YF-FACTOR-1.0.0",
+    "alias": "YF-ALIAS-1.0.0",
+    "universe_query": "YF-UNIVERSE-1.0.0",
+    "universe_refresh": "YF-REFRESH-1.0.0",
+    "paper_ledger": "YF-SIMPLE-LEDGER-2.0.0"
+  },
+  "activation": {
+    "experiment_id": "YF-FWD-SIMPLE-001",
+    "active": false,
+    "old_execution_heavy_YF-FWD-001_must_not_activate": true,
+    "explicit_user_approval_required": true
+  }
+}
