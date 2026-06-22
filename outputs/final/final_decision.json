@@ -1,0 +1,35 @@
+{
+  "as_of": "2026-06-21",
+  "decision": "FAIL",
+  "approved_for_live_active_use": false,
+  "primary_candidate": "C03-M",
+  "critical_failures": [
+    "current-membership survivorship bias",
+    "missing inactive and delisted outcomes",
+    "historical point-in-time fundamentals unavailable",
+    "final-holdout underperformance versus QQQ",
+    "stressed-cost final-holdout underperformance versus QQQ",
+    "annualized turnover above 100%",
+    "QQQ uncertainty interval includes zero",
+    "parameter stability below threshold",
+    "implementation burden and fractional closing-order mismatch"
+  ],
+  "stitched_metrics": {
+    "total_contributed_usd": 214500.0,
+    "strategy_ending_value_usd": 1570117.47,
+    "strategy_annualized_twr": 0.205457,
+    "strategy_xirr": 0.214228,
+    "strategy_max_drawdown": -0.324066,
+    "strategy_annualized_turnover": 1.776553,
+    "active_twr_vs_spy": 0.065164,
+    "active_twr_vs_qqq": 0.012445
+  },
+  "holdout_metrics": {
+    "active_twr_vs_spy": 0.114706,
+    "active_twr_vs_qqq": -0.008264,
+    "stressed_active_twr_vs_qqq": -0.009867,
+    "annualized_turnover": 1.72
+  },
+  "evidence_ceiling": "Exploratory free-data result only",
+  "recommended_status": "Passive benchmarks remain the decision baseline; C03-M may be forward paper-tracked only."
+}
