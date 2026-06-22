@@ -1,7 +1,7 @@
 # Simplified forward-research activation checklist
 
-**Current readiness:** PASS  
-**Active prospective design:** `YF-FWD-SIMPLE-001`, not activated  
+**Current readiness:** PASS
+**Active prospective design:** `YF-FWD-SIMPLE-001`, `active_waiting_for_first_month_end`
 **Superseded:** execution-heavy `YF-FWD-001`, never activated
 
 | Gate | Status |
@@ -12,14 +12,16 @@
 | Next-valid-session raw-Close convention frozen | PASS |
 | Variable contributions and SPY/QQQ parity | PASS |
 | Deterministic simplified raw-share ledger | PASS |
-| Relevant tests | PASS — 44 |
+| Relevant tests | PASS — 48 |
 | Two daily-price rehearsals | PASS — byte-identical |
 | Immutable source snapshot and manifests | PASS |
 | Code/config hashes | PASS |
-| Git version control | PASS — `dfa839130a9fc5ea288c07cabefeae2f0e1240c4` |
-| Separate explicit activation approval | PENDING — not given |
+| Git version control | PASS — post-cleanup base `131632b962c457e71828acd2f5c7cbf2ff19c5b6` |
+| Separate explicit activation approval | PASS — received 2026-06-22 |
+| Immutable activation manifest | PASS |
+| Contribution events registered | 0 — no funding invented |
+| Mid-month initial ranking | NOT CREATED — required wait observed |
 
 > The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges.
 
-No broker, fee schedule, intraday data, partial-fill model or precise order-time simulation is an activation dependency. PASS means ready to start the simplified paper observation after separate approval; it is not a live-trading recommendation.
-
+No broker, fee schedule, intraday data, partial-fill model or precise order-time simulation is an activation dependency. The experiment is active but waiting for the first completed month-end; it is not a live-trading recommendation.

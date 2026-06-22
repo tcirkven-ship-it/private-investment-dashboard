@@ -1,7 +1,7 @@
 # Simplified forward research card
 
-**Readiness:** PASS  
-**Status:** ready but not activated  
+**Readiness:** PASS
+**Status:** `active_waiting_for_first_month_end`
 **Prospective ID:** `YF-FWD-SIMPLE-001`
 
 - Strategy: YF-QVP (Quality + Value + Price)
@@ -13,7 +13,8 @@
 - Costs: zero in primary paper research
 - Comparators: contribution-matched SPY, QQQ and YF-P
 - Evidence horizon: 36 months minimum, 60 preferred
-- Code/config freeze: `dfa839130a9fc5ea288c07cabefeae2f0e1240c4`
+- Post-cleanup activation base: `131632b962c457e71828acd2f5c7cbf2ff19c5b6`
+- Contribution events currently registered: none
 
 > The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges.
 

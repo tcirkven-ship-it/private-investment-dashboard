@@ -20,3 +20,6 @@ The previous execution-heavy `YF-FWD-001` remains superseded without activation.
 
 PASS means the simplified paper observation can begin reproducibly. It does not mean the strategy works, does not authorize live trading and does not imply paper returns are realizable.
 
+## Subsequent status
+
+This readiness decision remains historical and unchanged. The separately authorized activation occurred on 2026-06-22 after validated storage cleanup; current status is recorded in `outputs/final/yfinance_simple_activation_status.md`.

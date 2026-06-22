@@ -1,6 +1,6 @@
 {
   "configuration_id": "YF-FWD-SIMPLE-2.0.0",
-  "status": "frozen_not_activated",
+  "status": "active_waiting_for_first_month_end",
   "supersedes": "YF-FWD-READINESS-1.0.0",
   "strategy": {
     "primary": "YF-QVP",
@@ -63,8 +63,11 @@
   },
   "activation": {
     "experiment_id": "YF-FWD-SIMPLE-001",
-    "active": false,
+    "active": true,
     "old_execution_heavy_YF-FWD-001_must_not_activate": true,
-    "explicit_user_approval_required": true
+    "explicit_user_approval_required": true,
+    "explicit_user_approval_received": true,
+    "activated_at_utc": "2026-06-22T11:49:20Z",
+    "frozen_post_cleanup_commit": "131632b962c457e71828acd2f5c7cbf2ff19c5b6"
   }
 }

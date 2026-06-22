@@ -1,0 +1,78 @@
+{
+  "schema_version": "YF-ACTIVATION-MANIFEST-1.0.0",
+  "experiment_id": "YF-FWD-SIMPLE-001",
+  "registry_id": "EXP-0017",
+  "immutable": true,
+  "activated_at_utc": "2026-06-22T11:49:20Z",
+  "status": "active_waiting_for_first_month_end",
+  "authorization_scope": "simplified broker-agnostic prospective paper research only",
+  "live_trading_authorized": false,
+  "mid_month_initial_ranking_created": false,
+  "frozen_git": {
+    "readiness_commit": "dfa839130a9fc5ea288c07cabefeae2f0e1240c4",
+    "post_cleanup_activation_base_commit": "131632b962c457e71828acd2f5c7cbf2ff19c5b6",
+    "readiness_commit_is_ancestor": true,
+    "core_strategy_diff_between_commits": "none",
+    "activation_only_worktree_changes": [
+      "configuration activation status and metadata",
+      "experiment registry status",
+      "activation manifest and reports",
+      "empty contribution ledger and schema",
+      "decision log and handoff"
+    ]
+  },
+  "strategy": {
+    "primary": "YF-QVP",
+    "categories": ["Quality", "Value", "Price"],
+    "portfolio_size": 30,
+    "weighting": "equal_target_weight",
+    "monthly_ranking": "after final completed regular trading session",
+    "retention_rank_max": 60,
+    "corrective_review": "quarterly",
+    "contribution_routing_max_underweights": 3,
+    "contribution_driven_selling": false,
+    "fractional_mathematical_shares": true,
+    "benchmarks": ["SPY", "QQQ"],
+    "frozen_comparison": "YF-P",
+    "frozen_ablations": ["YF-QP", "YF-QVGP"]
+  },
+  "execution": {
+    "transaction_and_valuation_price": "first positive raw daily Close on a session strictly after the decision date",
+    "missing_or_nonpositive_close": "defer to next valid session",
+    "same_day_execution": false,
+    "adjusted_close_transactions_or_valuation": false,
+    "transaction_cost": 0.0
+  },
+  "cost_disclosure": "The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges.",
+  "contributions": {
+    "ledger": "outputs/prospective/YF-FWD-SIMPLE-001/contribution_events.jsonl",
+    "schema": "outputs/prospective/YF-FWD-SIMPLE-001/contribution_event_schema.json",
+    "registered_event_count": 0,
+    "registered_total_usd": 0.0,
+    "no_event_was_invented": true,
+    "ledger_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "artifact_sha256": {
+    "active_bundle": "7d01aa67411398218c7e0985972503832e3b228fd3e13213134e4a022c1d32f2",
+    "configuration": "f6790f0eef46cf09f6054b84747d55b3e6dd0da5597bc1f840f1fe5fac6db88a",
+    "alias_definition": "4a49cf35323fd75f64677dacc4cccb502400fc595f0c512ef3ff246f70e8cbba",
+    "factor_implementation": "334009bd70f61100430ed9329a3cb261521cd276384050f7fb216957c8f611b6",
+    "universe_pull": "2e0b095bd519e76467ef4e09ad8214cc422aaf51dc7a3ad83666e95ca8b60440",
+    "universe_refresh": "5b9256fe1643219f4652a72ff0d952a260cd018e74121cbe794eeca650743bf2",
+    "paper_ledger": "42b2b5d15489afdab542385669c7a3e72a3a316537a4729c17d1ce190041c644",
+    "contribution_mechanism": "56a4d5b34f97aac11b764110e83fb7d2c4c59f8286274d177d0f86ffbada5bd4",
+    "contribution_schema": "a39cd806eccf1f4f6218457b2c0a31c793a2425c22ebff98b3b5f9c0a65db881",
+    "environment_lock": "6218e674d0b566fc25f84d2e1cf005dc9d7d95f52822bfc9b1a87076c93a2972",
+    "checkpoint2_logical_manifest": "d94f0498e79eddf8b3c96b2b0c56d9dec82fdb9460a4e5b3f30ac6ee5c2c3373",
+    "checkpoint2_cas_manifest": "7ad9aa4ae051b7ea5df4922163cce5431132d42cce4d11063987439d77d2a1ac"
+  },
+  "verification": {
+    "tests_passed": 48,
+    "tests_failed": 0,
+    "post_cleanup_archive_reconstruction": true,
+    "post_cleanup_score_reconstruction": true,
+    "twin_daily_rehearsals_deterministic": true,
+    "benchmark_cash_flow_parity": true
+  },
+  "next_action": "After the first completed month-end regular session following activation, archive a new full current snapshot and calculate the initial paper decision; do nothing mid-month."
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": "YF-CONTRIBUTION-EVENT-1.0.0",
+  "experiment_id": "YF-FWD-SIMPLE-001",
+  "storage": "append-only JSON Lines",
+  "required_fields": [
+    "event_date",
+    "amount",
+    "currency",
+    "event_id",
+    "created_at_utc",
+    "source_or_note",
+    "manifest_link",
+    "checksum"
+  ],
+  "rules": {
+    "currency": "USD",
+    "amount": "finite number greater than or equal to zero",
+    "event_id": "unique within experiment",
+    "checksum": "SHA-256 of canonical event payload excluding checksum",
+    "application": "identical external flow to YF-QVP, SPY and QQQ ledgers",
+    "strategy_independence": "events cannot change factors, ranks, eligibility, weights, entry rules or exit rules"
+  },
+  "example_only_not_registered": {
+    "event_date": "YYYY-MM-DD",
+    "amount": 0,
+    "currency": "USD",
+    "event_id": "USER-SUPPLIED-UNIQUE-ID",
+    "created_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+    "source_or_note": "explicit source or note",
+    "manifest_link": "research/activation_manifests/YF-FWD-SIMPLE-001.json",
+    "checksum": "computed by src/paper/contribution_events.py"
+  }
+}

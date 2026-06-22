@@ -6,11 +6,17 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-22 10:50 CEST (Europe/Zagreb)
+2026-06-22 13:49 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
-Phase 1B broker-agnostic simplification is **complete with a PASS activation-readiness decision**. The new prospective version `YF-FWD-SIMPLE-001`/EXP-0017 is `registered_not_started`; it was not activated.
+`YF-FWD-SIMPLE-001`/EXP-0017 is **active** with status `active_waiting_for_first_month_end`. Activation succeeded after dependency-checked storage cleanup. No mid-month ranking, target portfolio, paper fill or live order was created.
+
+The post-cleanup frozen base is Git commit `131632b962c457e71828acd2f5c7cbf2ff19c5b6`; readiness commit `dfa839130a9fc5ea288c07cabefeae2f0e1240c4` is its verified ancestor and the core strategy did not change. Active bundle SHA-256 is `7d01aa67411398218c7e0985972503832e3b228fd3e13213134e4a022c1d32f2`; activation-state configuration SHA-256 is `f6790f0eef46cf09f6054b84747d55b3e6dd0da5597bc1f840f1fe5fac6db88a`.
+
+The append-only contribution ledger is active and contains zero events. No funding was invented. The next scheduled action is after the first completed month-end regular session following activation: retrieve and archive a new full snapshot, calculate frozen ranks and constraints, and create the initial paper decision using only explicit contribution events. See `research/46_first_month_end_run_instructions.md` and `outputs/prospective/YF-FWD-SIMPLE-001/activation_manifest.json`.
+
+Pre-activation cleanup recovered 1.071 GB net. The retained CAS reconstructed all 20,518 logical files with zero object failures; frozen scores reproduced byte-for-byte, twin simplified rehearsals matched, and all 48 tests pass. Full evidence is in `research/45_storage_cleanup_report.md`.
 
 The prior execution-heavy `YF-FWD-001`/EXP-0013 is `superseded_not_started`. Its intraday, limit-order and IBKR artifacts remain preserved as historical work but are not active dependencies.
 
@@ -29,11 +35,11 @@ Mandatory disclosure: **The paper results exclude commissions, spreads, slippage
 
 The active implementation is `src/paper/simple_ledger.py`; the frozen config is `research/configs/yfinance_forward_simplified_v2.json`. Forty-four relevant tests pass. Two synthetic daily mechanics rehearsals under `outputs/experiment_runs/EXP-0016/daily_rehearsal_1` and `daily_rehearsal_2` are byte-identical with tree hash `8fbf9b281f0b29d2bbeaf0f5350f11d2bedb603143a946675f4d4a0fc7575d1b`.
 
-Git was initialized. Frozen code/config commit: `dfa839130a9fc5ea288c07cabefeae2f0e1240c4`. Code/config bundle SHA-256: `6001d6012a50085e077bcf38d84e29ba5c4a3d780721207de485fe58cbda860d`.
+Git was initialized. Original readiness code/config commit: `dfa839130a9fc5ea288c07cabefeae2f0e1240c4`. Post-cleanup activation base: `131632b962c457e71828acd2f5c7cbf2ff19c5b6`.
 
 Current deliverables: `research/41`–`research/44`, updated `research/27`, `35`, `37`–`40`, `outputs/final/simplified_forward_research_card.md`, and the revised activation checklist.
 
-Next action requires a separate explicit user instruction to activate `YF-FWD-SIMPLE-001`. PASS readiness is not activation, a recommendation or live-trading authorization.
+Activation is paper research only, not a recommendation or live-trading authorization.
 
 ### Superseded Checkpoint 3 decision
 
@@ -49,8 +55,8 @@ and QQQ ledgers. YF-P/YF-QP/YF-QVGP are ablations only. N=20/40, whole shares,
 and USD 500 biweekly are operational sensitivities.
 
 A yfinance-only no-return intraday smoke test archived six securities at 1m,
-5m and 15m intervals under
-`data/raw/yfinance_phase1b_checkpoint3/intraday_smoke/`. Five-minute bars were
+5m and 15m intervals. Its superseded raw tree was removed after retaining the
+compact manifest under `outputs/storage_cleanup/retained_manifests/`. Five-minute bars were
 selected for a 15:45–15:55 America/New_York paper limit window: 60 sessions,
 three window bars/session, zero duplicate timestamps and zero missing OHLC in
 the window. One-minute data retained only seven sessions and had 11 missing
@@ -95,10 +101,11 @@ enriched at the preliminary USD 2B threshold, and 698 final eligible domestic
 USD nonfinancial/non-Real-Estate issuers. All 698 final ticker bundles completed
 with zero endpoint errors.
 
-The raw snapshot is
-`data/raw/yfinance_phase1b_checkpoint2/2026-06-22T_currentZ/`; manifest SHA-256
+The redundant uncompressed raw tree was removed after full checksum reconstruction.
+Its retained logical manifest is
+`outputs/storage_cleanup/retained_manifests/checkpoint2_full_universe_manifest.json`; SHA-256
 is `d94f0498e79eddf8b3c96b2b0c56d9dec82fdb9460a4e5b3f30ac6ee5c2c3373`.
-The 790.78 MB logical snapshot is archived in a 151.53 MB reconstructable gzip
+The 790.78 MB logical snapshot remains in a reconstructable gzip
 content-addressed manifest at
 `data/archive/yfinance_phase1b_cas/manifests/2026-06-22T_currentZ.json`.
 
@@ -132,9 +139,10 @@ constraint. Work stopped before factor-performance testing, strategy
 optimization, target-portfolio generation, paper orders, or live action.
 
 EXP-0012 audited yfinance 1.4.0 on 110 stocks—ten from each Yahoo sector—using
-a sample constructed only with `yf.screen(EquityQuery)`. The immutable snapshot
-is `data/raw/yfinance_phase1b/2026-06-21T204918Z/`; its manifest hash is
-`f76313258c9bd11c768833bba5ad5753598f442dc540e64660d3fffc72cf2f91`.
+a sample constructed only with `yf.screen(EquityQuery)`. Its superseded raw
+sample was removed after retaining the compact manifest at
+`outputs/storage_cleanup/retained_manifests/checkpoint1_capability_manifest.json`;
+the original manifest hash is `f76313258c9bd11c768833bba5ad5753598f442dc540e64660d3fffc72cf2f91`.
 
 Key capability results:
 
