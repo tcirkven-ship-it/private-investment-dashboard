@@ -1,0 +1,351 @@
+# Handoff
+
+## Project
+
+Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
+
+## Last updated
+
+2026-06-22 10:50 CEST (Europe/Zagreb)
+
+## Active checkpoint
+
+Phase 1B broker-agnostic simplification is **complete with a PASS activation-readiness decision**. The new prospective version `YF-FWD-SIMPLE-001`/EXP-0017 is `registered_not_started`; it was not activated.
+
+The prior execution-heavy `YF-FWD-001`/EXP-0013 is `superseded_not_started`. Its intraday, limit-order and IBKR artifacts remain preserved as historical work but are not active dependencies.
+
+Active frozen protocol:
+
+- YF-QVP, Quality + Value + Price, N=30, equal target weights;
+- monthly ranks after the completed month-end session, retain through rank 60, quarterly correction and existing concentration limits;
+- YF-P/YF-QP/YF-QVGP fixed as ablations only;
+- contribution amount/date supplied externally, including zero, USD 250/500/1,000, other positives and irregular dates;
+- cash routed to at most three largest approved underweights without contribution-driven sales;
+- first valid next-session raw official Close for paper buys/sells and raw-Close valuation; no same-day execution after completed data and no Adjusted Close execution;
+- exact contribution parity for SPY and QQQ;
+- zero transaction costs in the primary paper ledger.
+
+Mandatory disclosure: **The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges.** This is intentional simplification, not a realizable-return claim.
+
+The active implementation is `src/paper/simple_ledger.py`; the frozen config is `research/configs/yfinance_forward_simplified_v2.json`. Forty-four relevant tests pass. Two synthetic daily mechanics rehearsals under `outputs/experiment_runs/EXP-0016/daily_rehearsal_1` and `daily_rehearsal_2` are byte-identical with tree hash `8fbf9b281f0b29d2bbeaf0f5350f11d2bedb603143a946675f4d4a0fc7575d1b`.
+
+Git was initialized. Frozen code/config commit: `dfa839130a9fc5ea288c07cabefeae2f0e1240c4`. Code/config bundle SHA-256: `6001d6012a50085e077bcf38d84e29ba5c4a3d780721207de485fe58cbda860d`.
+
+Current deliverables: `research/41`–`research/44`, updated `research/27`, `35`, `37`–`40`, `outputs/final/simplified_forward_research_card.md`, and the revised activation checklist.
+
+Next action requires a separate explicit user instruction to activate `YF-FWD-SIMPLE-001`. PASS readiness is not activation, a recommendation or live-trading authorization.
+
+### Superseded Checkpoint 3 decision
+
+Phase 1B Checkpoint 3 is **complete with an activation-readiness FAIL**.
+`YF-FWD-001`/EXP-0013 remains `registered_not_started`; activation was not
+performed.
+
+The inactive hypothesis is frozen for readiness as YF-QVP, Quality + Value +
+Price, N=30, equal target weights, monthly selection, rank-60 retention,
+quarterly correction, USD 250 on the first session on/after Friday, maximum
+three underweights, fractional primary, and separate contribution-matched SPY
+and QQQ ledgers. YF-P/YF-QP/YF-QVGP are ablations only. N=20/40, whole shares,
+and USD 500 biweekly are operational sensitivities.
+
+A yfinance-only no-return intraday smoke test archived six securities at 1m,
+5m and 15m intervals under
+`data/raw/yfinance_phase1b_checkpoint3/intraday_smoke/`. Five-minute bars were
+selected for a 15:45–15:55 America/New_York paper limit window: 60 sessions,
+three window bars/session, zero duplicate timestamps and zero missing OHLC in
+the window. One-minute data retained only seven sessions and had 11 missing
+window rows; 15-minute data could not resolve a ten-minute lifecycle.
+
+Versioned universe-refresh and raw-share ledger code is in `src/paper/`.
+Forty-four repository tests pass, covering contributions, fractional/whole
+orders, commissions, adverse prices, full/partial/unfilled orders, duplicate
+prevention, raw-cash constraints, dividends, forward/reverse splits,
+missing/stale prices, eligibility/rank exits, trimming, concentration, corporate
+exceptions and benchmark parity.
+
+The final two complete rehearsals under `outputs/experiment_runs/EXP-0015/rehearsal_3`
+and `rehearsal_4` are byte-identical. They used the same Checkpoint 2 score/raw
+snapshot and archived 2026-06-18 intraday bars; they are not prospective trades
+or recommendations. SPY and QQQ received identical flow/execution rules.
+
+Readiness fails two hard gates:
+
+1. the workspace is not a Git repository, so no required Git commit hash can be
+   recorded; and
+2. IBKR Tiered base/fractional commissions are modeled, but exchange, clearing,
+   regulatory and pass-through fees are not completely frozen.
+
+Checkpoint 3 deliverables are `research/35` through `research/40`,
+`research/configs/yfinance_forward_readiness_v1.json`,
+`outputs/experiment_runs/EXP-0015/`, and
+`outputs/final/yfinance_activation_checklist.md`.
+
+Next action: establish version control, implement/freeze the complete fee
+schedule, regenerate hashes/tests/rehearsals under a new readiness version, and
+request review. Even a later readiness PASS would still require a separate
+explicit instruction to activate.
+
+Phase 1B Checkpoint 2 is **complete with a conditional pass for current research
+implementation**. This is not strategy approval.
+
+EXP-0014 constructed a non-truncated yfinance-only current universe using 110
+sector × market-cap queries. The maximum query leaf was 106, so Yahoo's
+250-result cap was not reached. Counts were 2,207 unique screened names, 1,876
+enriched at the preliminary USD 2B threshold, and 698 final eligible domestic
+USD nonfinancial/non-Real-Estate issuers. All 698 final ticker bundles completed
+with zero endpoint errors.
+
+The raw snapshot is
+`data/raw/yfinance_phase1b_checkpoint2/2026-06-22T_currentZ/`; manifest SHA-256
+is `d94f0498e79eddf8b3c96b2b0c56d9dec82fdb9460a4e5b3f30ac6ee5c2c3373`.
+The 790.78 MB logical snapshot is archived in a 151.53 MB reconstructable gzip
+content-addressed manifest at
+`data/archive/yfinance_phase1b_cas/manifests/2026-06-22T_currentZ.json`.
+
+Version `YF-ALIAS-1.0.0` and `YF-FACTOR-1.0.0` are implemented and tested.
+Twenty-two tests pass. Semantic QA demoted `OP_MARGIN`, `DILUTION`, and
+`EBIT_EV`; shareholder yield remains rejected. The frozen current primary sets
+are:
+
+- Price: `M12_1`, `M6_1`, `TREND200`, inverse `VOL252`;
+- Quality: `ROA`, `GPA`, `FCF_MARGIN`, inverse `DEBT_ASSETS`;
+- Value: `FCF_YIELD`, `SALES_EV`, `BOOK_MARKET`; and
+- Growth: `REV_GROWTH`, `MARGIN_CHANGE`.
+
+Strict current scores exist for 698 YF-P, 676 YF-QP, 674 YF-QVP, and 672
+YF-QVGP names. They are research inspection tables, not approved holdings.
+`YF-QVP` is proposed—but not activated—as the primary prospective candidate;
+the other three remain ablations. N=30 is proposed with N=20/40 sensitivities.
+
+Checkpoint 2 deliverables are `research/29` through `research/34`,
+`outputs/experiment_runs/EXP-0014/`, and
+`outputs/final/yfinance_current_research_report.md`.
+
+`YF-FWD-001`/EXP-0013 remains `registered_not_started`. No historical return
+optimization, prospective activation, target portfolio, brokerage order, or
+live recommendation occurred. Next action requires explicit review of the
+factor freeze, paper-ledger tests, fill/cost convention, and proposed success
+criteria before any activation.
+
+Phase 1B first checkpoint is **complete** under a strict yfinance-only data
+constraint. Work stopped before factor-performance testing, strategy
+optimization, target-portfolio generation, paper orders, or live action.
+
+EXP-0012 audited yfinance 1.4.0 on 110 stocks—ten from each Yahoo sector—using
+a sample constructed only with `yf.screen(EquityQuery)`. The immutable snapshot
+is `data/raw/yfinance_phase1b/2026-06-21T204918Z/`; its manifest hash is
+`f76313258c9bd11c768833bba5ad5753598f442dc540e64660d3fffc72cf2f91`.
+
+Key capability results:
+
+- zero endpoint exceptions across the 110-stock run;
+- annual and trailing income/balance/cash-flow frames were nonempty for all
+  names; quarterly income/cash flow were nonempty for 105/103;
+- median history was five annual and six quarterly periods;
+- statement schemas were highly heterogeneous: 107–108 unique row sets;
+- current valuation, shares, estimates and revisions had broad coverage, but
+  are not historical observations;
+- the current US nonfinancial/non-Real-Estate analysis subset contained 66
+  names; most proposed raw factor inputs covered at least 98.48%; and
+- shareholder-yield inputs covered only 39.39% and were rejected.
+
+The snapshot inventory contains 2,324 files (142,856,913 bytes); all 110 ticker
+manifests and all 2,200 registered endpoint hashes passed validation.
+
+The proposed family is YF-P, YF-QP, YF-QVP and YF-QVGP with equal category
+weights. It is proposed for review, not performance-tested or activated.
+`YF-FWD-001`/EXP-0013 is reserved for a minimum 36-month prospective paper
+experiment but remains `registered_not_started`.
+
+Phase 1B checkpoint artifacts:
+
+- `research/22_yfinance_capability_audit.md`
+- `research/23_yfinance_factor_dictionary.md`
+- `research/24_yfinance_data_coverage.md`
+- `research/25_yfinance_strategy_specification.md`
+- `research/27_yfinance_forward_protocol.md`
+- `research/28_yfinance_limitations.md`
+- `research/configs/yfinance_phase1b_checkpoint1.json`
+- `outputs/experiment_runs/EXP-0012/`
+
+`research/26_yfinance_exploratory_results.md` and
+`outputs/final/yfinance_strategy_card.md` are intentionally deferred because
+the checkpoint prohibits strategy testing/selection before review.
+
+Phase 1A audit and gap analysis is **complete**. It preserves every existing
+experiment and the current FAIL decision. No new strategy optimization,
+factor-formula change, or holdout-based selection was performed.
+
+The corrected scope is: C03-M and the nine tested price variants failed the
+best-effort approval standard. The evidence does not establish failure of
+momentum generally, direct-stock strategies generally, or untested
+price-plus-fundamental strategies. The original mandate remains incomplete.
+
+## Current phase and decision
+
+The preliminary Phase One generation and Phase 1A audit are complete.
+
+Preserved decision: **FAIL for C03-M and the tested price-only generation**. No active individual-stock strategy is approved for live use. Phase Two is not authorized or implemented.
+
+The decisive report is `research/16_final_recommendation.md`; the standalone investor report is `outputs/final/final_research_report.md`.
+
+## Objective tested
+
+Determine whether a transparent, long-only individual-stock strategy funded with approximately USD 250 weekly can demonstrate credible after-cost out-of-sample performance against separate contribution-matched SPY and QQQ benchmarks.
+
+The primary frozen candidate was C03-M: 30 equal-weight current-OEF large-cap stocks selected monthly on 12–1-month momentum, with a rank-60 buffer, quarterly weight correction, weekly underweight-filling contributions, fractional units, and explicit expected/stressed costs.
+
+## Data used
+
+- FRED immutable benchmark references under `data/raw/fred/2026-06-21/`.
+- Validated SPY/QQQ yfinance histories under `data/raw/yfinance/2026-06-21/`.
+- Official iShares OEF holdings workbook dated 2026-06-18 under `data/raw/universe/2026-06-21/`.
+- 101 US USD OEF equity rows normalized to 100 issuer-deduplicated tickers.
+- Maximum-history yfinance price/action extracts for all 100 tickers under `data/raw/yfinance/oef_2026-06-21/`.
+
+All 100 ticker files passed checksums, schema, chronology, positive-price, nonnegative-volume and action checks. Ninety-one names had a 252-session lookback at the 2010 start; 97 did by 2015.
+
+The evidence ceiling remains exploratory because the current 2026 universe is projected backward and inactive securities, delisting outcomes, permanent identifiers and historical point-in-time fundamental vintages are unavailable.
+
+## Experiment history
+
+- EXP-0004: FRED file validation — pass.
+- EXP-0005: SPY/QQQ yfinance validation and FRED reconciliation — pass.
+- EXP-0006: eight accounting unit tests plus six integrated contribution/benchmark checks — pass.
+- EXP-0007: official OEF universe extraction — pass.
+- EXP-0008: 100-stock price/action validation — pass.
+- EXP-0009: preregistered pre-holdout price-family test — fail.
+- EXP-0010: one-use 2023–2026-06-18 holdout and robustness audit — fail.
+
+An initial EXP-0009 implementation run accidentally truncated the prior-252-session lookback. It was preserved under `outputs/experiment_runs/EXP-0009/invalid_run_lookback_truncation/`, fixed without changing research parameters, and rerun before the holdout.
+
+## Main results
+
+### Stitched 2010–2026 survivor-biased point estimates
+
+| Metric | C03-M | SPY | QQQ |
+|---|---:|---:|---:|
+| Total contributed | $214,500 | $214,500 | $214,500 |
+| Ending value | $1,570,117 | $820,567 | $1,403,434 |
+| Annualized TWR | 20.55% | 14.03% | 19.30% |
+| XIRR | 21.42% | 14.80% | 20.29% |
+| Maximum drawdown | -32.41% | -33.72% | -35.12% |
+
+The full-sample C03-M point estimate was +6.52 percentage points annualized TWR versus SPY and +1.24 versus QQQ. This does not overcome the structural data bias.
+
+### Final holdout
+
+- Active annualized TWR: +11.47 points versus SPY, **-0.83 point versus QQQ**.
+- Active XIRR: +11.66 points versus SPY, **-0.50 point versus QQQ**.
+- Stressed active TWR versus QQQ: **-0.99 point**.
+- Annualized turnover: **172%**.
+- Maximum sector weight reached 33.14%; sector-drift cap breached on 18 sessions.
+
+### Robustness
+
+- Stitched QQQ active-return bootstrap 95% interval: **-3.58% to +4.81%**; probability positive 63.1%.
+- Only 2 of 10 registered candidates were positive versus both benchmarks in both pre-holdout and holdout; those sizes had 258% and 875% holdout turnover.
+- Removing the best year reduced QQQ active return to +0.98 point.
+- Starting in 2015 reduced QQQ active return to +0.53 point.
+- Top stock MU represented approximately 7.45% of total portfolio profit, so one-stock dependence was not the primary failure.
+- Weekly, biweekly and monthly contribution timing had nearly identical return rates; monthly reduced cost and workload.
+
+## Why the strategy failed
+
+1. Current-membership survivorship bias and missing delisting outcomes.
+2. No credible historical point-in-time fundamentals; requested fundamental composites were not historically testable.
+3. Final-holdout and stressed-cost underperformance versus QQQ.
+4. Turnover far above the 100% cap.
+5. QQQ uncertainty interval includes zero.
+6. Parameter and rolling-period instability.
+7. Sector drift and excessive operational burden.
+8. IBKR's reviewed MOC workflow does not support fractional shares, so the modeled next-close convention is not literally implementable for fractional MOC orders.
+
+These are structural/critical failures; a conditional pass is prohibited.
+
+## Final deliverables
+
+- `research/00_executive_summary.md`
+- `research/10_results.md`
+- `research/11_robustness_and_falsification.md`
+- `research/12_execution_timing.md`
+- `research/13_portfolio_size.md`
+- `research/14_weekly_investment_playbook.md`
+- `research/15_risks_and_failure_modes.md`
+- `research/16_final_recommendation.md`
+- `research/17_phase_two_options.md`
+- `outputs/final/final_research_report.md`
+- `outputs/final/final_decision.json`
+- `outputs/final/strategy_card.md`
+- `outputs/final/phase_one_research_results.xlsx`
+- verified charts under `outputs/final/charts/`
+
+The final workbook SHA-256 is `df05dc886856d30a7c5c02d7114ea11fffb3cd142a0078144b3549bb9427785b`.
+
+## Final holdout status
+
+**Unavailable for future certification:** 2023-01-01 through 2026-06-18.
+
+Phase 1A found that the strategy outcome was generated in one batch after
+frozen hashes, but complete SPY/QQQ benchmark paths through 2026-06-18 existed
+before the strategy-code freeze and raw data were not access-separated. The
+period is therefore not a strictly untouched protocol-compliant holdout. There
+is no evidence that the strategy outcome was tuned against before its run.
+
+It cannot be reused to certify a redesigned strategy.
+
+## Phase 1A forensic findings
+
+- Independent calculations reproduce ending values, annualized TWR, XIRR,
+  volatility, drawdown, costs and frozen gross turnover within numerical
+  tolerance.
+- The engine is a synthetic Adjusted-Close total-return-unit ledger, not a
+  broker-reconcilable raw-share/dividend/corporate-action ledger.
+- Contributions map to the first session on or after Friday, not always the
+  next session after Friday.
+- The reported bootstrap is non-studentized and does not implement the full
+  preregistered uncertainty/multiple-testing procedure; its QQQ interval still
+  includes zero.
+- The selector targets a 25% sector cap, while the reported 18 breaches count
+  only sessions above a separate 30% drift threshold. About 314 stitched
+  sessions exceeded 25%.
+- Gross discretionary turnover was 177.66%; sells-only/half-gross was about
+  88.7%. The frozen gate explicitly used gross, so FAIL is unchanged.
+- Ten-year rolling QQQ consistency was weak (about 27.9% winning windows).
+- Factor diagnostics show the expected positive momentum and mega-cap tilts,
+  but are descriptive only because they inherit the survivor-biased universe.
+
+## Phase 1A deliverables
+
+- `research/18_research_audit_and_gap_analysis.md`
+- `research/19_backtest_calculation_audit.md`
+- `research/20_data_requirements_and_vendor_matrix.md`
+- `research/21_research_continuation_decision.md`
+- `outputs/final/corrected_executive_summary.md`
+- `outputs/experiment_runs/EXP-0011/phase1a_calculation_audit.json`
+- `outputs/experiment_runs/EXP-0011/phase1a_benchmark_diagnostics.json`
+
+## Required investor decision
+
+Before any new experiment, choose one evidence tier:
+
+1. research-grade paid data and full original-mandate rebuild;
+2. a paid but narrower, explicitly non-equivalent study; or
+3. zero-cost forward paper evidence for at least 3–5 years.
+
+Under a strict zero-cost constraint, only option 3 is currently defensible.
+
+## Operational recommendation
+
+- Do not deploy C03-M or any observed high-return size variant as a validated active strategy.
+- Keep contribution-matched passive ETFs as the decision baseline; exact allocation requires separate investor suitability, tax and currency decisions.
+- C03-M may be forward paper-tracked only.
+- Any continued zero-cost research should build prospective SEC as-filed fundamentals using an owner-provided compliant contact identity and archive dated universe/event snapshots.
+
+## Optional next step
+
+Phase Two requires explicit approval. The preferred no-cost option is a local forward-research ledger or spreadsheet that validates data and produces paper-only ranks/orders. No broker connection, credential storage, order routing or live automation should be built from this failed generation.
+
+## Instructions for the next agent
+
+Read `AGENTS.md`, this file, `research/00_executive_summary.md`, `research/16_final_recommendation.md`, and the experiment registry. Do not reuse the completed holdout, promote N=10/N=20 after observing returns, or represent the historical result as survivor-bias-free. Do not implement Phase Two without explicit user approval.

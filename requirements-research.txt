@@ -1,0 +1,4 @@
+# Prototype data acquisition. Pin the direct dependency; freeze transitive versions per snapshot.
+yfinance==1.4.0
+matplotlib==3.10.3
+lxml==6.0.2
