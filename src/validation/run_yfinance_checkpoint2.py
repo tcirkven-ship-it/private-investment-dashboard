@@ -150,7 +150,15 @@ def pct_return(series: pd.Series, recent: int, old: int) -> float | None:
     return float(series.iloc[-recent] / series.iloc[-old] - 1) if len(series) >= old else None
 
 
-def factor_values(ticker: str, ticker_dir: Path, info: dict, st: Statements, spy: pd.Series) -> tuple[dict, dict, list[dict]]:
+def through_session(frame: pd.DataFrame, as_of_session: pd.Timestamp | None) -> pd.DataFrame:
+    if as_of_session is None or frame.empty:
+        return frame
+    dates = pd.to_datetime(frame.index, utc=True, errors="coerce").tz_convert(None).normalize()
+    return frame.loc[np.asarray(dates <= as_of_session)].copy()
+
+
+def factor_values(ticker: str, ticker_dir: Path, info: dict, st: Statements, spy: pd.Series,
+                  as_of_session: pd.Timestamp | None = None) -> tuple[dict, dict, list[dict]]:
     inputs: dict[str, object] = {}
     for concept in st.config:
         value, provenance = st.current(concept)
@@ -159,7 +167,7 @@ def factor_values(ticker: str, ticker_dir: Path, info: dict, st: Statements, spy
     market_cap, ev = finite(info.get("marketCap")), finite(info.get("enterpriseValue"))
     inputs.update({"market_cap": market_cap, "enterprise_value": ev, "shares_outstanding": finite(info.get("sharesOutstanding")),
                    "operating_margins_info": finite(info.get("operatingMargins"))})
-    history = read_frame(ticker_dir / "history_daily.csv")
+    history = through_session(read_frame(ticker_dir / "history_daily.csv"), as_of_session)
     adjusted = pd.to_numeric(history.get("Adj Close", pd.Series(dtype=float)), errors="coerce").dropna()
     close = pd.to_numeric(history.get("Close", pd.Series(dtype=float)), errors="coerce")
     volume = pd.to_numeric(history.get("Volume", pd.Series(dtype=float)), errors="coerce")
@@ -340,12 +348,15 @@ def main() -> int:
     parser.add_argument("--snapshot", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--aliases", type=Path, default=Path("research/configs/yfinance_statement_aliases_v1.json"))
+    parser.add_argument("--as-of-session", type=pd.Timestamp,
+                        help="Ignore daily bars after this fully completed session (YYYY-MM-DD)")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     aliases = json.loads(args.aliases.read_text())
     universe = pd.read_csv(args.snapshot / "base_eligible_universe.csv")
     snapshot_time = json.loads((args.snapshot / "manifest.json").read_text()).get("completed_at_utc")
     spy_frame = read_frame(args.snapshot / "benchmarks" / "SPY_history_daily.csv")
+    spy_frame = through_session(spy_frame, args.as_of_session)
     spy = pd.to_numeric(spy_frame.get("Adj Close", pd.Series(dtype=float)), errors="coerce").dropna()
     factor_rows, semantics, alias_usage = [], [], []
     universe_lookup = universe.set_index("ticker").to_dict(orient="index")
@@ -358,7 +369,7 @@ def main() -> int:
             if info.get(key) is None and pd.notna(fallback.get(column)):
                 info[key] = fallback.get(column)
         st = Statements(ticker_dir, aliases)
-        values, inputs, tests = factor_values(ticker, ticker_dir, info, st, spy)
+        values, inputs, tests = factor_values(ticker, ticker_dir, info, st, spy, args.as_of_session)
         semantics.extend(tests)
         for concept in aliases["fields"]:
             _, source = st.current(concept)

@@ -25,3 +25,5 @@
 > The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges.
 
 No broker, fee schedule, intraday data, partial-fill model or precise order-time simulation is an activation dependency. The experiment is active but waiting for the first completed month-end; it is not a live-trading recommendation.
+
+**Subsequent reset:** this checklist is historical. EXP-0017 is a decoupled evidence ledger and no longer gates access to current scores. Daily/on-demand decision support is a separate version and does not imply a transaction.

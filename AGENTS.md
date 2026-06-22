@@ -2,7 +2,17 @@
 
 ## Purpose
 
-This repository contains a research-first investigation of a recurring-contribution, long-only US stock-selection strategy for an individual investor using Interactive Brokers. Phase One is research and validation, not production application development.
+This repository contains a research-first investigation and a minimal local decision-support implementation for a recurring-contribution, long-only US stock-selection strategy. It does not place orders or connect to a broker.
+
+## Current direction
+
+- Current YF-QVP scores and constrained model portfolios are available on demand after the latest fully completed daily market session.
+- Score timing, user review timing, and user transaction timing are independent clocks.
+- Month-end is a historical/rebalance research schedule, not a gate on current rankings.
+- The local scanner may retrieve current yfinance data, preserve immutable snapshots, accept optional holdings and contribution inputs, and create Markdown/CSV/HTML reports.
+- Scanner output is decision-support research, not prospective performance evidence, a live-trading instruction, or a claim of validated outperformance.
+- The formal paper-performance ledger records only explicitly chosen paper decisions; generating a score never creates a transaction.
+- Preserve the superseded month-end-only activation and all earlier failures as audit history.
 
 ## Required startup procedure
 
@@ -29,6 +39,7 @@ Before doing any work:
 - Separate facts, assumptions, interpretations, and recommendations.
 - Never guarantee future returns.
 - Never place live orders or request brokerage credentials.
+- Never convert a scanner signal into a paper or live transaction without an explicit separately recorded user decision.
 - Do not build a production application without explicit approval.
 
 ## Research code

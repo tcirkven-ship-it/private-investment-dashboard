@@ -15,3 +15,7 @@ Next action: wait until the first completed month-end regular trading session fo
 The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges.
 
 This is broker-agnostic paper research. It does not authorize live trading, brokerage integration, orders or personalized investment advice.
+
+## Subsequent direction reset
+
+The 2026-06-22 activation record above remains immutable history. Month-end gating was subsequently superseded for practical decision support. `YF-FWD-SIMPLE-001` is now a decoupled evidence ledger; on-demand current rankings are governed separately by `YF-DAILY-QVP-1.0.0`. A scanner run does not create a paper decision or transaction.

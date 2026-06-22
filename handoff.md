@@ -6,40 +6,21 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-22 13:49 CEST (Europe/Zagreb)
+2026-06-22 16:15 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
-`YF-FWD-SIMPLE-001`/EXP-0017 is **active** with status `active_waiting_for_first_month_end`. Activation succeeded after dependency-checked storage cleanup. No mid-month ranking, target portfolio, paper fill or live order was created.
+The practical direction is now **daily/on-demand YF-QVP decision support** under `YF-DAILY-QVP-1.0.0`. Scores, full rankings, constrained portfolios and contribution illustrations may be generated after any fully completed daily session. Score, review and transaction clocks are independent; the user decides whether and when to act. No order placement or broker connection exists.
 
-The post-cleanup frozen base is Git commit `131632b962c457e71828acd2f5c7cbf2ff19c5b6`; readiness commit `dfa839130a9fc5ea288c07cabefeae2f0e1240c4` is its verified ancestor and the core strategy did not change. Active bundle SHA-256 is `7d01aa67411398218c7e0985972503832e3b228fd3e13213134e4a022c1d32f2`; activation-state configuration SHA-256 is `f6790f0eef46cf09f6054b84747d55b3e6dd0da5597bc1f840f1fe5fac6db88a`.
+The implementation is `src/daily_screen.py`; configuration is `research/configs/daily_qvp_v1.json`. The command retrieves a timestamped yfinance universe, excludes incomplete current-session daily bars, applies the frozen Q/V/P factors, selects 30 equal-target names under sector/industry caps, compares with the prior daily run, optionally classifies holdings, and writes CSV/Markdown/HTML plus checksums. Fifty-seven tests pass.
 
-The append-only contribution ledger is active and contains zero events. No funding was invented. The next scheduled action is after the first completed month-end regular session following activation: retrieve and archive a new full snapshot, calculate frozen ranks and constraints, and create the initial paper decision using only explicit contribution events. See `research/46_first_month_end_run_instructions.md` and `outputs/prospective/YF-FWD-SIMPLE-001/activation_manifest.json`.
+The reset retrieval corrected a prior data-integrity claim. Checkpoint 2's 698 scored names remain valid for their calculation audit, but silent empty enrichment responses meant the universe was not complete. Essential-field/history retries now recover 1,072 eligible names from the same 1,876 candidates: 697 overlap, 375 additions and one prior exclusion. The fresh full-ticker snapshot is being completed under rate-limit-aware retries; do not publish a current ranking until its endpoint gate and scanner manifest pass.
 
-Pre-activation cleanup recovered 1.071 GB net. The retained CAS reconstructed all 20,518 logical files with zero object failures; frozen scores reproduced byte-for-byte, twin simplified rehearsals matched, and all 48 tests pass. Full evidence is in `research/45_storage_cleanup_report.md`.
+`YF-FWD-SIMPLE-001`/EXP-0017 is preserved as `active_evidence_ledger_decoupled`. Its immutable activation manifest is historical. Month-end no longer gates practical information, and scanner runs do not enter prospective performance evidence. The evidence ledger still has zero contribution events, zero paper decisions and zero transactions.
 
-The prior execution-heavy `YF-FWD-001`/EXP-0013 is `superseded_not_started`. Its intraday, limit-order and IBKR artifacts remain preserved as historical work but are not active dependencies.
+Research status remains mixed: price-only C03-M and nine variants failed the original approval standard; current QVP calculation/semantic engineering passes; no credible long historical QVP test exists; and repeated walk-forward QP/QGP plus selection-frequency tests remain unfinished. `research/57_research_completion_plan.md` specifies the honest proxy track and the data-source choice required for reliable full QVP.
 
-Active frozen protocol:
-
-- YF-QVP, Quality + Value + Price, N=30, equal target weights;
-- monthly ranks after the completed month-end session, retain through rank 60, quarterly correction and existing concentration limits;
-- YF-P/YF-QP/YF-QVGP fixed as ablations only;
-- contribution amount/date supplied externally, including zero, USD 250/500/1,000, other positives and irregular dates;
-- cash routed to at most three largest approved underweights without contribution-driven sales;
-- first valid next-session raw official Close for paper buys/sells and raw-Close valuation; no same-day execution after completed data and no Adjusted Close execution;
-- exact contribution parity for SPY and QQQ;
-- zero transaction costs in the primary paper ledger.
-
-Mandatory disclosure: **The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges.** This is intentional simplification, not a realizable-return claim.
-
-The active implementation is `src/paper/simple_ledger.py`; the frozen config is `research/configs/yfinance_forward_simplified_v2.json`. Forty-four relevant tests pass. Two synthetic daily mechanics rehearsals under `outputs/experiment_runs/EXP-0016/daily_rehearsal_1` and `daily_rehearsal_2` are byte-identical with tree hash `8fbf9b281f0b29d2bbeaf0f5350f11d2bedb603143a946675f4d4a0fc7575d1b`.
-
-Git was initialized. Original readiness code/config commit: `dfa839130a9fc5ea288c07cabefeae2f0e1240c4`. Post-cleanup activation base: `131632b962c457e71828acd2f5c7cbf2ff19c5b6`.
-
-Current deliverables: `research/41`–`research/44`, updated `research/27`, `35`, `37`–`40`, `outputs/final/simplified_forward_research_card.md`, and the revised activation checklist.
-
-Activation is paper research only, not a recommendation or live-trading authorization.
+Reset documentation is `research/54`–`research/58`. The old execution-heavy and month-end activation documents remain preserved as historical evidence, not current practical instructions.
 
 ### Superseded Checkpoint 3 decision
 

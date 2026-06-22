@@ -1,6 +1,6 @@
 {
   "configuration_id": "YF-FWD-SIMPLE-2.0.0",
-  "status": "active_waiting_for_first_month_end",
+  "status": "active_evidence_ledger_decoupled_from_daily_scanner",
   "supersedes": "YF-FWD-READINESS-1.0.0",
   "strategy": {
     "primary": "YF-QVP",
@@ -68,6 +68,9 @@
     "explicit_user_approval_required": true,
     "explicit_user_approval_received": true,
     "activated_at_utc": "2026-06-22T11:49:20Z",
-    "frozen_post_cleanup_commit": "131632b962c457e71828acd2f5c7cbf2ff19c5b6"
+    "frozen_post_cleanup_commit": "131632b962c457e71828acd2f5c7cbf2ff19c5b6",
+    "month_end_gate_superseded_for_practical_decision_support": true,
+    "daily_scanner_configuration": "research/configs/daily_qvp_v1.json",
+    "paper_performance_events_require_separate_explicit_decision": true
   }
 }

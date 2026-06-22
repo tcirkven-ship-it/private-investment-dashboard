@@ -11,8 +11,9 @@ import re
 import shutil
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, time as datetime_time, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -176,6 +177,12 @@ def normalize_issuer_name(name: object) -> str:
 def read_history_metrics(history: pd.DataFrame) -> dict[str, object]:
     if history.empty or "Close" not in history or "Volume" not in history:
         return {"history_observations": 0, "latest_close": None, "median_dollar_volume_63": None}
+    current = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York"))
+    cutoff = pd.Timestamp(current.date())
+    if current.weekday() >= 5 or current.time() < datetime_time(16, 15):
+        cutoff -= pd.Timedelta(days=1)
+    dates = pd.to_datetime(history.index, utc=True, errors="coerce").tz_convert(None).normalize()
+    history = history.loc[np.asarray(dates <= cutoff)].copy()
     valid = history.dropna(subset=["Close"])
     dollar_volume = (pd.to_numeric(history["Close"], errors="coerce") * pd.to_numeric(history["Volume"], errors="coerce")).dropna()
     return {
@@ -197,7 +204,12 @@ def enrich_candidates(screened: pd.DataFrame, output: Path, attempts: int, delay
         manifest_path = ticker_dir / "enrichment_manifest.json"
         if resume and manifest_path.exists():
             payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-            return payload["row"]
+            saved = payload["row"]
+            essential = [saved.get("info_exchange"), saved.get("info_quote_type"), saved.get("info_country"),
+                         saved.get("info_currency"), saved.get("info_financial_currency"),
+                         saved.get("info_market_cap"), saved.get("info_sector")]
+            if all(value not in (None, "") for value in essential) and int(saved.get("history_observations") or 0) >= 504:
+                return saved
         ticker_dir.mkdir(parents=True, exist_ok=True)
         if delay:
             time.sleep(delay)
@@ -331,6 +343,73 @@ def fetch_benchmarks(output: Path, attempts: int, fallback_dir: Path | None = No
     return rows
 
 
+def scoring_core_complete(ticker_dir: Path) -> bool:
+    info_path = ticker_dir / "info.json"
+    try:
+        info = json.loads(info_path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return False
+    if not isinstance(info, dict) or not info:
+        return False
+    for name, minimum_rows in [("history_daily.csv", 253), ("annual_income.csv", 1),
+                               ("annual_balance.csv", 1), ("annual_cashflow.csv", 1)]:
+        path = ticker_dir / name
+        try:
+            frame = pd.read_csv(path, index_col=0)
+        except (FileNotFoundError, pd.errors.EmptyDataError, pd.errors.ParserError):
+            return False
+        if len(frame) < minimum_rows and frame.shape[1] < minimum_rows:
+            return False
+    return True
+
+
+def fetch_scoring_core(ticker: str, output: Path, attempts: int, endpoint_delay: float) -> dict[str, object]:
+    """Fetch only inputs used by frozen Q/V/P scoring; seed fresh info/history from enrichment."""
+    ticker_dir = output / "tickers" / ticker.replace("/", "_")
+    ticker_dir.mkdir(parents=True)
+    seed_dir = output / "enrichment" / ticker.replace("/", "_")
+    files: dict[str, object] = {}
+    errors: list[dict[str, str]] = []
+    for source_name, target_name in [("info.json", "info.json"), ("history_3y.csv", "history_daily.csv")]:
+        source, target = seed_dir / source_name, ticker_dir / target_name
+        shutil.copy2(source, target)
+        files[target_name.removesuffix(".json").removesuffix(".csv")] = {
+            "path": str(target), "sha256": sha256(target), "bytes": target.stat().st_size,
+            "provenance": f"fresh_enrichment:{source}",
+        }
+    history = pd.read_csv(ticker_dir / "history_daily.csv", index_col=0)
+    action_columns = [column for column in ("Dividends", "Stock Splits", "Capital Gains") if column in history.columns]
+    actions = history[action_columns] if action_columns else pd.DataFrame(index=history.index)
+    if action_columns:
+        actions = actions[(actions.fillna(0) != 0).any(axis=1)]
+    files["actions"] = write_frame(ticker_dir / "actions.csv", actions)
+    instrument = yf.Ticker(ticker)
+    calls = {
+        "annual_income": lambda: instrument.get_income_stmt(freq="yearly"),
+        "quarterly_income": lambda: instrument.get_income_stmt(freq="quarterly"),
+        "trailing_income": lambda: instrument.get_income_stmt(freq="trailing"),
+        "annual_balance": lambda: instrument.get_balance_sheet(freq="yearly"),
+        "quarterly_balance": lambda: instrument.get_balance_sheet(freq="quarterly"),
+        "annual_cashflow": lambda: instrument.get_cash_flow(freq="yearly"),
+        "quarterly_cashflow": lambda: instrument.get_cash_flow(freq="quarterly"),
+        "trailing_cashflow": lambda: instrument.get_cash_flow(freq="trailing"),
+    }
+    for name, function in calls.items():
+        if endpoint_delay:
+            time.sleep(endpoint_delay)
+        value, error = retry_call(name, function, attempts)
+        if error:
+            errors.append(error); files[name] = {"error": error}
+        else:
+            files[name] = write_frame(ticker_dir / f"{name}.csv", value)
+    result = {"ticker": ticker, "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+              "retrieval_scope": "frozen_qvp_scoring_core", "files": files, "errors": errors,
+              "endpoint_successes": sum(1 for value in files.values() if isinstance(value, dict) and "error" not in value),
+              "endpoint_errors": len(errors)}
+    write_json(ticker_dir / "ticker_manifest.json", result)
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
@@ -341,6 +420,14 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--benchmark-fallback-dir", type=Path)
     parser.add_argument("--retry-endpoint-errors", action="store_true")
+    parser.add_argument("--minimum-eligible", type=int, default=500)
+    parser.add_argument("--maximum-final-endpoint-errors", type=int, default=-1,
+                        help="Optional all-endpoint gate; -1 records errors without failing")
+    parser.add_argument("--maximum-scoring-core-incomplete", type=int, default=0)
+    parser.add_argument("--endpoint-delay-seconds", type=float, default=0.15)
+    parser.add_argument("--enrichment-retry-passes", type=int, default=2)
+    parser.add_argument("--scoring-core-retry-passes", type=int, default=2)
+    parser.add_argument("--scoring-core-only", action="store_true")
     args = parser.parse_args()
 
     if args.output.exists() and any(args.output.iterdir()) and not args.resume:
@@ -354,30 +441,72 @@ def main() -> int:
     screened_path = args.output / "screened_universe.csv"
     screened = pd.read_csv(screened_path) if args.resume and screened_path.exists() else retrieve_screened_universe(args.output, args.attempts)
     enriched = enrich_candidates(screened, args.output, args.attempts, args.delay_seconds, args.resume, args.workers)
+    for retry_pass in range(1, args.enrichment_retry_passes + 1):
+        essential_ok = (
+            enriched[["info_exchange", "info_quote_type", "info_country", "info_currency",
+                      "info_financial_currency", "info_market_cap", "info_sector"]].notna().all(axis=1)
+            & pd.to_numeric(enriched["history_observations"], errors="coerce").ge(504)
+        )
+        if bool(essential_ok.all()):
+            break
+        print(json.dumps({"enrichment_retry_pass": retry_pass,
+                          "incomplete_candidates": int((~essential_ok).sum())}), flush=True)
+        enriched = enrich_candidates(screened, args.output, args.attempts, args.delay_seconds, True, args.workers)
     eligible = apply_filters(enriched, args.output)
+    if len(eligible) < args.minimum_eligible:
+        raise RuntimeError(
+            f"Only {len(eligible)} eligible names; below integrity floor {args.minimum_eligible}. "
+            "Retry incomplete enrichment rather than accepting a degraded universe."
+        )
 
-    full_results = []
+    force_core_retry = args.resume and args.retry_endpoint_errors
 
     def fetch_full(ticker: str) -> dict[str, object]:
         ticker_dir = args.output / "tickers" / ticker.replace("/", "_")
         ticker_manifest = ticker_dir / "ticker_manifest.json"
-        if args.resume and ticker_manifest.exists():
+        if ticker_manifest.exists():
             completed = json.loads(ticker_manifest.read_text(encoding="utf-8"))
-            if not args.retry_endpoint_errors or int(completed.get("endpoint_errors", 0)) == 0:
+            if not force_core_retry or scoring_core_complete(ticker_dir):
                 return completed
-        if args.resume and ticker_dir.exists():
+        if ticker_dir.exists():
             shutil.rmtree(ticker_dir)
         if args.delay_seconds:
             time.sleep(args.delay_seconds)
-        return fetch_ticker(ticker, args.output, args.attempts)
+        if args.scoring_core_only:
+            return fetch_scoring_core(ticker, args.output, args.attempts, args.endpoint_delay_seconds)
+        return fetch_ticker(ticker, args.output, args.attempts, args.endpoint_delay_seconds)
 
-    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
-        futures = [pool.submit(fetch_full, ticker) for ticker in eligible["ticker"].astype(str)]
-        for completed, future in enumerate(as_completed(futures), start=1):
-            full_results.append(future.result())
-            if completed % 10 == 0:
-                print(json.dumps({"full_tickers": completed, "eligible": len(eligible)}), flush=True)
-    full_results.sort(key=lambda row: str(row.get("ticker", "")))
+    full_results = []
+    scoring_core_incomplete: list[str] = []
+    for core_pass in range(args.scoring_core_retry_passes + 1):
+        force_core_retry = args.resume or core_pass > 0
+        full_results = []
+        with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+            futures = [pool.submit(fetch_full, ticker) for ticker in eligible["ticker"].astype(str)]
+            for completed, future in enumerate(as_completed(futures), start=1):
+                full_results.append(future.result())
+                if completed % 10 == 0:
+                    print(json.dumps({"full_tickers": completed, "eligible": len(eligible),
+                                      "scoring_core_pass": core_pass}), flush=True)
+        full_results.sort(key=lambda row: str(row.get("ticker", "")))
+        scoring_core_incomplete = sorted(
+            ticker for ticker in eligible["ticker"].astype(str)
+            if not scoring_core_complete(args.output / "tickers" / ticker.replace("/", "_"))
+        )
+        if not scoring_core_incomplete:
+            break
+        print(json.dumps({"scoring_core_retry_pass": core_pass + 1,
+                          "incomplete_tickers": scoring_core_incomplete}), flush=True)
+    final_errors = sum(int(row.get("endpoint_errors", 0)) for row in full_results)
+    if len(scoring_core_incomplete) > args.maximum_scoring_core_incomplete:
+        raise RuntimeError(
+            f"Scoring-core incomplete tickers {scoring_core_incomplete} exceed allowed "
+            f"{args.maximum_scoring_core_incomplete}; resume with retries."
+        )
+    if args.maximum_final_endpoint_errors >= 0 and final_errors > args.maximum_final_endpoint_errors:
+        raise RuntimeError(
+            f"Final ticker endpoint errors {final_errors} exceed allowed {args.maximum_final_endpoint_errors}."
+        )
 
     benchmarks = fetch_benchmarks(args.output, args.attempts, args.benchmark_fallback_dir)
     query_registry = pd.read_csv(args.output / "query_registry.csv")
@@ -396,6 +525,8 @@ def main() -> int:
         "base_eligible_tickers": int(len(eligible)),
         "eligibility_waterfall": waterfall.to_dict(orient="records"),
         "ticker_results": full_results,
+        "final_endpoint_errors": final_errors,
+        "scoring_core_incomplete_tickers": scoring_core_incomplete,
         "benchmarks": benchmarks,
         "yfinance_version": yf.__version__,
         "classification": "Current yfinance-only universe and factor snapshot; not historical universe or point-in-time historical fundamentals",

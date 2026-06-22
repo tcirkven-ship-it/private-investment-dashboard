@@ -167,7 +167,7 @@ def build_sample(output: Path, sample_per_sector: int, candidates_per_sector: in
     return sample
 
 
-def fetch_ticker(ticker: str, output: Path, attempts: int) -> dict[str, object]:
+def fetch_ticker(ticker: str, output: Path, attempts: int, endpoint_delay: float = 0.0) -> dict[str, object]:
     ticker_dir = output / "tickers" / ticker.replace("/", "_")
     ticker_dir.mkdir(parents=True)
     instrument = yf.Ticker(ticker)
@@ -175,6 +175,8 @@ def fetch_ticker(ticker: str, output: Path, attempts: int) -> dict[str, object]:
     errors: list[dict[str, str]] = []
 
     def capture_json(name: str, function: Callable[[], object]) -> None:
+        if endpoint_delay:
+            time.sleep(endpoint_delay)
         value, error = retry_call(name, function, attempts)
         if error:
             errors.append(error)
@@ -183,6 +185,8 @@ def fetch_ticker(ticker: str, output: Path, attempts: int) -> dict[str, object]:
             files[name] = write_json(ticker_dir / f"{name}.json", value)
 
     def capture_frame(name: str, function: Callable[[], object]) -> None:
+        if endpoint_delay:
+            time.sleep(endpoint_delay)
         value, error = retry_call(name, function, attempts)
         if error:
             errors.append(error)

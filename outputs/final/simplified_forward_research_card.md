@@ -19,3 +19,5 @@
 > The paper results exclude commissions, spreads, slippage, taxes, currency conversion, and broker-specific charges.
 
 This is a research protocol, not a recommendation, broker instruction or forecast of realizable returns.
+
+**Subsequent reset:** preserved as a decoupled evidence ledger. The month-end information gate is superseded by the separate on-demand `YF-DAILY-QVP-1.0.0` scanner; no scanner output automatically enters this ledger.

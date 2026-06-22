@@ -1,0 +1,33 @@
+{
+  "configuration_id": "YF-DAILY-QVP-1.0.0",
+  "status": "active_decision_support",
+  "purpose": "on-demand current scoring independent of review and transaction timing",
+  "strategy": {
+    "primary": "YF-QVP",
+    "comparison_models": ["YF-P", "YF-QP", "YF-QVGP"],
+    "portfolio_size": 30,
+    "target_weight": 0.03333333333333333,
+    "retention_rank_max": 60,
+    "quality_factors": ["ROA", "GPA", "FCF_MARGIN", "DEBT_ASSETS"],
+    "value_factors": ["FCF_YIELD", "SALES_EV", "BOOK_MARKET"],
+    "price_factors": ["M12_1", "M6_1", "TREND200", "VOL252"],
+    "growth_factors": ["REV_GROWTH", "MARGIN_CHANGE"],
+    "sector_cap": 0.25,
+    "industry_cap": 0.15,
+    "position_cap": 0.075,
+    "contribution_max_names": 3
+  },
+  "clocks": {
+    "score": "on_demand_latest_fully_completed_daily_session",
+    "review": "user_chosen_daily_weekly_biweekly_monthly_or_irregular",
+    "transaction": "user_chosen_no_automatic_orders"
+  },
+  "data": {
+    "source": "Yahoo Finance through yfinance 1.4.0",
+    "current_session_cutoff": "16:15 America/New_York; before cutoff use a prior completed session",
+    "raw_prices": "auto_adjust_false",
+    "adjusted_prices": "defined total-return price factors only"
+  },
+  "reports": ["Markdown", "CSV", "HTML"],
+  "disclosure": "The model is current decision-support research, not a validated return claim, trade instruction, or personalized investment recommendation."
+}
