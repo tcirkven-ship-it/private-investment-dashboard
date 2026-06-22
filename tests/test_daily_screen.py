@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.daily_screen import (build_changes, completed_session_cutoff,
+from src.daily_screen import (attach_metadata, build_changes, completed_session_cutoff,
                               contribution_allocation, latest_completed_session,
                               load_holdings, previous_ranking,
                               publication_run_id_valid, select_constrained,
@@ -129,6 +129,12 @@ class DailyScreenTests(unittest.TestCase):
             pd.DataFrame({"ticker": ["OLD2"]}).to_csv(partial / "ranking.csv", index=False)
             frame, run_id = previous_ranking(root, "2026-06-22T120000Z")
             self.assertIsNone(frame); self.assertIsNone(run_id)
+
+    def test_metadata_replaces_existing_provenance_column(self):
+        frame = pd.DataFrame({"ticker": ["A"], "score_session": ["old"]})
+        result = attach_metadata(frame, {"run_id": "fresh", "score_session": "2026-06-18"})
+        self.assertEqual(result.score_session.tolist(), ["2026-06-18"])
+        self.assertEqual(result.run_id.tolist(), ["fresh"])
 
 
 if __name__ == "__main__":

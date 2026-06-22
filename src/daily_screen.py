@@ -416,6 +416,16 @@ def markdown_table(frame: pd.DataFrame, decimals: int = 4) -> str:
     return "\n".join([header, separator] + ["| " + " | ".join(row) + " |" for row in rows])
 
 
+def attach_metadata(frame: pd.DataFrame, metadata: dict) -> pd.DataFrame:
+    result = frame.copy()
+    for key, value in reversed(list(metadata.items())):
+        if key in result.columns:
+            result[key] = value
+        else:
+            result.insert(0, key, value)
+    return result
+
+
 def markdown_report(run_id: str, manifest: dict, ranking: pd.DataFrame, portfolio: pd.DataFrame,
                     exposures: pd.DataFrame, changes: dict, allocations: dict[float, pd.DataFrame],
                     warnings: list[str], holdings: pd.DataFrame,
@@ -597,19 +607,14 @@ def run(args: argparse.Namespace) -> dict:
     report = markdown_report(run_id, raw_manifest, ranking, portfolio, exposures, changes, allocations,
                              warnings, holdings_report, constraint_exclusions)
 
-    def with_metadata(frame: pd.DataFrame) -> pd.DataFrame:
-        result = frame.copy()
-        for key, value in reversed(list(metadata.items())):
-            result.insert(0, key, value)
-        return result
-    with_metadata(ranking).to_csv(output / "ranking.csv", index=False)
-    with_metadata(portfolio).to_csv(output / "portfolio.csv", index=False)
-    with_metadata(universe).to_csv(output / "universe_report.csv", index=False)
-    with_metadata(constraint_exclusions).to_csv(output / "constraint_exclusions.csv", index=False)
-    with_metadata(holdings_report).to_csv(output / "holdings_analysis.csv", index=False)
-    with_metadata(allocations_all).to_csv(output / "contribution_allocations.csv", index=False)
-    with_metadata(exposures).to_csv(output / "exposures.csv", index=False)
-    with_metadata(reconciliation).to_csv(output / "reconciliation.csv", index=False)
+    attach_metadata(ranking, metadata).to_csv(output / "ranking.csv", index=False)
+    attach_metadata(portfolio, metadata).to_csv(output / "portfolio.csv", index=False)
+    attach_metadata(universe, metadata).to_csv(output / "universe_report.csv", index=False)
+    attach_metadata(constraint_exclusions, metadata).to_csv(output / "constraint_exclusions.csv", index=False)
+    attach_metadata(holdings_report, metadata).to_csv(output / "holdings_analysis.csv", index=False)
+    attach_metadata(allocations_all, metadata).to_csv(output / "contribution_allocations.csv", index=False)
+    attach_metadata(exposures, metadata).to_csv(output / "exposures.csv", index=False)
+    attach_metadata(reconciliation, metadata).to_csv(output / "reconciliation.csv", index=False)
     write_json(output / "reconciliation_summary.json", {"metadata": metadata,
                                                           "reconciliation": reconciliation_summary})
     write_json(output / "changes.json", {"metadata": metadata, "changes": changes})
