@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "code_commit": "72af374d04e901f3a678712add4dd00b5ebe3982",
+    "configuration_sha256": "d3881a1328862a39dc4af32e15c4826237a09adca2da7038eafb5659ddb68bb4",
+    "eligible_count": 1069,
+    "output_manifest_sha256": "bc5bfb4dae7f730ab765e07368bea9a7335e09f5fd36468db78e6337fae502d2",
+    "retrieval_completed_at_utc": "2026-06-22T18:43:27.580303+00:00",
+    "retrieval_started_at_utc": "2026-06-22T17:25:14.461566+00:00",
+    "run_id": "2026-06-22T172514Z",
+    "score_session": "2026-06-18",
+    "scored_count": 1033,
+    "source_snapshot": "data/prospective/daily_qvp/snapshots/2026-06-22T172514Z/raw"
+  },
+  "reconciliation": {
+    "corrected_retrieval_eligible_count": 1069,
+    "fully_qvp_scored_count": 1033,
+    "new_additions": 376,
+    "old_eligible_count": 698,
+    "overlap_with_old_698": 693,
+    "removed_names": 5,
+    "stage_by_stage_counts": [
+      {
+        "count": 1875,
+        "stage": "screened_market_cap_at_least_2b"
+      },
+      {
+        "count": 1875,
+        "stage": "exchange"
+      },
+      {
+        "count": 1875,
+        "stage": "quote_type"
+      },
+      {
+        "count": 1504,
+        "stage": "country"
+      },
+      {
+        "count": 1495,
+        "stage": "currency"
+      },
+      {
+        "count": 1495,
+        "stage": "market_cap"
+      },
+      {
+        "count": 1495,
+        "stage": "price"
+      },
+      {
+        "count": 1423,
+        "stage": "history"
+      },
+      {
+        "count": 1419,
+        "stage": "liquidity"
+      },
+      {
+        "count": 1419,
+        "stage": "sector_present"
+      },
+      {
+        "count": 1188,
+        "stage": "financials_exclusion"
+      },
+      {
+        "count": 1091,
+        "stage": "real_estate_exclusion"
+      },
+      {
+        "count": 1079,
+        "stage": "nonordinary"
+      },
+      {
+        "count": 1069,
+        "stage": "issuer_share_class_dedup"
+      }
+    ]
+  }
+}

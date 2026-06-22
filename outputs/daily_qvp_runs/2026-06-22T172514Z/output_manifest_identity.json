@@ -1,0 +1,14 @@
+{
+  "code_commit": "72af374d04e901f3a678712add4dd00b5ebe3982",
+  "configuration_sha256": "d3881a1328862a39dc4af32e15c4826237a09adca2da7038eafb5659ddb68bb4",
+  "eligible_count": 1069,
+  "retrieval_completed_at_utc": "2026-06-22T18:43:27.580303+00:00",
+  "retrieval_started_at_utc": "2026-06-22T17:25:14.461566+00:00",
+  "run_id": "2026-06-22T172514Z",
+  "scanner_invoked_at_utc": "2026-06-22T17:25:14.198865+00:00",
+  "schema": "YF-DAILY-QVP-OUTPUT-IDENTITY-1.0.0",
+  "score_session": "2026-06-18",
+  "scored_count": 1033,
+  "snapshot_manifest_sha256": "1d68f3cb6b8a32359efbe23e700b70506a1c982df02b2ad72caede2a90456afe",
+  "source_snapshot": "data/prospective/daily_qvp/snapshots/2026-06-22T172514Z/raw"
+}

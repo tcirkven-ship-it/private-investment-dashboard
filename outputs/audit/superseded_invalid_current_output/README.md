@@ -18,3 +18,19 @@ Therefore the files were not copied from an old report and were not produced by 
 | `current_daily_qvp_report.html` | `36424250e3d74170bd5a8284d7bbb6d5731f8f46b94e4036641f2d9a06af57e6` |
 
 They must never be restored as compact current outputs or used for current decisions.
+
+## Valid replacement
+
+The first fully passing replacement is run `2026-06-22T172514Z`, created by the
+unmodified one-command entry point `.venv/bin/python -m src.daily_screen`.
+It screened 2,205 unique names, enriched 1,875 names at or above the preliminary
+USD 2 billion threshold, retained 1,069 eligible names, fully scored 1,033, and
+selected a constrained 30-name model portfolio. Its compact outputs were
+published only after the integrity gates passed.
+
+The 1,069 count is three below the earlier 1,072 reset retrieval because the
+fresh screen had one fewer enrichment candidate and current market-cap
+membership changed at the USD 2 billion boundary: BFLY, FIGS, LCID, NEOG and
+TNET were no longer returned above the threshold, while KSS and NUVB entered.
+This is a net change of minus three, not a recurrence of the old 698-name
+truncation.

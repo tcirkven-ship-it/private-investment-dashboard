@@ -6,15 +6,17 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-22 16:15 CEST (Europe/Zagreb)
+2026-06-22 21:10 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
 The practical direction is now **daily/on-demand YF-QVP decision support** under `YF-DAILY-QVP-1.0.0`. Scores, full rankings, constrained portfolios and contribution illustrations may be generated after any fully completed daily session. Score, review and transaction clocks are independent; the user decides whether and when to act. No order placement or broker connection exists.
 
-The implementation is `src/daily_screen.py`; configuration is `research/configs/daily_qvp_v1.json`. The command retrieves a timestamped yfinance universe, excludes incomplete current-session daily bars, applies the frozen Q/V/P factors, selects 30 equal-target names under sector/industry caps, compares with the prior daily run, optionally classifies holdings, and writes CSV/Markdown/HTML plus checksums. Fifty-seven tests pass.
+The implementation is `src/daily_screen.py`; configuration is `research/configs/daily_qvp_v1.json`. The command retrieves a timestamped yfinance universe, excludes incomplete current-session daily bars, applies the frozen Q/V/P factors, selects 30 equal-target names under sector/industry caps, compares with a prior integrity-passed run only, optionally classifies holdings, and writes CSV/Markdown/HTML plus checksums. Sixty-three tests pass.
 
-The reset retrieval corrected a prior data-integrity claim. Checkpoint 2's 698 scored names remain valid for their calculation audit, but silent empty enrichment responses meant the universe was not complete. Essential-field/history retries now recover 1,072 eligible names from the same 1,876 candidates: 697 overlap, 375 additions and one prior exclusion. The fresh full-ticker snapshot is being completed under rate-limit-aware retries; do not publish a current ranking until its endpoint gate and scanner manifest pass.
+Scanner-integrity correction is complete. The invalid `mechanics_smoke_2` compact files were generated from a reconstructed Checkpoint 2 snapshot containing the old 698-name eligibility table, then published by an unconditional copy block. They are preserved under `outputs/audit/superseded_invalid_current_output/`. Publication now rejects rehearsal IDs, cached/external snapshots, source snapshots older than invocation, prior rankings without a passing manifest, eligible/ranking mismatches, and undocumented missing-score omissions.
+
+The passing one-command run is `2026-06-22T172514Z`, based on immutable snapshot `data/prospective/daily_qvp/snapshots/2026-06-22T172514Z/raw`. It screened 2,205 names, enriched 1,875, retained 1,069 eligible, and fully QVP-scored 1,033; all 1,069 eligible rows are present in the ranking and the 36 unscored rows carry factor-missing flags. Reconciliation against the old 698 is 693 overlap, 376 additions and five removals. The earlier 1,072 reset count differs by a net three because five names fell out of the current USD 2 billion screen and KSS/NUVB entered. Current compact outputs are in `outputs/final/`; the run manifest classification is `current_decision_support_integrity_passed`.
 
 `YF-FWD-SIMPLE-001`/EXP-0017 is preserved as `active_evidence_ledger_decoupled`. Its immutable activation manifest is historical. Month-end no longer gates practical information, and scanner runs do not enter prospective performance evidence. The evidence ledger still has zero contribution events, zero paper decisions and zero transactions.
 
