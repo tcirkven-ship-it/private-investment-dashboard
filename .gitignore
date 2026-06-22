@@ -6,7 +6,7 @@
 .DS_Store
 *.rtf
 /outputs/checkpoint*/
-/outputs/final/node_modules/
+/outputs/final/node_modules
 /outputs/final/charts/
 /outputs/final/*.xlsx
 /outputs/final/*.png
