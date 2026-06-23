@@ -1,0 +1,14 @@
+{
+  "configuration_sha256": "ea4892769a7b75cfb6bfa781fe739ca5159541f825ce86df4351c2705eeedbd2",
+  "development_gate_passed": 1,
+  "evaluation_accessed": 0,
+  "schema": "PRICE-WF-OPERATIONAL-CHOICE-1.0.0",
+  "selected_candidate": "P4",
+  "selected_configuration_id": "P4_N40_monthly_B2_U_EW",
+  "selected_portfolio_size": 40,
+  "selected_retention_multiple": 2.0,
+  "selected_review_schedule": "monthly",
+  "selected_version": "unconstrained",
+  "selected_weighting": "equal",
+  "selection_reason": "Selected by the preregistered development-gate and lexicographic rule."
+}

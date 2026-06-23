@@ -1,0 +1,67 @@
+{
+  "code_commit": "868c7b64fc89dbbc4260ff373017c7603b327baf",
+  "configuration_count": 288,
+  "configuration_path": "research/configs/price_component_walkforward_v1.json",
+  "configuration_sha256": "ea4892769a7b75cfb6bfa781fe739ca5159541f825ce86df4351c2705eeedbd2",
+  "current_qvp_top30_price_top30_overlap_count": 1,
+  "current_qvp_top30_price_top30_overlap_tickers": [
+    "ENS"
+  ],
+  "evidence_label": "Exploratory survivor-biased historical Price research using a currently reconstructable yfinance universe.",
+  "experiment_id": "EXP-0019",
+  "files": {
+    "configuration_results.csv": {
+      "bytes": 228146,
+      "sha256": "453a0d58a68b25b67a16e485939b021a6527070da6cdedf1d7bd48fc5753e165"
+    },
+    "coverage_by_year.csv": {
+      "bytes": 410,
+      "sha256": "c3d9a6d0b3077121059abf0b46b09df36037fe41db210d2ed640a4d198b90d1b"
+    },
+    "data_integrity.json": {
+      "bytes": 12277,
+      "sha256": "37909288737e7dc0d1dbd47ac100230b65e5951be0ff95bb880b325c1056b502"
+    },
+    "fold_results.csv": {
+      "bytes": 1004111,
+      "sha256": "fb7cf20dfb1b218f222ec7d225f4771ecc25e1b537dc2d30ac4b80cb1e281f22"
+    },
+    "frozen_operational_choice.json": {
+      "bytes": 573,
+      "sha256": "e46bc7141f327fa31dbc49f994a3008558a387e82544f53d499b3609952b8d3c"
+    },
+    "operational_candidates.csv": {
+      "bytes": 7257,
+      "sha256": "7d4954099786e2f47daf80ca72cff54e539a3530e4f57d4b065243e6fd51eb43"
+    }
+  },
+  "fold_row_count": 1728,
+  "operational_choice": {
+    "configuration_sha256": "ea4892769a7b75cfb6bfa781fe739ca5159541f825ce86df4351c2705eeedbd2",
+    "development_gate_passed": 1,
+    "evaluation_accessed": 0,
+    "schema": "PRICE-WF-OPERATIONAL-CHOICE-1.0.0",
+    "selected_candidate": "P4",
+    "selected_configuration_id": "P4_N40_monthly_B2_U_EW",
+    "selected_portfolio_size": 40,
+    "selected_retention_multiple": 2.0,
+    "selected_review_schedule": "monthly",
+    "selected_version": "unconstrained",
+    "selected_weighting": "equal",
+    "selection_reason": "Selected by the preregistered development-gate and lexicographic rule."
+  },
+  "scanner_freeze_commit": "52aa05b859999b52d1352a54b8d7fe5bfb378873",
+  "scanner_run_id": "2026-06-22T172514Z",
+  "schema": "PRICE-WF-RUN-1.0.0",
+  "stage": "development",
+  "successful_history_count": 80,
+  "test_years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "universe_count": 1069
+}
