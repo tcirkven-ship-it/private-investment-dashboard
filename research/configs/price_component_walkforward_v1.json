@@ -12,7 +12,12 @@
   "prices": {
     "provider": "yfinance",
     "retrieval_end_exclusive": "2026-01-01",
-    "history_root": "data/raw/yfinance/price_walkforward_2026-06-23",
+    "history_roots": [
+      {"path": "data/raw/yfinance/price_walkforward_2026-06-23", "ticker_subdirectory": true, "role": "new_pull_if_available"},
+      {"path": "data/raw/yfinance/oef_2026-06-21", "ticker_subdirectory": false, "role": "validated_local_max_history_fallback"}
+    ],
+    "benchmark_history_root": "data/raw/yfinance/2026-06-21",
+    "new_pull_status": "Yahoo HTTP 429 before first completion on 2026-06-23; use only validated local maximum histories when unavailable",
     "adjusted_price_field": "Adj Close",
     "transaction_price_field": "Close",
     "volume_field": "Volume",

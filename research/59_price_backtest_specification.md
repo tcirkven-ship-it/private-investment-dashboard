@@ -19,6 +19,14 @@ breadth over the earlier 100-name OEF proxy but does not repair survivorship,
 inactive-listing, delisting-return, permanent-identifier, ticker-change, or
 historical-market-cap limitations.
 
+The preregistered attempt to retrieve maximum history for all 1,069 names was
+blocked before the first completed ticker by Yahoo HTTP 429 throttling. The
+frozen no-cost fallback is therefore the already validated local maximum-history
+yfinance files intersected with the corrected 1,069-name set. Coverage—not an
+assumed full 1,069 histories—must be reported by year, and this narrower support
+further lowers the evidence ceiling. No three-year scanner history may be
+silently treated as maximum history.
+
 ## Exact factors
 
 At each completed session, using adjusted prices available through that close:

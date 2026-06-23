@@ -104,13 +104,17 @@ def cross_sectional_percentile(frame: pd.DataFrame, direction: int, quantiles: l
 
 def load_panels(config: dict) -> Panels:
     universe_path = ROOT / config["universe"]["source"]
-    history_root = ROOT / config["prices"]["history_root"] / "tickers"
+    history_roots = []
+    for item in config["prices"]["history_roots"]:
+        root = ROOT / item["path"]
+        history_roots.append(root / "tickers" if item["ticker_subdirectory"] else root)
     universe = pd.read_csv(universe_path).sort_values("ticker")
     if len(universe) != int(config["universe"]["expected_count"]):
         raise RuntimeError(f"Frozen universe count mismatch: {len(universe)}")
     tickers = universe.ticker.astype(str).tolist()
 
-    benchmarks = {ticker: load_history(history_root / ticker / "history_daily.csv") for ticker in config["benchmarks"]}
+    benchmark_root = ROOT / config["prices"]["benchmark_history_root"]
+    benchmarks = {ticker: load_history(benchmark_root / ticker / "history_daily.csv") for ticker in config["benchmarks"]}
     dates = benchmarks["SPY"].index.intersection(benchmarks["QQQ"].index)
     dates = dates[(dates >= pd.Timestamp("2000-01-01")) & (dates < pd.Timestamp(config["prices"]["retrieval_end_exclusive"]))]
 
@@ -122,8 +126,9 @@ def load_panels(config: dict) -> Panels:
     suspicious: list[dict[str, object]] = []
     total_splits = total_dividends = 0
     for ticker in tickers:
-        path = history_root / ticker / "history_daily.csv"
-        if not path.exists():
+        paths = [root / ticker / "history_daily.csv" for root in history_roots]
+        path = next((candidate for candidate in paths if candidate.exists()), None)
+        if path is None:
             missing.append(ticker)
             continue
         history = load_history(path)
@@ -208,6 +213,7 @@ def load_panels(config: dict) -> Panels:
     integrity = {
         "requested_universe_count": len(tickers),
         "successful_history_count": len(available_tickers),
+        "configured_history_roots": [str(path) for path in history_roots],
         "missing_history_count": len(missing),
         "missing_histories": missing,
         "suspicious_series": suspicious,

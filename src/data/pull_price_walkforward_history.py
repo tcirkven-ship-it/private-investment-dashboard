@@ -69,16 +69,16 @@ def fetch_one(ticker: str, output: Path, end_exclusive: str, retries: int) -> di
         started = datetime.now(timezone.utc).isoformat()
         try:
             frame = yf.Ticker(ticker).history(
-                start="1900-01-01",
-                end=end_exclusive,
+                period="max",
                 interval="1d",
                 auto_adjust=False,
                 actions=True,
-                repair=True,
+                repair=False,
                 timeout=30,
                 raise_errors=True,
             )
             frame = normalize_history(frame)
+            frame = frame.loc[frame["Date"] < pd.Timestamp(end_exclusive, tz="UTC")].copy()
             validate(frame, ticker)
             ticker_dir.mkdir(parents=True, exist_ok=True)
             frame.to_csv(history_path, index=False, date_format="%Y-%m-%dT%H:%M:%S%z")
