@@ -1,0 +1,14 @@
+{
+  "activation_ts": "2026-06-23T16:24:32.940339+00:00",
+  "buy_dates": {},
+  "cash": 100000.0,
+  "config_hash": "d9051ce04eab68d5e338c0a9382cfdc8e4f0b7bd7708a4636671a586dc0bce27",
+  "contributions": [],
+  "holdings": {},
+  "model_id": "B2_G3_QUALITY_VETO",
+  "nav_history": [],
+  "source_run_id": "",
+  "starting_cash": 100000.0,
+  "status": "INITIALIZED",
+  "transactions": []
+}

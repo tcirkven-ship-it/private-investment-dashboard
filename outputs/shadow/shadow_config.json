@@ -1,0 +1,54 @@
+{
+  "activated": "2026-06-23",
+  "activation_status": "INITIALIZED",
+  "benchmarks": [
+    "SPY",
+    "QQQ"
+  ],
+  "cost_bps": 10,
+  "decision_schedule": "monthly, last session of each month",
+  "execution": "next_valid_session_close",
+  "initial_capital_usd": 100000.0,
+  "models": [
+    {
+      "entry_condition": "top 30 by Price",
+      "id": "A3_P100",
+      "price_backbone": "A3",
+      "quality_veto": false,
+      "retention": 60
+    },
+    {
+      "entry_condition": "top 30 by Price after Q veto",
+      "id": "A3_G3_QUALITY_VETO",
+      "price_backbone": "A3",
+      "quality_veto": true,
+      "retention": 60
+    },
+    {
+      "entry_condition": "top 30 by Price",
+      "id": "B2_P100",
+      "price_backbone": "B2",
+      "quality_veto": false,
+      "retention": 60
+    },
+    {
+      "entry_condition": "top 30 by Price after Q veto",
+      "id": "B2_G3_QUALITY_VETO",
+      "price_backbone": "B2",
+      "quality_veto": true,
+      "retention": 60
+    }
+  ],
+  "quality_veto_rules": {
+    "computation": "annual statements with 3-month publication lag",
+    "coverage_threshold": "bottom 10% excluded only among stocks with valid composite Quality",
+    "min_components": "at least 2 of 4 Quality factors must be non-missing for a valid composite",
+    "missing_behavior": "stocks without valid composite Quality remain eligible (not excluded)",
+    "missing_label": "DATA_COVERAGE_INSUFFICIENT \u2014 not excluded but flagged in report",
+    "veto_reporting": "report count vetoed, count missing, count valid"
+  },
+  "reports": [
+    "monthly_comparison"
+  ],
+  "schema": "YF-SHADOW-PORTFOLIOS-2.0.0"
+}

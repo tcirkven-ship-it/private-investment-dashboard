@@ -1,0 +1,20 @@
+{
+  "activation_timestamp": "2026-06-23T16:24:32.940972+00:00",
+  "benchmarks": [
+    "SPY",
+    "QQQ"
+  ],
+  "config_hash": "d9051ce04eab68d5e338c0a9382cfdc8e4f0b7bd7708a4636671a586dc0bce27",
+  "decision_schedule": "monthly, last session of each month",
+  "first_decision_date": null,
+  "initial_capital": 100000.0,
+  "models": [
+    "A3_P100",
+    "A3_G3_QUALITY_VETO",
+    "B2_P100",
+    "B2_G3_QUALITY_VETO"
+  ],
+  "prospective_start": null,
+  "schema": "YF-SHADOW-ACTIVATION-1.0.0",
+  "status": "INITIALIZED"
+}

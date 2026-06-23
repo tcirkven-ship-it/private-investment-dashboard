@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 21:00 CEST (Europe/Zagreb)
+2026-06-23 22:00 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -46,7 +46,9 @@ QVP Generation 1 audit (`research/92`) fixed B2 P100 self-overlap bug (22/30 →
 
 Price-gated overlay design (`research/93`–`research/96`): G3 (Quality veto) retains 21-22/30 of P100 top 30. Decision: ADOPT G3 QUALITY VETO FOR SHADOW MODE.
 
-Quality-veto validation (`research/97`–`research/99`) built historical Quality extraction from annual statements. Historical data covers only 2022+ (earliest fiscal year 2021 with 3-month lag). Development period 2015-2020 has no Quality data — G3 never fires. Current cross-section confirmed: A3 G3 retains 21/30 with improved median Quality (0.664 vs 0.596). Decision: INCONCLUSIVE DUE TO QUALITY-DATA COVERAGE. Four shadow models (A3 P100, A3 G3, B2 P100, B2 G3) activated for prospective accumulation. Paid historical data required for definitive test.
+Quality-veto validation (`research/97`–`research/99`) built historical Quality extraction from annual statements. Data covers only 2022+. Current cross-section: A3 G3 retains 21/30 with improved median Quality (0.459 vs 0.333 eligible-universe percentile). Decision: INCONCLUSIVE DUE TO QUALITY-DATA COVERAGE.
+
+Shadow system activation (`research/100`–`research/101`): corrected Quality metrics (canonical table resolves 0.596 vs 0.333 discrepancy — earlier value was from a different snapshot). Historical transaction reporting corrected. Missing-Quality rules frozen. Four immutable ledgers initialized with $100,000 capital each. Activation status: INITIALIZED. First legitimate decision requires a post-activation scanner snapshot. Idempotent shadow runner and monthly report generator implemented.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
