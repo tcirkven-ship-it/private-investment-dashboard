@@ -1,0 +1,190 @@
+{
+  "code_commit": "9036e3cbcb67fe0013f902868514690836b7d9dd",
+  "configuration_count": 288,
+  "configuration_path": "research/configs/price_component_walkforward_v1.json",
+  "configuration_sha256": "ea4892769a7b75cfb6bfa781fe739ca5159541f825ce86df4351c2705eeedbd2",
+  "current_qvp_top30_price_top30_overlap_count": 1,
+  "current_qvp_top30_price_top30_overlap_tickers": [
+    "ENS"
+  ],
+  "evidence_label": "Exploratory survivor-biased historical Price research using a currently reconstructable yfinance universe.",
+  "experiment_id": "EXP-0020",
+  "files": {
+    "assembled_summary.json": {
+      "bytes": 5453,
+      "sha256": "2f9979d17667599569c8b108ed648a47d9d3ecc78f99df3591ab5d62af845e5d"
+    },
+    "configuration_results.csv": {
+      "bytes": 222457,
+      "sha256": "8cfcf42e013de2fc7add7b09488069e1bf78ddc9d286b630d3de6f962db88e5d"
+    },
+    "coverage_by_year.csv": {
+      "bytes": 410,
+      "sha256": "c3d9a6d0b3077121059abf0b46b09df36037fe41db210d2ed640a4d198b90d1b"
+    },
+    "data_integrity.json": {
+      "bytes": 12277,
+      "sha256": "37909288737e7dc0d1dbd47ac100230b65e5951be0ff95bb880b325c1056b502"
+    },
+    "fold_results.csv": {
+      "bytes": 831717,
+      "sha256": "136ccdf6b4b5664c8dcd114eb6d037cc125c8e9e7142fd51493e16b43e19a5b5"
+    },
+    "regime_results.csv": {
+      "bytes": 2688,
+      "sha256": "9e291653bf0ea77a9cc8357aa74d1eef93ca97fddcb56ca040bf473d6471299d"
+    },
+    "robustness.json": {
+      "bytes": 5612,
+      "sha256": "a64a924723aefba859425b238137db97a367d922815f69949dafc6b437e7f64a"
+    },
+    "selected_daily_returns.csv": {
+      "bytes": 109368,
+      "sha256": "990be38c7fbf7fef8b5b97847b4e744dcc724253c72ce9173ed2fe7bfae0cc32"
+    },
+    "selected_stock_attribution.csv": {
+      "bytes": 1007,
+      "sha256": "6ddcf5b2ca86050cabc65f9cb3361fbbc16153b5108e4da362936f6184bac482"
+    }
+  },
+  "fold_row_count": 1440,
+  "robustness": {
+    "development_gate_passed": 1,
+    "rank_weighted_sensitivity": {
+      "configuration_id": "P4_N40_monthly_B2_U_RW",
+      "metrics": {
+        "QQQ_annualized_return": 0.15136701311067013,
+        "QQQ_total_return": 1.017689594090764,
+        "SPY_annualized_return": 0.14396139414398945,
+        "SPY_total_return": 0.9538799934316933,
+        "active_annualized_return_vs_QQQ": -0.02169494561126384,
+        "active_annualized_return_vs_SPY": -0.014289326644583156,
+        "annualized_downside_deviation": 0.11601145930335144,
+        "annualized_gross_turnover": 4.278765787482562,
+        "annualized_return": 0.1296720674994063,
+        "annualized_volatility": 0.1647789987546787,
+        "average_cash_exposure": 0.0,
+        "average_positions": 40.0,
+        "average_top5_weight": 0.43232924930981015,
+        "average_weight_hhi": 0.0632848315837962,
+        "drawdown_difference_vs_QQQ": 0.14144691495579864,
+        "drawdown_difference_vs_SPY": 0.03522363328982936,
+        "end_date": "2025-12-31",
+        "maximum_drawdown": -0.20974030531958088,
+        "maximum_drawdown_duration_sessions": 389,
+        "observations": 1255,
+        "rolling_12m_win_rate_vs_QQQ": 0.40816326530612246,
+        "rolling_12m_win_rate_vs_SPY": 0.5306122448979592,
+        "rolling_24m_win_rate_vs_QQQ": 0.5405405405405406,
+        "rolling_24m_win_rate_vs_SPY": 0.7027027027027027,
+        "rolling_36m_win_rate_vs_QQQ": 0.64,
+        "rolling_36m_win_rate_vs_SPY": 0.84,
+        "sharpe_zero_rf": 0.8225708347115195,
+        "start_date": "2021-01-04",
+        "top5_period_positive_contribution_share": 0.35188451810152527,
+        "top5_stock_contributors": "AVGO;MU;GE;NFLX;TSLA",
+        "top5_stock_positive_contribution_share": 0.3021364509606924,
+        "total_return": 0.835317938754295,
+        "twr": 0.835317938754295,
+        "xirr": null,
+        "xirr_note": "not_applicable_no_external_contributions"
+      }
+    },
+    "remove_best_calendar_year": {
+      "remaining_total_return": 0.4962491411023189,
+      "remaining_year_count": 4,
+      "removed_year": 2023
+    },
+    "remove_best_stock": {
+      "base": {
+        "QQQ_annualized_return": 0.15136701311067013,
+        "QQQ_total_return": 1.017689594090764,
+        "SPY_annualized_return": 0.14396139414398945,
+        "SPY_total_return": 0.9538799934316933,
+        "active_annualized_return_vs_QQQ": -0.008106856918281835,
+        "active_annualized_return_vs_SPY": -0.0007012379516011524,
+        "annualized_downside_deviation": 0.11761596115658518,
+        "annualized_gross_turnover": 0.6888560609305298,
+        "annualized_return": 0.1432601561923883,
+        "annualized_volatility": 0.1705385546400885,
+        "average_cash_exposure": 0.0,
+        "average_positions": 40.0,
+        "average_top5_weight": 0.13501799408767942,
+        "average_weight_hhi": 0.02507053699286,
+        "drawdown_difference_vs_QQQ": 0.10799564540816187,
+        "drawdown_difference_vs_SPY": 0.0017723637421925842,
+        "end_date": "2025-12-31",
+        "maximum_drawdown": -0.24319157486721765,
+        "maximum_drawdown_duration_sessions": 383,
+        "observations": 1255,
+        "rolling_12m_win_rate_vs_QQQ": 0.3673469387755102,
+        "rolling_12m_win_rate_vs_SPY": 0.3877551020408163,
+        "rolling_24m_win_rate_vs_QQQ": 0.35135135135135137,
+        "rolling_24m_win_rate_vs_SPY": 0.6486486486486487,
+        "rolling_36m_win_rate_vs_QQQ": 0.4,
+        "rolling_36m_win_rate_vs_SPY": 0.84,
+        "sharpe_zero_rf": 0.8704279994291706,
+        "start_date": "2021-01-04",
+        "top5_period_positive_contribution_share": 0.2822164229685946,
+        "top5_stock_contributors": "TSLA;AVGO;MU;NFLX;NOW",
+        "top5_stock_positive_contribution_share": 0.25614435897377014,
+        "total_return": 0.9479224760442271,
+        "twr": 0.9479224760442271,
+        "xirr": null,
+        "xirr_note": "not_applicable_no_external_contributions"
+      },
+      "removed_ticker": "TSLA",
+      "sensitivity": {
+        "QQQ_annualized_return": 0.15136701311067013,
+        "QQQ_total_return": 1.017689594090764,
+        "SPY_annualized_return": 0.14396139414398945,
+        "SPY_total_return": 0.9538799934316933,
+        "active_annualized_return_vs_QQQ": -0.016036785276927423,
+        "active_annualized_return_vs_SPY": -0.00863116631024674,
+        "annualized_downside_deviation": 0.11633759667841641,
+        "annualized_gross_turnover": 0.6696131300978362,
+        "annualized_return": 0.1353302278337427,
+        "annualized_volatility": 0.16888330264830156,
+        "average_cash_exposure": 0.0,
+        "average_positions": 40.0,
+        "average_top5_weight": 0.13468313508182259,
+        "average_weight_hhi": 0.025066061238019497,
+        "drawdown_difference_vs_QQQ": 0.0999584833893179,
+        "drawdown_difference_vs_SPY": -0.006264798276651384,
+        "end_date": "2025-12-31",
+        "maximum_drawdown": -0.2512287368860616,
+        "maximum_drawdown_duration_sessions": 387,
+        "observations": 1255,
+        "rolling_12m_win_rate_vs_QQQ": 0.30612244897959184,
+        "rolling_12m_win_rate_vs_SPY": 0.32653061224489793,
+        "rolling_24m_win_rate_vs_QQQ": 0.32432432432432434,
+        "rolling_24m_win_rate_vs_SPY": 0.5405405405405406,
+        "rolling_36m_win_rate_vs_QQQ": 0.24,
+        "rolling_36m_win_rate_vs_SPY": 0.36,
+        "sharpe_zero_rf": 0.8360564962947544,
+        "start_date": "2021-01-04",
+        "top5_period_positive_contribution_share": 0.28055254159255705,
+        "top5_stock_contributors": "AVGO;NFLX;MU;NOW;META",
+        "top5_stock_positive_contribution_share": 0.23741006366386863,
+        "total_return": 0.8815567010330332,
+        "twr": 0.8815567010330332,
+        "xirr": null,
+        "xirr_note": "not_applicable_no_external_contributions"
+      }
+    },
+    "selected_configuration": "P4_N40_monthly_B2_U_EW"
+  },
+  "scanner_freeze_commit": "52aa05b859999b52d1352a54b8d7fe5bfb378873",
+  "scanner_run_id": "2026-06-22T172514Z",
+  "schema": "PRICE-WF-RUN-1.0.0",
+  "stage": "evaluation",
+  "successful_history_count": 80,
+  "test_years": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "universe_count": 1069
+}

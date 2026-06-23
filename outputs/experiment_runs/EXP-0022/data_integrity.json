@@ -1,0 +1,52 @@
+{
+  "configured_history_roots": [
+    "/Users/tihomircirkvencic/Documents/Tihci - Investment strategy/data/raw/yfinance/price_walkforward_2026-06-23/tickers"
+  ],
+  "delisting_handling": "Unavailable; current-survivor universe omits inactive listings and reliable terminal returns.",
+  "dividend_event_count": 63264,
+  "ipo_entry_rule": "A name enters only after every candidate-required observation exists; P4 therefore requires M12_1 history plus the other three factors.",
+  "missing_histories": [],
+  "missing_history_count": 0,
+  "requested_universe_count": 1069,
+  "split_event_count": 2165,
+  "stale_price_rule": "Forward-fill at most 3 common sessions; longer gaps remain missing and cannot form a score.",
+  "successful_history_count": 1069,
+  "suspicious_series": [
+    {
+      "count": 1,
+      "reason": "absolute_adjusted_one_day_return_gt_500pct",
+      "ticker": "AGX"
+    },
+    {
+      "count": 1,
+      "reason": "absolute_adjusted_one_day_return_gt_500pct",
+      "ticker": "CHRD"
+    },
+    {
+      "count": 1,
+      "reason": "absolute_adjusted_one_day_return_gt_500pct",
+      "ticker": "DFTX"
+    },
+    {
+      "count": 1,
+      "reason": "absolute_adjusted_one_day_return_gt_500pct",
+      "ticker": "HUBB"
+    },
+    {
+      "count": 1,
+      "reason": "absolute_adjusted_one_day_return_gt_500pct",
+      "ticker": "INDV"
+    },
+    {
+      "count": 1,
+      "reason": "absolute_adjusted_one_day_return_gt_500pct",
+      "ticker": "TDS"
+    },
+    {
+      "count": 1,
+      "reason": "absolute_adjusted_one_day_return_gt_500pct",
+      "ticker": "WTRG"
+    }
+  ],
+  "ticker_change_handling": "Current Yahoo ticker history only; permanent identifiers and historical ticker maps unavailable."
+}

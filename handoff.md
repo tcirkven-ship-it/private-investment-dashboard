@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-22 21:10 CEST (Europe/Zagreb)
+2026-06-23 07:20 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -17,6 +17,10 @@ The implementation is `src/daily_screen.py`; configuration is `research/configs/
 Scanner-integrity correction is complete. The invalid `mechanics_smoke_2` compact files were generated from a reconstructed Checkpoint 2 snapshot containing the old 698-name eligibility table, then published by an unconditional copy block. They are preserved under `outputs/audit/superseded_invalid_current_output/`. Publication now rejects rehearsal IDs, cached/external snapshots, source snapshots older than invocation, prior rankings without a passing manifest, eligible/ranking mismatches, and undocumented missing-score omissions.
 
 The passing one-command run is `2026-06-22T172514Z`, based on immutable snapshot `data/prospective/daily_qvp/snapshots/2026-06-22T172514Z/raw`. It screened 2,205 names, enriched 1,875, retained 1,069 eligible, and fully QVP-scored 1,033; all 1,069 eligible rows are present in the ranking and the 36 unscored rows carry factor-missing flags. Reconciliation against the old 698 is 693 overlap, 376 additions and five removals. The earlier 1,072 reset count differs by a net three because five names fell out of the current USD 2 billion screen and KSS/NUVB entered. Current compact outputs are in `outputs/final/`; the run manifest classification is `current_decision_support_integrity_passed`.
+
+The isolated frozen-Price historical study is complete under EXP-0019 through EXP-0022. It did not modify the scanner, current QVP formula or compact current outputs. An initial 80-history fallback and attribution-scope failure are preserved. The decisive `PRICE-WF-1.1.0-FULL-HISTORY` pull completed maximum histories for all 1,069 current eligible stocks plus SPY/QQQ with zero failures. Membership is still current-survivor biased.
+
+No P4 configuration passed the 2015–2020 development gates; even the lowest-turnover monthly/rank-2N variants required 584%–629% annual gross turnover. The frozen diagnostic P4/N=30/monthly/rank-60 reference returned 12.85% annualized in 2021–2025 versus 14.40% SPY and 15.14% QQQ, with −21.49% maximum drawdown, 19.76% volatility and 681.70% turnover. Implementation validity passes, standalone P4 evidence fails, and true historical-universe inference remains inconclusive. P1–P3 had much higher biased point returns but 38%–41% volatility and 493%–725% turnover; they are not promoted replacements. Current QVP and Price top 30 overlap only in ENS, so Quality/Value incremental effect remains unproven.
 
 `YF-FWD-SIMPLE-001`/EXP-0017 is preserved as `active_evidence_ledger_decoupled`. Its immutable activation manifest is historical. Month-end no longer gates practical information, and scanner runs do not enter prospective performance evidence. The evidence ledger still has zero contribution events, zero paper decisions and zero transactions.
 

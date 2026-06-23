@@ -1,6 +1,6 @@
 # Frozen Price-component historical backtest specification
 
-**Version:** `PRICE-WF-1.0.0`  
+**Version:** `PRICE-WF-1.0.0`; decisive data completion `PRICE-WF-1.1.0-FULL-HISTORY`
 **Preregistered:** 2026-06-23, before development or evaluation results  
 **Scanner boundary:** commit `52aa05b859999b52d1352a54b8d7fe5bfb378873`; run `2026-06-22T172514Z`
 
@@ -19,13 +19,14 @@ breadth over the earlier 100-name OEF proxy but does not repair survivorship,
 inactive-listing, delisting-return, permanent-identifier, ticker-change, or
 historical-market-cap limitations.
 
-The preregistered attempt to retrieve maximum history for all 1,069 names was
-blocked before the first completed ticker by Yahoo HTTP 429 throttling. The
-frozen no-cost fallback is therefore the already validated local maximum-history
-yfinance files intersected with the corrected 1,069-name set. Coverage—not an
-assumed full 1,069 histories—must be reported by year, and this narrower support
-further lowers the evidence ceiling. No three-year scanner history may be
-silently treated as maximum history.
+The first retrieval attempt was blocked by Yahoo HTTP 429, so an 80-history
+fallback generation was run and preserved under EXP-0019/0020. Network access
+later recovered, and a new immutable pull completed all 1,069 stocks plus SPY
+and QQQ with zero failures. That pull is the decisive `PRICE-WF-1.1.0` dataset;
+its manifest SHA-256 is
+`ad7dd9445a6e84fbd83cb689ebc3397c0a85712eb0e132663419c528d78d850e`.
+The formula, grid, folds and gates were unchanged for EXP-0021/0022. The wider
+data fix still does not supply historical constituents or delisted securities.
 
 ## Exact factors
 
