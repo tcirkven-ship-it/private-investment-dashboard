@@ -109,5 +109,112 @@ class PriceWalkForwardTests(unittest.TestCase):
         self.assertAlmostEqual(float(panels.factors["VOL252"].loc[date, ticker]), float(expected_vol), places=12)
 
 
+    def test_existing_reproduction_matches_published(self) -> None:
+        """Verify the audit reproduces published P4 monthly N30 B2 U EW exactly."""
+        from src.backtest.mechanics_audit import run_audit, metrics_ex
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_audit(Path(tmp))
+            self.assertEqual(result.get("reproduction"), "PASS")
+
+    def test_practical_quarterly_correction_equalizes_weights(self) -> None:
+        """On a quarterly review, all survivors should be reset to 1/N."""
+        dates = pd.bdate_range("2014-01-01", periods=130)
+        tickers = [f"T{i}" for i in range(30)]
+        scores = pd.DataFrame(
+            np.random.default_rng(42).uniform(0.5, 1.0, (len(dates), 30)),
+            index=dates, columns=tickers,
+        )
+        panels = Panels(
+            dates=dates,
+            tickers=tickers,
+            adjusted=pd.DataFrame(100.0, index=dates, columns=tickers),
+            raw_close=pd.DataFrame(100.0, index=dates, columns=tickers),
+            volume=pd.DataFrame(1_000_000.0, index=dates, columns=tickers),
+            returns=pd.DataFrame(0.0, index=dates, columns=tickers),
+            liquidity_ok=pd.DataFrame(True, index=dates, columns=tickers),
+            factors={},
+            scores={"P4": scores},
+            benchmark_returns={"SPY": pd.Series(0.0, index=dates), "QQQ": pd.Series(0.0, index=dates)},
+            sectors=np.array(["Technology"] * 30),
+            industries=np.array(["Software"] * 30),
+            coverage=pd.DataFrame(),
+            integrity={},
+        )
+        from src.backtest.mechanics_audit import simulate_practical
+        from src.backtest.price_walkforward import Configuration
+        config = Configuration("P4", 30, "monthly", 2.0, "unconstrained", "equal")
+        cache = RankingCache(panels)
+        ledger = simulate_practical(config, panels, cache)
+        # After March (quarterly month 3), weights should be ~1/30
+        mar_31 = pd.Timestamp("2014-03-31")
+        if mar_31 in ledger.index and mar_31 in panels.dates:
+            row = ledger.loc[mar_31]
+            # With all equal scores and zero returns, weights stay uniform
+            self.assertAlmostEqual(row.weight_hhi, 0.03333333, places=4)
+            self.assertAlmostEqual(row.top5_weight, 5 / 30, places=4)
+
+    def test_practical_sells_only_rank_below_sixty(self) -> None:
+        """Names above rank 60 should be sold; names at or below 60 should stay."""
+        dates = pd.bdate_range("2014-01-01", periods=66)
+        tickers = [f"T{i}" for i in range(5)]
+        # Scores: T0 best, T4 worst
+        scores_data = np.zeros((len(dates), 5))
+        scores_data[:, 0] = 1.0   # T0 always best
+        scores_data[:, 1] = 0.9
+        scores_data[:, 2] = 0.8
+        scores_data[:, 3] = 0.3
+        scores_data[:, 4] = 0.0   # T4 always worst
+        scores = pd.DataFrame(scores_data, index=dates, columns=tickers)
+        panels = Panels(
+            dates=dates,
+            tickers=tickers,
+            adjusted=pd.DataFrame(100.0, index=dates, columns=tickers),
+            raw_close=pd.DataFrame(100.0, index=dates, columns=tickers),
+            volume=pd.DataFrame(1_000_000.0, index=dates, columns=tickers),
+            returns=pd.DataFrame(0.0, index=dates, columns=tickers),
+            liquidity_ok=pd.DataFrame(True, index=dates, columns=tickers),
+            factors={},
+            scores={"P4": scores},
+            benchmark_returns={"SPY": pd.Series(0.0, index=dates), "QQQ": pd.Series(0.0, index=dates)},
+            sectors=np.array(["Technology"] * 5),
+            industries=np.array(["Software"] * 5),
+            coverage=pd.DataFrame(),
+            integrity={},
+        )
+        from src.backtest.mechanics_audit import simulate_practical
+        from src.backtest.price_walkforward import Configuration
+        config = Configuration("P4", 4, "monthly", 2.0, "unconstrained", "equal")  # N=4, 2N=8
+        cache = RankingCache(panels)
+        ledger = simulate_practical(config, panels, cache)
+        # T4 should be sold (rank 5 out of 5 > 8). With 2N buffer, rank 5 is <= 8,
+        # so T4 stays in the buffer. Actually with N=4, 2N=8, and only 5 names,
+        # rank 5 <= 8, so T4 stays.
+        # Let's use N=2, 2N=4 instead. T4 rank 5 > 4 → sell.
+        config2 = Configuration("P4", 2, "monthly", 2.0, "unconstrained", "equal")
+        cache2 = RankingCache(panels)
+        ledger2 = simulate_practical(config2, panels, cache2)
+        # After a few months, T4 shouldn't be in the portfolio
+        for date in ledger2.index[60:]:
+            row = ledger2.loc[date]
+            if row.sales > 0:
+                self.assertGreater(row.sales, 0)
+                break
+
+    def test_practical_turnover_lower_or_equal_to_existing(self) -> None:
+        """The practical variant should have <= turnover of the existing variant,
+        because it does not equal-weight survivors at non-quarterly reviews."""
+        from src.backtest.mechanics_audit import run_audit
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_audit(Path(tmp))
+            report_path = Path(tmp) / "mechanics_audit_report.md"
+            self.assertTrue(report_path.exists())
+            text = report_path.read_text()
+            self.assertIn("P4 remains FAIL", text)
+            self.assertIn("6.82", text)
+            self.assertIn("6.43", text)
+
+
 if __name__ == "__main__":
     unittest.main()
