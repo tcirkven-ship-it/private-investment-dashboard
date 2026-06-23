@@ -190,8 +190,9 @@ def compute_candidate_scores(panels: Panels) -> dict[str, pd.DataFrame]:
     E4 = E4.where(A3_req)
 
     # === P4 (failed control, for comparison) ===
-    P4_C = (A3 + rTREND + rVOL) / 3
-    P4_control = P4_C.where(A3_req & TREND200.notna() & VOL252.notna())
+    # Original formula: equal average of M12_1, M6_1, TREND200, VOL252(inverse) percentiles
+    P4_control = (rM12 + rM6 + rTREND + rVOL) / 4
+    P4_control = P4_control.where(A3_req & TREND200.notna() & VOL252.notna())
 
     scores: dict[str, pd.DataFrame] = {}
     candidates = {
