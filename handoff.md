@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 07:20 CEST (Europe/Zagreb)
+2026-06-23 15:21 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -27,6 +27,8 @@ No P4 configuration passed the 2015–2020 development gates; even the lowest-tu
 Research status remains mixed: price-only C03-M and nine variants failed the original approval standard; current QVP calculation/semantic engineering passes; no credible long historical QVP test exists; and repeated walk-forward QP/QGP plus selection-frequency tests remain unfinished. `research/57_research_completion_plan.md` specifies the honest proxy track and the data-source choice required for reliable full QVP.
 
 Reset documentation is `research/54`–`research/58`. The old execution-heavy and month-end activation documents remain preserved as historical evidence, not current practical instructions.
+
+Price Generation 2 (`research/67`–`research/71`) tested 20 new Price-only candidates across families A–E. No candidate passed every development gate. The primary failure mode was turnover exceeding 250% (all but E3), with E3 (formation-period drawdown stability) failing on drawdown and fold-dependence gates. The post-P4 direction decision (`research/66`) recommends prospective evidence accumulation with optional paid-data preparation. P4 FAIL is reaffirmed. The QVP weight experiment is not yet justified.
 
 ### Superseded Checkpoint 3 decision
 

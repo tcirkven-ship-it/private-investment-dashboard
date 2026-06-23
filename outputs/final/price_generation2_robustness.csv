@@ -1,0 +1,2 @@
+configuration_id,candidate,base_return,remove_best_return,base_TO,remove_best_TO,rank_weight_return,rank_weight_TO
+P4_CONTROL_N30_monthly_B2_U_EW,P4_CONTROL,0.08154967886218323,0.07894063388539685,5.940809490268151,5.928082744827799,0.08154967886218323,5.940809490268151
