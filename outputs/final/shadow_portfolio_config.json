@@ -1,0 +1,74 @@
+{
+  "common_settings": {
+    "benchmarks": [
+      "SPY",
+      "QQQ"
+    ],
+    "ledger_type": "immutable_file_based",
+    "price_factors_A3": [
+      "M12_1",
+      "M6_1"
+    ],
+    "price_factors_B2": [
+      "M12_1",
+      "M6_1",
+      "TREND200"
+    ],
+    "quality_factors": [
+      "ROA",
+      "GPA",
+      "FCF_MARGIN",
+      "DEBT_ASSETS"
+    ],
+    "reporting": "monthly_and_cumulative",
+    "universe": "YF_CURRENT_US_NONFINANCIAL_RULE_1.0.0",
+    "value_factors": [
+      "FCF_YIELD",
+      "SALES_EV",
+      "BOOK_MARKET"
+    ]
+  },
+  "created": "2026-06-23",
+  "models": [
+    {
+      "cost_bps": 10,
+      "description": "Price-only baseline (A3 momentum)",
+      "execution": "next_session_close",
+      "id": "P100_A3",
+      "n": 30,
+      "price_backbone": "A3",
+      "price_weight": 1.0,
+      "quality_weight": 0.0,
+      "retention": 60,
+      "review": "monthly",
+      "value_weight": 0.0
+    },
+    {
+      "cost_bps": 10,
+      "description": "Primary proposed architecture (A3 backbone)",
+      "execution": "next_session_close",
+      "id": "P50_Q25_V25_A3",
+      "n": 30,
+      "price_backbone": "A3",
+      "price_weight": 0.5,
+      "quality_weight": 0.25,
+      "retention": 60,
+      "review": "monthly",
+      "value_weight": 0.25
+    },
+    {
+      "cost_bps": 10,
+      "description": "Equal QVP control (A3 backbone)",
+      "execution": "next_session_close",
+      "id": "QVP_EQUAL_A3",
+      "n": 30,
+      "price_backbone": "A3",
+      "price_weight": 0.3333333333333333,
+      "quality_weight": 0.3333333333333333,
+      "retention": 60,
+      "review": "monthly",
+      "value_weight": 0.3333333333333333
+    }
+  ],
+  "schema": "YF-SHADOW-PORTFOLIOS-1.0.0"
+}

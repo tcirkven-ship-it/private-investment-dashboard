@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 19:30 CEST (Europe/Zagreb)
+2026-06-23 20:00 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -41,6 +41,8 @@ Instrumentation audit (`research/83`) and state-machine audit (`research/84`) di
 Contamination matrix (`research/85`) maps all affected modules and documents. Corrected persistence rerun (`research/86`–`research/87`) closes the Price persistence path under the current dataset — no corrected specification passes all development gates. Scanner confirmed unaffected.
 
 Decision log and experiment registry updated with supersession entries (DEC-060 through DEC-063, EXP-0023/EXP-0024).
+
+QVP Integration Generation 1 (`research/88`–`research/91`) tested whether Q/V overlays can stabilize Price rankings. Feasibility audit: Quality factors can be approximated historically from statements; Value factors require Enterprise Value (needs PIT shares — unavailable from yfinance). Current architecture comparison: A3 P50_Q25_V25 retains only 3/30 of P100 top 30. P60_Q20_V20 retains 7/30. No architecture at tested weights looks recognizably Price-driven. Decision: RETAIN P100 CONTROL. Historical proxy computation deferred due to infrastructure requirements. Shadow portfolio configuration defined.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
