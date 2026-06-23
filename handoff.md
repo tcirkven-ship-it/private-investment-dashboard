@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 23:00 CEST (Europe/Zagreb)
+2026-06-24 00:00 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -50,7 +50,7 @@ Quality-veto validation (`research/97`–`research/99`) built historical Quality
 
 Shadow system activation (`research/100`–`research/101`): four immutable ledgers initialized. Activation status: INITIALIZED.
 
-Practical yFinance QV backtest (`research/102`–`research/105`): Built complete historical panel from 2022-Q1 through 2025-Q4 with Price, annual-statement Quality, and proxy Value. First viable quarter with ≥60% Q/V coverage: 2023-03-31. Tested 7 models (M0-M6). Quarterly rebuild mechanics (no monthly rank exit). Decision: INCONCLUSIVE — only ~3 years of viable data, survivor-biased and non-PIT. Continue four-model shadow system for prospective evidence.
+Corrected practical QV backtest (`research/106`–`research/108`): Fixed critical B2 score bug — `.mean().tail(1)` was reducing Series to 1 element, causing only ZWS to have valid B2 scores. All 1069 B2 scores now valid. Results: All 7 models beat SPY (17-34pp excess). All exceed 200% TO gate (547-610%). Decision: SELECT M0 B2 P100 FOR LIMITED-CAPITAL PILOT. B2 Price-only: 50.9% ann ret, +28.3% vs SPY, -34.6% max DD, 585% TO. Pilot acknowledges TO risk from quarterly rebuild mechanics. Four-model shadow continues.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
