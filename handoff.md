@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 16:45 CEST (Europe/Zagreb)
+2026-06-23 17:30 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -33,6 +33,8 @@ Price Generation 2 (`research/67`–`research/71`) tested 20 new Price-only cand
 Price reconciliation (`research/72`), E3 diagnostic audit (`research/73`), persistence experiment (`research/74`–`research/76`) are complete.
 
 A3 exit2 — the only near-finalist from the persistence experiment (24.69% dev return, 64% TO, 6/6 SPY wins, missed one gate by 0.09pp) — was selected for confirmatory evaluation on untouched 2021–2025. It PASSES all evaluation gates after 10bps cost adjustment: 23.04% net return vs 14.40% SPY and 15.14% QQQ, 63% TO, −28.44% max DD, 3/5 SPY wins, 3/5 QQQ wins. It is approved as the frozen Price candidate for the next QVP weight experiment (`research/77`–`research/79`).
+
+SMA150 exit experiment (`research/80`–`research/82`) tested V0 rank-exit2, V1 SMA-only, V2 OR and V3 AND exit variants against the frozen A3 signal. V1 and V2 produced 383% turnover (exceeds 150% threshold). V3 (AND rule) had 22.18% return, 65% TO, −29.42% DD — slightly worse than V0 on all metrics. Decision: RETAIN BASELINE RANK EXIT2. The SMA150 filter does not improve the risk-return profile.
 
 ### Superseded Checkpoint 3 decision
 
