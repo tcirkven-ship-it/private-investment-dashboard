@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 18:00 CEST (Europe/Zagreb)
+2026-06-23 19:00 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -36,7 +36,11 @@ A3 exit2 — the only near-finalist from the persistence experiment (24.69% dev 
 
 SMA150 exit experiment (`research/80`–`research/82`) tested V0 rank-exit2, V1 SMA-only, V2 OR and V3 AND exit variants against the frozen A3 signal. V1 and V2 produced 383% turnover (approx 6.1× V0, 2.55× the 150% ceiling). V3 (AND rule) had 22.18% return, 65% TO, −29.42% DD — no improvement over V0. Decision: RETAIN BASELINE RANK EXIT2.
 
-Instrumentation audit (`research/83`) confirmed all exit-cause attributions: V0/V3 have 0 full exits (turnover from quarterly correction only), V1/V2 have 278 SMA exits each (ledgers byte-identical — SMA subsumes rank in OR mode). Cash reporting corrected (max cash was showing max DD). N=20/N=40 omission documented. Regression tests added (78 total).
+Instrumentation audit (`research/83`) confirmed exit-cause attributions. State-machine audit (`research/84`) discovered a critical implementation defect: the exit2 confirmation counter was cleared for ALL survivors each month, preventing any rank-based exit from ever triggering. The 30 initial holdings remained unchanged through 2021–2025; all 63% turnover came from quarterly rebalancing alone.
+
+Corrected evaluation: A3 exit2 with fixed state machine produces 35.32% return but 424% turnover — fails the 150% gate. The previous PASS is invalidated. A3 exit2 is no longer approved for QVP integration.
+
+82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
 ### Superseded Checkpoint 3 decision
 
