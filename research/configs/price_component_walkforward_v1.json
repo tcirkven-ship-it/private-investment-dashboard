@@ -1,0 +1,88 @@
+{
+  "experiment_version": "PRICE-WF-1.0.0",
+  "scanner_freeze_commit": "52aa05b859999b52d1352a54b8d7fe5bfb378873",
+  "scanner_run_id": "2026-06-22T172514Z",
+  "evidence_label": "Exploratory survivor-biased historical Price research using a currently reconstructable yfinance universe.",
+  "universe": {
+    "source": "data/prospective/daily_qvp/snapshots/2026-06-22T172514Z/raw/base_eligible_universe.csv",
+    "expected_count": 1069,
+    "historical_membership": "current_eligible_names_projected_backward",
+    "point_in_time_claim": false
+  },
+  "prices": {
+    "provider": "yfinance",
+    "retrieval_end_exclusive": "2026-01-01",
+    "history_root": "data/raw/yfinance/price_walkforward_2026-06-23",
+    "adjusted_price_field": "Adj Close",
+    "transaction_price_field": "Close",
+    "volume_field": "Volume",
+    "stale_price_limit_sessions": 3,
+    "minimum_price": 5.0,
+    "minimum_median_dollar_volume_63": 5000000.0,
+    "minimum_liquidity_observations": 55
+  },
+  "factors": {
+    "P1": ["M12_1"],
+    "P2": ["M12_1", "M6_1"],
+    "P3": ["M12_1", "M6_1", "TREND200"],
+    "P4": ["M12_1", "M6_1", "TREND200", "VOL252"],
+    "M12_1": "AdjClose[t-21] / AdjClose[t-252] - 1",
+    "M6_1": "AdjClose[t-21] / AdjClose[t-126] - 1",
+    "TREND200": "AdjClose[t] / mean(AdjClose[t-199:t]) - 1",
+    "VOL252": "annualized sample standard deviation of up to 252 daily log adjusted returns, requiring at least 200",
+    "directions": {"M12_1": 1, "M6_1": 1, "TREND200": 1, "VOL252": -1},
+    "winsor_quantiles": [0.025, 0.975],
+    "factor_rank_method": "average_percentile",
+    "composite": "equal_mean_of_required_factor_percentiles",
+    "missing_rule": "all_candidate_factors_required"
+  },
+  "grid": {
+    "candidates": ["P1", "P2", "P3", "P4"],
+    "portfolio_sizes": [20, 30, 40],
+    "review_schedules": ["daily", "weekly", "biweekly", "monthly"],
+    "retention_multiples": [1.0, 1.5, 2.0],
+    "versions": ["unconstrained", "current_classification_constrained"],
+    "weighting": "equal",
+    "sector_cap": 0.25,
+    "industry_cap": 0.15,
+    "execution_lag": "signal at completed close; rebalance at next session close; new weights earn returns beginning the following session",
+    "transaction_cost_bps": 0.0
+  },
+  "folds": {
+    "initial_observation_start": "2010-01-01",
+    "development_test_years": [2015, 2016, 2017, 2018, 2019, 2020],
+    "evaluation_test_years": [2021, 2022, 2023, 2024, 2025],
+    "form": "expanding_window_one_calendar_year_outer_tests"
+  },
+  "operational_selection": {
+    "scope": "P4_unconstrained_development_folds_only",
+    "required_median_active_twr_vs_spy": 0.0,
+    "required_median_active_twr_vs_qqq": -0.02,
+    "minimum_fold_win_rate_vs_spy": 0.5,
+    "minimum_fold_win_rate_vs_qqq": 0.4,
+    "minimum_worst_drawdown_difference_vs_spy": -0.10,
+    "maximum_annualized_gross_turnover": 2.0,
+    "maximum_single_fold_share_of_absolute_active_spy": 0.60,
+    "selection_order": [
+      "lowest_annualized_gross_turnover",
+      "highest_median_active_twr_vs_qqq",
+      "portfolio_size_closest_to_30",
+      "monthly_before_biweekly_before_weekly_before_daily",
+      "retention_2N_before_1_5N_before_immediate"
+    ],
+    "fallback_if_none_pass": "evaluate_P4_N30_monthly_rank2N_as_frozen_reference_but_standalone_price_cannot_pass"
+  },
+  "benchmarks": ["SPY", "QQQ"],
+  "risk_free_convention": "zero_percent_for_Sharpe_and_downside_metrics",
+  "robustness": [
+    "remove_best_performing_stock",
+    "remove_best_performing_calendar_year",
+    "rank_weighted_sensitivity",
+    "P1_to_P4_ablation",
+    "N20_N30_N40",
+    "weekly_vs_monthly",
+    "immediate_vs_rank2N",
+    "major_drawdown_and_recovery_periods"
+  ],
+  "random_seed": 20260623
+}
