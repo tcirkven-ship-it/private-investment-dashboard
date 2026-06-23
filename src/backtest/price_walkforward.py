@@ -600,12 +600,18 @@ def run(stage: str, config_path: Path, output: Path, choice_path: Path | None) -
 
     all_fold_rows: list[dict[str, object]] = []
     all_config_rows: list[dict[str, object]] = []
-    ledgers: dict[str, pd.DataFrame] = {}
-    attributions: dict[str, pd.DataFrame] = {}
+    retained_ledger: pd.DataFrame | None = None
+    retained_attribution: pd.DataFrame | None = None
+    retained_id: str | None = None
+    if stage == "evaluation":
+        if choice_path is None or not choice_path.exists():
+            raise RuntimeError("Evaluation requires the frozen development choice")
+        retained_id = parse_choice(choice_path).id
     grid = list(configurations(config))
     for number, configuration in enumerate(grid, start=1):
         ledger, attribution = simulate(configuration, panels, cache)
-        ledgers[configuration.id], attributions[configuration.id] = ledger, attribution
+        if configuration.id == retained_id:
+            retained_ledger, retained_attribution = ledger, attribution
         aggregate = metrics(ledger, panels.benchmark_returns, period_start, period_end, attribution)
         folds = fold_rows(configuration, ledger, attribution, panels, years, role)
         local = pd.DataFrame(folds)
@@ -649,13 +655,13 @@ def run(stage: str, config_path: Path, output: Path, choice_path: Path | None) -
         write_json(output / "frozen_operational_choice.json", choice)
         stage_details["operational_choice"] = choice
     else:
-        if choice_path is None or not choice_path.exists():
-            raise RuntimeError("Evaluation requires the frozen development choice")
         frozen = json.loads(choice_path.read_text())
         if frozen["configuration_sha256"] != config_sha:
             raise RuntimeError("Frozen choice/configuration hash mismatch")
         selected = parse_choice(choice_path)
-        base_ledger, base_attr = ledgers[selected.id], attributions[selected.id]
+        if retained_ledger is None or retained_attribution is None or retained_id != selected.id:
+            raise RuntimeError("Selected evaluation ledger was not retained")
+        base_ledger, base_attr = retained_ledger, retained_attribution
         best_ticker = str(base_attr.iloc[0].ticker)
         excluded_index = panels.tickers.index(best_ticker)
         removed_ledger, removed_attr = simulate(selected, panels, cache, excluded_ticker=excluded_index)
