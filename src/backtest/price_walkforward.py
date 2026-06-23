@@ -714,7 +714,7 @@ def run(stage: str, config_path: Path, output: Path, choice_path: Path | None) -
     manifest = {
         "schema": "PRICE-WF-RUN-1.0.0",
         "stage": stage,
-        "experiment_id": "EXP-0019" if stage == "development" else "EXP-0020",
+        "experiment_id": output.name,
         "evidence_label": config["evidence_label"],
         "configuration_path": str(config_path),
         "configuration_sha256": config_sha,
