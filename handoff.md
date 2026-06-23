@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 16:00 CEST (Europe/Zagreb)
+2026-06-23 16:45 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -28,9 +28,11 @@ Research status remains mixed: price-only C03-M and nine variants failed the ori
 
 Reset documentation is `research/54`–`research/58`. The old execution-heavy and month-end activation documents remain preserved as historical evidence, not current practical instructions.
 
-Price Generation 2 (`research/67`–`research/71`) tested 20 new Price-only candidates across families A–E. No candidate passed every development gate (primary failure: turnover >250%). The Gen2 P4_CONTROL formula was corrected from a double-weighted trend/vol error to the canonical equal-weight formula; reconciled result: 13.11% return, 624.63% TO vs the mechanics audit's 12.86%, 642.87% TO (0.25pp residual from floating-point accumulation, within tolerance).
+Price Generation 2 (`research/67`–`research/71`) tested 20 new Price-only candidates across families A–E. No candidate passed every development gate. The Gen2 P4_CONTROL formula was corrected and reconciled.
 
-Price reconciliation (`research/72`), E3 diagnostic audit (`research/73`), persistence preregistration (`research/74`), persistence results (`research/75`) and persistence decision (`research/76`) are complete. The persistence experiment tested A3, B2 and D1 with six mechanics variants. Two-consecutive-below-60 exit confirmation reduces turnover 10× (from 500–600% to 64–70%). No specification passes every development gate — the closest (A3 exit2) fails only the DD-vs-SPY-per-fold threshold by 0.09pp. Price-only research is exhausted under the current yfinance dataset. The post-P4 direction decision (`research/66`) recommends prospective evidence accumulation with optional paid-data preparation.
+Price reconciliation (`research/72`), E3 diagnostic audit (`research/73`), persistence experiment (`research/74`–`research/76`) are complete.
+
+A3 exit2 — the only near-finalist from the persistence experiment (24.69% dev return, 64% TO, 6/6 SPY wins, missed one gate by 0.09pp) — was selected for confirmatory evaluation on untouched 2021–2025. It PASSES all evaluation gates after 10bps cost adjustment: 23.04% net return vs 14.40% SPY and 15.14% QQQ, 63% TO, −28.44% max DD, 3/5 SPY wins, 3/5 QQQ wins. It is approved as the frozen Price candidate for the next QVP weight experiment (`research/77`–`research/79`).
 
 ### Superseded Checkpoint 3 decision
 
