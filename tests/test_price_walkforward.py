@@ -201,6 +201,148 @@ class PriceWalkForwardTests(unittest.TestCase):
                 self.assertGreater(row.sales, 0)
                 break
 
+    ROOT_T = Path(__file__).resolve().parents[1]
+
+    def test_instrumentation_cash_nonnegative(self) -> None:
+        """Cash must never be negative in long-only simulation."""
+        from src.backtest.price_walkforward import load_panels, Configuration, RankingCache
+        from src.backtest.sma150_instrumentation_audit import (
+            InstrumentedVariant, simulate_instrumented, a3_scores, _sma150, Panels)
+        import json, tempfile
+        config = json.loads((self.ROOT_T / "research/configs/price_component_walkforward_v1_1_full_history.json").read_text())
+        panels = load_panels(config, pd.Timestamp("2025-12-31"))
+        scores = a3_scores(panels)
+        sma = _sma150(panels.adjusted)
+        custom = Panels(dates=panels.dates, tickers=panels.tickers, adjusted=panels.adjusted,
+                        raw_close=panels.raw_close, volume=panels.volume, returns=panels.returns,
+                        liquidity_ok=panels.liquidity_ok, factors=panels.factors, scores=scores,
+                        benchmark_returns=panels.benchmark_returns, sectors=panels.sectors,
+                        industries=panels.industries, coverage=panels.coverage, integrity=panels.integrity)
+        cfg = Configuration("A3", 30, "monthly", 2.0, "unconstrained", "equal")
+
+        for vname, u_re, u_se, s_req, rule in [
+            ("V0", True, False, False, "or"),
+            ("V1", False, True, True, "or"),
+            ("V2", True, True, True, "or"),
+            ("V3", True, True, True, "and"),
+        ]:
+            var = InstrumentedVariant(vname, use_rank_exit=u_re, use_sma_exit=u_se,
+                                      sma_required_for_entry=s_req, exit_rule=rule)
+            cache = RankingCache(custom)
+            ledger, events, cash_ser = simulate_instrumented(var, cfg, custom, cache, sma)
+            self.assertTrue((cash_ser >= -1e-8).all(),
+                            msg=f"{vname}: negative cash found (min={cash_ser.min():.6f})")
+
+    def test_instrumentation_v0_exit_count(self) -> None:
+        """V0 should have 0 full exits (2-consecutive-below-60 almost never triggers)."""
+        from src.backtest.price_walkforward import load_panels, Configuration, RankingCache
+        from src.backtest.sma150_instrumentation_audit import (
+            InstrumentedVariant, simulate_instrumented, a3_scores, _sma150, Panels)
+        import json
+        config = json.loads((self.ROOT_T / "research/configs/price_component_walkforward_v1_1_full_history.json").read_text())
+        panels = load_panels(config, pd.Timestamp("2025-12-31"))
+        scores = a3_scores(panels)
+        sma = _sma150(panels.adjusted)
+        custom = Panels(dates=panels.dates, tickers=panels.tickers, adjusted=panels.adjusted,
+                        raw_close=panels.raw_close, volume=panels.volume, returns=panels.returns,
+                        liquidity_ok=panels.liquidity_ok, factors=panels.factors, scores=scores,
+                        benchmark_returns=panels.benchmark_returns, sectors=panels.sectors,
+                        industries=panels.industries, coverage=panels.coverage, integrity=panels.integrity)
+        cfg = Configuration("A3", 30, "monthly", 2.0, "unconstrained", "equal")
+
+        for vname in ["V0", "V3"]:
+            var = InstrumentedVariant(vname, use_rank_exit=True, use_sma_exit=(vname != "V0"),
+                                      sma_required_for_entry=(vname != "V0"),
+                                      exit_rule="and" if vname == "V3" else "or")
+            if vname == "V0":
+                var = InstrumentedVariant(vname, use_rank_exit=True, use_sma_exit=False,
+                                          sma_required_for_entry=False)
+            cache = RankingCache(custom)
+            ledger, events, _ = simulate_instrumented(var, cfg, custom, cache, sma)
+            full_exits = [e for e in events if e.event_type == "full_exit"
+                          and pd.Timestamp("2021-01-01") <= e.date <= pd.Timestamp("2025-12-31")]
+            self.assertEqual(len(full_exits), 0,
+                             msg=f"{vname}: expected 0 full exits, found {len(full_exits)}")
+
+    def test_instrumentation_v1_v2_identical(self) -> None:
+        """V1 and V2 should produce identical ledgers (SMA subsumes rank in OR mode)."""
+        from src.backtest.price_walkforward import load_panels, Configuration, RankingCache
+        from src.backtest.sma150_instrumentation_audit import (
+            InstrumentedVariant, simulate_instrumented, a3_scores, _sma150, Panels)
+        import json
+        config = json.loads((self.ROOT_T / "research/configs/price_component_walkforward_v1_1_full_history.json").read_text())
+        panels = load_panels(config, pd.Timestamp("2025-12-31"))
+        scores = a3_scores(panels)
+        sma = _sma150(panels.adjusted)
+        custom = Panels(dates=panels.dates, tickers=panels.tickers, adjusted=panels.adjusted,
+                        raw_close=panels.raw_close, volume=panels.volume, returns=panels.returns,
+                        liquidity_ok=panels.liquidity_ok, factors=panels.factors, scores=scores,
+                        benchmark_returns=panels.benchmark_returns, sectors=panels.sectors,
+                        industries=panels.industries, coverage=panels.coverage, integrity=panels.integrity)
+        cfg = Configuration("A3", 30, "monthly", 2.0, "unconstrained", "equal")
+
+        v1 = InstrumentedVariant("V1", use_rank_exit=False, use_sma_exit=True,
+                                 sma_required_for_entry=True, exit_rule="or")
+        v2 = InstrumentedVariant("V2", use_rank_exit=True, use_sma_exit=True,
+                                 sma_required_for_entry=True, exit_rule="or")
+        c1, c2 = RankingCache(custom), RankingCache(custom)
+        led1, ev1, _ = simulate_instrumented(v1, cfg, custom, c1, sma)
+        led2, ev2, _ = simulate_instrumented(v2, cfg, custom, c2, sma)
+        self.assertEqual(len(ev1), len(ev2), "Event count mismatch V1 vs V2")
+        for i in range(min(len(ev1), len(ev2))):
+            self.assertEqual(ev1[i].event_type, ev2[i].event_type, f"Event {i} type mismatch")
+            self.assertEqual(ev1[i].cause, ev2[i].cause, f"Event {i} cause mismatch")
+
+    def test_instrumentation_practical_turnover_reproduction(self) -> None:
+        """A3 exit2 turnover should reproduce the canonical 63%."""
+        from src.backtest.price_walkforward import load_panels, Configuration, RankingCache, metrics
+        from src.backtest.sma150_instrumentation_audit import (
+            InstrumentedVariant, simulate_instrumented, a3_scores, _sma150, Panels)
+        import json
+        config = json.loads((self.ROOT_T / "research/configs/price_component_walkforward_v1_1_full_history.json").read_text())
+        panels = load_panels(config, pd.Timestamp("2025-12-31"))
+        scores = a3_scores(panels)
+        sma = _sma150(panels.adjusted)
+        custom = Panels(dates=panels.dates, tickers=panels.tickers, adjusted=panels.adjusted,
+                        raw_close=panels.raw_close, volume=panels.volume, returns=panels.returns,
+                        liquidity_ok=panels.liquidity_ok, factors=panels.factors, scores=scores,
+                        benchmark_returns=panels.benchmark_returns, sectors=panels.sectors,
+                        industries=panels.industries, coverage=panels.coverage, integrity=panels.integrity)
+        cfg = Configuration("A3", 30, "monthly", 2.0, "unconstrained", "equal")
+        var = InstrumentedVariant("V0", use_rank_exit=True, use_sma_exit=False, sma_required_for_entry=False)
+        cache = RankingCache(custom)
+        ledger, events, _ = simulate_instrumented(var, cfg, custom, cache, sma)
+        m = metrics(ledger, panels.benchmark_returns, pd.Timestamp("2021-01-01"), pd.Timestamp("2025-12-31"))
+        self.assertAlmostEqual(float(m["annualized_gross_turnover"]), 0.6319, delta=0.005,
+                               msg="A3 exit2 annual turnover should be ~63.19% (±0.5pp)")
+
+    def test_instrumentation_cash_not_drawdown(self) -> None:
+        """Cash reporting must not confuse max_cash with max_drawdown."""
+        from src.backtest.price_walkforward import load_panels, Configuration, RankingCache
+        from src.backtest.sma150_instrumentation_audit import (
+            InstrumentedVariant, simulate_instrumented, a3_scores, _sma150, Panels)
+        import json
+        config = json.loads((self.ROOT_T / "research/configs/price_component_walkforward_v1_1_full_history.json").read_text())
+        panels = load_panels(config, pd.Timestamp("2025-12-31"))
+        scores = a3_scores(panels)
+        sma = _sma150(panels.adjusted)
+        custom = Panels(dates=panels.dates, tickers=panels.tickers, adjusted=panels.adjusted,
+                        raw_close=panels.raw_close, volume=panels.volume, returns=panels.returns,
+                        liquidity_ok=panels.liquidity_ok, factors=panels.factors, scores=scores,
+                        benchmark_returns=panels.benchmark_returns, sectors=panels.sectors,
+                        industries=panels.industries, coverage=panels.coverage, integrity=panels.integrity)
+        cfg = Configuration("A3", 30, "monthly", 2.0, "unconstrained", "equal")
+        var = InstrumentedVariant("V0", use_rank_exit=True, use_sma_exit=False, sma_required_for_entry=False)
+        cache = RankingCache(custom)
+        ledger, events, cash_ser = simulate_instrumented(var, cfg, custom, cache, sma)
+        # Cash should never be negative in long-only simulation
+        self.assertTrue((cash_ser >= -1e-8).all(),
+                        msg=f"Negative cash found (min={cash_ser.min():.6f})")
+        # Most of the time cash should be near 0 (fully invested)
+        near_zero = (cash_ser < 1e-6).mean()
+        self.assertGreater(near_zero, 0.9,
+                           msg=f"Cash should be near zero >90% of time, got {near_zero:.2%}")
+
     def test_practical_turnover_lower_or_equal_to_existing(self) -> None:
         """The practical variant should have <= turnover of the existing variant,
         because it does not equal-weight survivors at non-quarterly reviews."""
