@@ -1,0 +1,14 @@
+{
+  "configuration_sha256": "8dd91e3e45924fcbca52e668194cd86931d413b272161db56585039b5237e1eb",
+  "development_gate_passed": 0,
+  "evaluation_accessed": 0,
+  "schema": "PRICE-WF-OPERATIONAL-CHOICE-1.0.0",
+  "selected_candidate": "P4",
+  "selected_configuration_id": "P4_N30_monthly_B2_U_EW",
+  "selected_portfolio_size": 30,
+  "selected_retention_multiple": 2.0,
+  "selected_review_schedule": "monthly",
+  "selected_version": "unconstrained",
+  "selected_weighting": "equal",
+  "selection_reason": "No P4 operational configuration passed every preregistered development gate; frozen reference retained for evaluation only."
+}

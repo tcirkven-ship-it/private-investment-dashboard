@@ -1,0 +1,67 @@
+{
+  "code_commit": "708d1480d0555f577211da6a805a41a4ae480bda",
+  "configuration_count": 288,
+  "configuration_path": "research/configs/price_component_walkforward_v1_1_full_history.json",
+  "configuration_sha256": "8dd91e3e45924fcbca52e668194cd86931d413b272161db56585039b5237e1eb",
+  "current_qvp_top30_price_top30_overlap_count": 1,
+  "current_qvp_top30_price_top30_overlap_tickers": [
+    "ENS"
+  ],
+  "evidence_label": "Exploratory survivor-biased historical Price research using a currently reconstructable yfinance universe.",
+  "experiment_id": "EXP-0021",
+  "files": {
+    "configuration_results.csv": {
+      "bytes": 235871,
+      "sha256": "59a9a760892f6c62f86d33a78218e84f3dedbb0c75c73ad2ef1824afcdb3f998"
+    },
+    "coverage_by_year.csv": {
+      "bytes": 365,
+      "sha256": "29e9b98c66e301f8509721fffeee082de514f1843f9ca67f937178ccc35ad454"
+    },
+    "data_integrity.json": {
+      "bytes": 1719,
+      "sha256": "978d9744ab5d8a8a310beb6bace11c8fe643c6546cda1069f1ed1dd38d03ffad"
+    },
+    "fold_results.csv": {
+      "bytes": 1005449,
+      "sha256": "2a129c6df7d47347cb0f00ed530b26a8bbd286e93c6e65aabf6d5a364c1d99e7"
+    },
+    "frozen_operational_choice.json": {
+      "bytes": 626,
+      "sha256": "0ecaa1783423a84898ad0b39fc301f885164cb8a9fd7105a592761834de00e35"
+    },
+    "operational_candidates.csv": {
+      "bytes": 7488,
+      "sha256": "44d7f12df71746dcde7b4e1548e5b02ad981666166a3dfdff320897b5fe06988"
+    }
+  },
+  "fold_row_count": 1728,
+  "operational_choice": {
+    "configuration_sha256": "8dd91e3e45924fcbca52e668194cd86931d413b272161db56585039b5237e1eb",
+    "development_gate_passed": 0,
+    "evaluation_accessed": 0,
+    "schema": "PRICE-WF-OPERATIONAL-CHOICE-1.0.0",
+    "selected_candidate": "P4",
+    "selected_configuration_id": "P4_N30_monthly_B2_U_EW",
+    "selected_portfolio_size": 30,
+    "selected_retention_multiple": 2.0,
+    "selected_review_schedule": "monthly",
+    "selected_version": "unconstrained",
+    "selected_weighting": "equal",
+    "selection_reason": "No P4 operational configuration passed every preregistered development gate; frozen reference retained for evaluation only."
+  },
+  "scanner_freeze_commit": "52aa05b859999b52d1352a54b8d7fe5bfb378873",
+  "scanner_run_id": "2026-06-22T172514Z",
+  "schema": "PRICE-WF-RUN-1.0.0",
+  "stage": "development",
+  "successful_history_count": 1069,
+  "test_years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "universe_count": 1069
+}
