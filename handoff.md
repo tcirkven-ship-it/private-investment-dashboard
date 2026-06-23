@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 20:00 CEST (Europe/Zagreb)
+2026-06-23 20:30 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -42,7 +42,9 @@ Contamination matrix (`research/85`) maps all affected modules and documents. Co
 
 Decision log and experiment registry updated with supersession entries (DEC-060 through DEC-063, EXP-0023/EXP-0024).
 
-QVP Integration Generation 1 (`research/88`–`research/91`) tested whether Q/V overlays can stabilize Price rankings. Feasibility audit: Quality factors can be approximated historically from statements; Value factors require Enterprise Value (needs PIT shares — unavailable from yfinance). Current architecture comparison: A3 P50_Q25_V25 retains only 3/30 of P100 top 30. P60_Q20_V20 retains 7/30. No architecture at tested weights looks recognizably Price-driven. Decision: RETAIN P100 CONTROL. Historical proxy computation deferred due to infrastructure requirements. Shadow portfolio configuration defined.
+QVP Generation 1 audit (`research/92`) fixed B2 P100 self-overlap bug (22/30 → 30/30). Historical P100 simulator corrected (holding period tracking, immediate rank-60 exit). Status: ADDITIVE QVP ARCHITECTURES FAIL PRICE-IDENTITY GATE; PERFORMANCE EFFECT UNTESTED.
+
+Price-gated overlay design (`research/93`–`research/96`): G3 (Quality veto) retains 21-22/30 of P100 top 30 while excluding bottom-10% Quality stocks. G1 (top-60 rerank) retains 10-11/30. G4 (Q&V veto) retains 6-7/30. Decision: ADOPT A3 G3_QVETO FOR SHADOW MODE — the only gated model that both passes the Price-identity gate (>=15/30) and materially adds Q screening. Historical proxy computation deferred.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
