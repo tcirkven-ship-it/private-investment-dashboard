@@ -1,0 +1,53 @@
+{
+  "activated": "2026-06-23",
+  "common": {
+    "benchmarks": [
+      "SPY",
+      "QQQ"
+    ],
+    "broker": "none",
+    "execution": "next_session_close",
+    "ledger": "immutable_file_based",
+    "orders": "none",
+    "quarterly_rebalance": 1
+  },
+  "models": [
+    {
+      "cost_bps": 10,
+      "id": "A3_P100",
+      "n": 30,
+      "price_backbone": "A3",
+      "quality_veto": 0,
+      "retention": 60,
+      "review": "monthly"
+    },
+    {
+      "cost_bps": 10,
+      "id": "A3_G3_QUALITY_VETO",
+      "n": 30,
+      "price_backbone": "A3",
+      "quality_veto": 1,
+      "retention": 60,
+      "review": "monthly"
+    },
+    {
+      "cost_bps": 10,
+      "id": "B2_P100",
+      "n": 30,
+      "price_backbone": "B2",
+      "quality_veto": 0,
+      "retention": 60,
+      "review": "monthly"
+    },
+    {
+      "cost_bps": 10,
+      "id": "B2_G3_QUALITY_VETO",
+      "n": 30,
+      "price_backbone": "B2",
+      "quality_veto": 1,
+      "retention": 60,
+      "review": "monthly"
+    }
+  ],
+  "schema": "YF-SHADOW-PORTFOLIOS-2.0.0"
+}

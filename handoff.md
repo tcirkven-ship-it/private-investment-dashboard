@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 20:30 CEST (Europe/Zagreb)
+2026-06-23 21:00 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -44,7 +44,9 @@ Decision log and experiment registry updated with supersession entries (DEC-060 
 
 QVP Generation 1 audit (`research/92`) fixed B2 P100 self-overlap bug (22/30 → 30/30). Historical P100 simulator corrected (holding period tracking, immediate rank-60 exit). Status: ADDITIVE QVP ARCHITECTURES FAIL PRICE-IDENTITY GATE; PERFORMANCE EFFECT UNTESTED.
 
-Price-gated overlay design (`research/93`–`research/96`): G3 (Quality veto) retains 21-22/30 of P100 top 30 while excluding bottom-10% Quality stocks. G1 (top-60 rerank) retains 10-11/30. G4 (Q&V veto) retains 6-7/30. Decision: ADOPT A3 G3_QVETO FOR SHADOW MODE — the only gated model that both passes the Price-identity gate (>=15/30) and materially adds Q screening. Historical proxy computation deferred.
+Price-gated overlay design (`research/93`–`research/96`): G3 (Quality veto) retains 21-22/30 of P100 top 30. Decision: ADOPT G3 QUALITY VETO FOR SHADOW MODE.
+
+Quality-veto validation (`research/97`–`research/99`) built historical Quality extraction from annual statements. Historical data covers only 2022+ (earliest fiscal year 2021 with 3-month lag). Development period 2015-2020 has no Quality data — G3 never fires. Current cross-section confirmed: A3 G3 retains 21/30 with improved median Quality (0.664 vs 0.596). Decision: INCONCLUSIVE DUE TO QUALITY-DATA COVERAGE. Four shadow models (A3 P100, A3 G3, B2 P100, B2 G3) activated for prospective accumulation. Paid historical data required for definitive test.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
