@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-23 19:00 CEST (Europe/Zagreb)
+2026-06-23 19:30 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -36,9 +36,11 @@ A3 exit2 — the only near-finalist from the persistence experiment (24.69% dev 
 
 SMA150 exit experiment (`research/80`–`research/82`) tested V0 rank-exit2, V1 SMA-only, V2 OR and V3 AND exit variants against the frozen A3 signal. V1 and V2 produced 383% turnover (approx 6.1× V0, 2.55× the 150% ceiling). V3 (AND rule) had 22.18% return, 65% TO, −29.42% DD — no improvement over V0. Decision: RETAIN BASELINE RANK EXIT2.
 
-Instrumentation audit (`research/83`) confirmed exit-cause attributions. State-machine audit (`research/84`) discovered a critical implementation defect: the exit2 confirmation counter was cleared for ALL survivors each month, preventing any rank-based exit from ever triggering. The 30 initial holdings remained unchanged through 2021–2025; all 63% turnover came from quarterly rebalancing alone.
+Instrumentation audit (`research/83`) and state-machine audit (`research/84`) discovered a critical implementation defect: the exit2 confirmation counter was cleared for ALL survivors each month, preventing any rank-based exit from ever triggering (0 exits in 5 years). Corrected evaluation: A3 exit2 with fixed state machine produces 424% turnover and fails all gates.
 
-Corrected evaluation: A3 exit2 with fixed state machine produces 35.32% return but 424% turnover — fails the 150% gate. The previous PASS is invalidated. A3 exit2 is no longer approved for QVP integration.
+Contamination matrix (`research/85`) maps all affected modules and documents. Corrected persistence rerun (`research/86`–`research/87`) closes the Price persistence path under the current dataset — no corrected specification passes all development gates. Scanner confirmed unaffected.
+
+Decision log and experiment registry updated with supersession entries (DEC-060 through DEC-063, EXP-0023/EXP-0024).
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
