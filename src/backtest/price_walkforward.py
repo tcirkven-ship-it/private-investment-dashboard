@@ -102,7 +102,7 @@ def cross_sectional_percentile(frame: pd.DataFrame, direction: int, quantiles: l
     return (clipped * direction).rank(axis=1, pct=True, method="average")
 
 
-def load_panels(config: dict) -> Panels:
+def load_panels(config: dict, end_inclusive: pd.Timestamp | None = None) -> Panels:
     universe_path = ROOT / config["universe"]["source"]
     history_roots = []
     for item in config["prices"]["history_roots"]:
@@ -117,6 +117,8 @@ def load_panels(config: dict) -> Panels:
     benchmarks = {ticker: load_history(benchmark_root / ticker / "history_daily.csv") for ticker in config["benchmarks"]}
     dates = benchmarks["SPY"].index.intersection(benchmarks["QQQ"].index)
     dates = dates[(dates >= pd.Timestamp("2000-01-01")) & (dates < pd.Timestamp(config["prices"]["retrieval_end_exclusive"]))]
+    if end_inclusive is not None:
+        dates = dates[dates <= end_inclusive]
 
     adj_map: dict[str, pd.Series] = {}
     close_map: dict[str, pd.Series] = {}
@@ -352,7 +354,7 @@ def simulate(
     weights: dict[int, float] = {}
     cash = 1.0
     rows: list[dict[str, object]] = []
-    contributions: dict[int, float] = {}
+    contribution_values = np.zeros((len(dates) - start_index, len(panels.tickers)), dtype=np.float32)
     for date_index in range(start_index, len(dates)):
         date = dates[date_index]
         day_return = 0.0
@@ -363,7 +365,7 @@ def simulate(
             value_return = float(stock_returns[idx]) if np.isfinite(stock_returns[idx]) else 0.0
             contribution = weight * value_return
             day_return += contribution
-            contributions[idx] = contributions.get(idx, 0.0) + contribution
+            contribution_values[date_index - start_index, idx] = contribution
             portfolio_growth += weight * (1.0 + value_return)
         if portfolio_growth > 0:
             weights = {
@@ -395,10 +397,13 @@ def simulate(
             "top5_weight": top5_weight,
         })
     ledger = pd.DataFrame(rows).set_index("date")
-    attribution = pd.DataFrame(
-        [{"ticker": panels.tickers[idx], "return_contribution": value} for idx, value in contributions.items()]
-    ).sort_values("return_contribution", ascending=False) if contributions else pd.DataFrame(columns=["ticker", "return_contribution"])
+    attribution = pd.DataFrame(contribution_values, index=dates[start_index:], columns=panels.tickers)
     return ledger, attribution
+
+
+def summarize_attribution(attribution: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    totals = attribution.loc[(attribution.index >= start) & (attribution.index <= end)].sum(axis=0)
+    return totals.rename("return_contribution").rename_axis("ticker").reset_index().sort_values("return_contribution", ascending=False)
 
 
 def max_drawdown_stats(returns: pd.Series) -> tuple[float, int]:
@@ -469,9 +474,10 @@ def metrics(
             valid = pd.concat([strategy_roll, benchmark_roll], axis=1).dropna()
             result[f"rolling_{months}m_win_rate_vs_{ticker}"] = float((valid.iloc[:, 0] > valid.iloc[:, 1]).mean()) if len(valid) else np.nan
     if attribution is not None and not attribution.empty:
-        positive = attribution.loc[attribution.return_contribution > 0, "return_contribution"]
+        attribution_summary = summarize_attribution(attribution, start, end)
+        positive = attribution_summary.loc[attribution_summary.return_contribution > 0, "return_contribution"]
         result["top5_stock_positive_contribution_share"] = float(positive.nlargest(5).sum() / positive.sum()) if positive.sum() > 0 else np.nan
-        result["top5_stock_contributors"] = ";".join(attribution.head(5).ticker.astype(str))
+        result["top5_stock_contributors"] = ";".join(attribution_summary.head(5).ticker.astype(str))
     else:
         result["top5_stock_positive_contribution_share"] = np.nan
         result["top5_stock_contributors"] = ""
@@ -591,11 +597,11 @@ def parse_choice(path: Path) -> Configuration:
 def run(stage: str, config_path: Path, output: Path, choice_path: Path | None) -> None:
     config = json.loads(config_path.read_text())
     config_sha = sha256(config_path)
-    panels = load_panels(config)
-    cache = RankingCache(panels)
     years = config["folds"]["development_test_years" if stage == "development" else "evaluation_test_years"]
     role = stage
     period_start, period_end = pd.Timestamp(f"{min(years)}-01-01"), pd.Timestamp(f"{max(years)}-12-31")
+    panels = load_panels(config, period_end)
+    cache = RankingCache(panels)
     output.mkdir(parents=True, exist_ok=True)
 
     all_fold_rows: list[dict[str, object]] = []
@@ -662,7 +668,8 @@ def run(stage: str, config_path: Path, output: Path, choice_path: Path | None) -
         if retained_ledger is None or retained_attribution is None or retained_id != selected.id:
             raise RuntimeError("Selected evaluation ledger was not retained")
         base_ledger, base_attr = retained_ledger, retained_attribution
-        best_ticker = str(base_attr.iloc[0].ticker)
+        base_attr_summary = summarize_attribution(base_attr, period_start, period_end)
+        best_ticker = str(base_attr_summary.iloc[0].ticker)
         excluded_index = panels.tickers.index(best_ticker)
         removed_ledger, removed_attr = simulate(selected, panels, cache, excluded_ticker=excluded_index)
         rank_config = Configuration(selected.candidate, selected.portfolio_size, selected.schedule, selected.retention_multiple, selected.version, "rank")
@@ -697,7 +704,7 @@ def run(stage: str, config_path: Path, output: Path, choice_path: Path | None) -
         }
         write_json(output / "robustness.json", robustness)
         base_ledger.loc[(base_ledger.index >= period_start) & (base_ledger.index <= period_end)].to_csv(output / "selected_daily_returns.csv", date_format="%Y-%m-%d")
-        base_attr.to_csv(output / "selected_stock_attribution.csv", index=False)
+        base_attr_summary.to_csv(output / "selected_stock_attribution.csv", index=False)
         stage_details["robustness"] = robustness
 
     qvp = pd.read_csv(ROOT / "outputs/final/current_daily_qvp_ranking.csv")

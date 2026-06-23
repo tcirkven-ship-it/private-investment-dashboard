@@ -1,5 +1,5 @@
 {
-  "code_commit": "9036e3cbcb67fe0013f902868514690836b7d9dd",
+  "code_commit": "868c7b64fc89dbbc4260ff373017c7603b327baf",
   "configuration_count": 288,
   "configuration_path": "research/configs/price_component_walkforward_v1.json",
   "configuration_sha256": "ea4892769a7b75cfb6bfa781fe739ca5159541f825ce86df4351c2705eeedbd2",
@@ -11,12 +11,12 @@
   "experiment_id": "EXP-0019",
   "files": {
     "configuration_results.csv": {
-      "bytes": 228007,
-      "sha256": "01554bd84ca2234b96067d2cd7dd5d13d4c5d0f2f182fe5efd18892420fd5e37"
+      "bytes": 228146,
+      "sha256": "453a0d58a68b25b67a16e485939b021a6527070da6cdedf1d7bd48fc5753e165"
     },
     "coverage_by_year.csv": {
-      "bytes": 310,
-      "sha256": "d0d7d44c90fb1422ee3f9ee385a87c7a84dd79bf0af84cf002d4ccdacab6c35c"
+      "bytes": 410,
+      "sha256": "c3d9a6d0b3077121059abf0b46b09df36037fe41db210d2ed640a4d198b90d1b"
     },
     "data_integrity.json": {
       "bytes": 12277,

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -14,6 +16,7 @@ from src.backtest.price_walkforward import (
     review_dates,
     simulate,
     target_weights,
+    load_panels,
 )
 
 
@@ -87,6 +90,23 @@ class PriceWalkForwardTests(unittest.TestCase):
         self.assertTrue(monthly.issubset(daily))
         self.assertTrue(weekly.issubset(daily))
         self.assertLess(len(monthly), len(weekly))
+
+    def test_local_aapl_factors_match_frozen_formulas(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        config = json.loads((root / "research/configs/price_component_walkforward_v1.json").read_text())
+        panels = load_panels(config)
+        ticker = "AAPL"
+        date = pd.Timestamp("2025-12-31")
+        position = panels.dates.get_loc(date)
+        series = panels.adjusted[ticker]
+        expected_m12 = series.iloc[position - 21] / series.iloc[position - 252] - 1
+        expected_m6 = series.iloc[position - 21] / series.iloc[position - 126] - 1
+        expected_trend = series.iloc[position] / series.iloc[position - 199 : position + 1].mean() - 1
+        expected_vol = np.log(series / series.shift(1)).iloc[position - 251 : position + 1].std(ddof=1) * np.sqrt(252)
+        self.assertAlmostEqual(float(panels.factors["M12_1"].loc[date, ticker]), float(expected_m12), places=12)
+        self.assertAlmostEqual(float(panels.factors["M6_1"].loc[date, ticker]), float(expected_m6), places=12)
+        self.assertAlmostEqual(float(panels.factors["TREND200"].loc[date, ticker]), float(expected_trend), places=12)
+        self.assertAlmostEqual(float(panels.factors["VOL252"].loc[date, ticker]), float(expected_vol), places=12)
 
 
 if __name__ == "__main__":
