@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-24 00:30 CEST (Europe/Zagreb)
+2026-06-24 01:00 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -52,7 +52,9 @@ Shadow system activation (`research/100`–`research/101`): four immutable ledge
 
 Corrected practical QV backtest (`research/106`–`research/108`): Fixed critical B2 score bug. All models beat SPY but fail 200% TO gate (547-610%).
 
-Decision correction (`research/109`–`research/111`): Supersedes M0 selection. Corrected conclusion: NO MODEL PASSES ALL FROZEN PRACTICAL GATES — LIMITED-CAPITAL PILOT REQUIRES AN EXPLICIT TURNOVER-GATE OVERRIDE. Selected candidate: M1 B2 QUALITY VETO (lower vol 29.3% vs 34.6%, lower DD -27.8% vs -34.6%, historically defensible Quality data). Pilot protocol defined with quarterly rebuild, sector/industry caps, 10bps cost, no broker connection. All limitations documented. Four-model shadow continues.
+Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
+
+Final pilot readiness (`research/112`): Status: PILOT CANDIDATE. M1 target portfolio generated (30 selected, 106 Quality-vetoed). Order-sizing worksheet with capital-agnostic target percentages. Execution checklist documented. Immutable pilot ledger skeleton created. Fresh scanner snapshot required before activation.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 

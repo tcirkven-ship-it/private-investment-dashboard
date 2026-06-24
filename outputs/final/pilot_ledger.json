@@ -1,0 +1,18 @@
+{
+  "activation_timestamp": null,
+  "benchmark_ledgers": {
+    "QQQ": {},
+    "SPY": {}
+  },
+  "cash": null,
+  "config_hash": "pending",
+  "contributions": [],
+  "holdings": {},
+  "model": "M1_B2_QUALITY_VETO",
+  "nav_history": [],
+  "schema": "PILOT-LEDGER-1.0.0",
+  "source_snapshot": "pending_fresh",
+  "starting_capital": null,
+  "status": "PILOT CANDIDATE",
+  "transactions": []
+}
