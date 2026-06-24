@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-24 00:00 CEST (Europe/Zagreb)
+2026-06-24 00:30 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -50,7 +50,9 @@ Quality-veto validation (`research/97`–`research/99`) built historical Quality
 
 Shadow system activation (`research/100`–`research/101`): four immutable ledgers initialized. Activation status: INITIALIZED.
 
-Corrected practical QV backtest (`research/106`–`research/108`): Fixed critical B2 score bug — `.mean().tail(1)` was reducing Series to 1 element, causing only ZWS to have valid B2 scores. All 1069 B2 scores now valid. Results: All 7 models beat SPY (17-34pp excess). All exceed 200% TO gate (547-610%). Decision: SELECT M0 B2 P100 FOR LIMITED-CAPITAL PILOT. B2 Price-only: 50.9% ann ret, +28.3% vs SPY, -34.6% max DD, 585% TO. Pilot acknowledges TO risk from quarterly rebuild mechanics. Four-model shadow continues.
+Corrected practical QV backtest (`research/106`–`research/108`): Fixed critical B2 score bug. All models beat SPY but fail 200% TO gate (547-610%).
+
+Decision correction (`research/109`–`research/111`): Supersedes M0 selection. Corrected conclusion: NO MODEL PASSES ALL FROZEN PRACTICAL GATES — LIMITED-CAPITAL PILOT REQUIRES AN EXPLICIT TURNOVER-GATE OVERRIDE. Selected candidate: M1 B2 QUALITY VETO (lower vol 29.3% vs 34.6%, lower DD -27.8% vs -34.6%, historically defensible Quality data). Pilot protocol defined with quarterly rebuild, sector/industry caps, 10bps cost, no broker connection. All limitations documented. Four-model shadow continues.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
