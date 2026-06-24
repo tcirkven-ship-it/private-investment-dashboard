@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-24 01:00 CEST (Europe/Zagreb)
+2026-06-24 09:00 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -54,7 +54,9 @@ Corrected practical QV backtest (`research/106`–`research/108`): Fixed critica
 
 Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
 
-Final pilot readiness (`research/112`): Status: PILOT CANDIDATE. M1 target portfolio generated (30 selected, 106 Quality-vetoed). Order-sizing worksheet with capital-agnostic target percentages. Execution checklist documented. Immutable pilot ledger skeleton created. Fresh scanner snapshot required before activation.
+Final pilot readiness (`research/112`): Status: PILOT CANDIDATE.
+
+Fresh pilot seed: Generated using latest complete integrity-passed snapshot (2026-06-22T172514Z). Fresh retrieval attempted (2026-06-24) but enrichment did not complete within 60-minute timeout. M1 targets: 30 selected, 106 Quality-vetoed, 2 missing Quality. Status updated to TARGETS GENERATED. Order-sizing worksheet with user-input capital. Execution checklist. Separate immutable pilot ledger (PILOT-M1-B2-QV-001, status: TARGETS GENERATED). No broker connection. Awaiting manual execution.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 

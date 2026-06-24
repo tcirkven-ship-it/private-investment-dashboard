@@ -1,14 +1,8 @@
 {
-  "schema": "PILOT-LEDGER-1.0.0",
+  "event_type": "INITIAL_PILOT_SEED",
   "model": "M1_B2_QUALITY_VETO",
-  "status": "TARGETS GENERATED",
-  "activation_timestamp": null,
-  "starting_capital": null,
-  "cash": null,
-  "holdings": {},
-  "transactions": [],
-  "contributions": [],
-  "nav_history": [],
+  "decision_timestamp": "2026-06-24T06:27:04.926680+00:00",
+  "source_snapshot": "2026-06-22T172514Z",
   "targets": [
     "WDC",
     "TTMI",
@@ -73,10 +67,8 @@
     0.03333333333333333,
     0.03333333333333333
   ],
-  "source_snapshot": "2026-06-22T172514Z",
-  "decision_timestamp": "2026-06-24T06:27:04.926680+00:00",
-  "benchmark_ledgers": {
-    "SPY": {},
-    "QQQ": {}
-  }
+  "execution_convention": "next_valid_session_close",
+  "configuration_hash": "M1-B2-QV-1.0.0",
+  "status_before": "PILOT CANDIDATE",
+  "status_after": "TARGETS GENERATED"
 }

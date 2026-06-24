@@ -1,0 +1,13 @@
+{
+  "snapshot_id": "2026-06-22T172514Z",
+  "retrieval_timestamp": "2026-06-22T18:43:27.580303+00:00",
+  "last_completed_session": "2026-06-18",
+  "fundamental_cutoff": "2026-06-22",
+  "universe_screened": 2205,
+  "eligible_count": 1069,
+  "integrity_classification": "current_decision_support_integrity_passed",
+  "note": "Complete integrity-passed snapshot. Fresh retrieval was attempted (2026-06-24T052537Z) but enrichment did not complete within 60-minute timeout. This is the most recent complete snapshot.",
+  "valid_B2_count": 1069,
+  "valid_Quality_count": 1067,
+  "missing_Quality_count": 2
+}
