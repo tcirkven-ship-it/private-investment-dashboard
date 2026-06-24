@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "code_commit": "33ff41b93a92e74b56415b879829d3f69fa59acb",
+    "configuration_sha256": "d3881a1328862a39dc4af32e15c4826237a09adca2da7038eafb5659ddb68bb4",
+    "eligible_count": 1070,
+    "output_manifest_sha256": "80cd62661f1ec4a4bd867430747f99e1dd0a12810f4e682ce2b18eaee15f67ef",
+    "retrieval_completed_at_utc": "2026-06-24T08:56:01.277223+00:00",
+    "retrieval_started_at_utc": "2026-06-24T08:05:00.833985+00:00",
+    "run_id": "2026-06-24T080500Z",
+    "score_session": "2026-06-23",
+    "scored_count": 1034,
+    "source_snapshot": "data/prospective/daily_qvp/snapshots/2026-06-24T080500Z/raw"
+  },
+  "warnings": [
+    "36 eligible stocks have at least one score or price-freshness flag.",
+    "36 eligible stocks lack a complete YF-QVP score and are not ranked for selection.",
+    "Fundamental and valuation fields are current retrieval-time observations, not historical point-in-time vintages.",
+    "Yahoo classifications and active security coverage can change and do not include a reliable delisting history."
+  ]
+}
