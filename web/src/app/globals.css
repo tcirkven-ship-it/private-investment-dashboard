@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+* { box-sizing: border-box; }
+
+body {
+  background: #0a0a0a;
+  color: #e5e5e5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  background: #141414;
+  border: 1px solid #1f1f1f;
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-change-positive {
+  font-size: 0.875rem;
+  font-family: "JetBrains Mono", monospace;
+  color: #4ade80;
+}
+
+.metric-change-negative {
+  font-size: 0.875rem;
+  font-family: "JetBrains Mono", monospace;
+  color: #f87171;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+}
+.btn-primary:hover { background: #3b82f6; }
+
+.btn-secondary {
+  background: #262626;
+  color: #e5e5e5;
+  border: 1px solid #404040;
+}
+.btn-secondary:hover { background: #404040; }
+
+.btn-ghost {
+  color: #a3a3a3;
+  background: transparent;
+  border: none;
+}
+.btn-ghost:hover { color: #e5e5e5; background: #262626; }
+
+.input {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #404040;
+  background: #171717;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #f5f5f5;
+}
+.input::placeholder { color: #737373; }
+
+.table-header {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.table-cell {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #d4d4d4;
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-cell-text {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #d4d4d4;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #a3a3a3;
+  transition: all 0.15s ease;
+}
+.nav-link:hover { color: #f5f5f5; background: #262626; }
+
+.nav-link-active {
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.1);
+}

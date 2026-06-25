@@ -19,3 +19,4 @@
 /outputs/final/*.xlsx
 /outputs/final/*.png
 /outputs/final/*.ndjson
+.env.local
