@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-24 12:30 CEST (Europe/Zagreb)
+2026-06-25 16:30 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -54,7 +54,9 @@ Corrected practical QV backtest (`research/106`–`research/108`): Fixed critica
 
 Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
 
-Fresh pilot seed (v2): Full 4-hour retrieval completed successfully. Fresh snapshot 2026-06-24T080500Z: 2,205 screened, 1,070 eligible, 1,034 fully scored, 1,070 valid B2, 1,070 valid Quality (0 missing), 107 Quality-vetoed. M1 targets: 30 selected with valid B2 scores. All integrity checks pass. Status: TARGETS GENERATED. Awaiting manual execution.
+Fresh pilot seed (v2): Full retrieval completed. Snapshot 2026-06-24T080500Z.
+
+Private Investment Dashboard: Full production implementation at `/web`. Next.js 16 App Router, TypeScript, Supabase Auth + Postgres + RLS. Complete database schema (18 tables), authentication, login, responsive app shell, model display, portfolio management, settings admin. Build passes. 82 Python tests pass.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
