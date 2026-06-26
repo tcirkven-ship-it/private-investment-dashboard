@@ -14,13 +14,18 @@ on:
 env:
   ALLOW_DESTRUCTIVE_DB_TESTS: "true"
   SUPABASE_CLI_VERSION: "2.6.1"
-  CI_SUPABASE_WORKDIR: "${{ runner.temp }}/supabase-ci-${{ github.job }}"
 
 jobs:
   migration-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_SUPABASE_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_SUPABASE_DIR=$CI_SUPABASE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_SUPABASE_DIR"
       - uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
@@ -30,27 +35,27 @@ jobs:
         run: supabase --version
       - name: Create temp project dir and copy migrations
         run: |
-          mkdir -p "$CI_SUPABASE_WORKDIR"
+          mkdir -p "$CI_SUPABASE_DIR"
           # Copy only migrations (not the incompatible config.toml)
-          cp -r supabase/migrations "$CI_SUPABASE_WORKDIR/supabase/migrations"
+          cp -r supabase/migrations "$CI_SUPABASE_DIR/supabase/migrations"
           # Hide migrations so supabase start doesn't apply them
-          mv "$CI_SUPABASE_WORKDIR/supabase/migrations" /tmp/hidden-ci-migrations
+          mv "$CI_SUPABASE_DIR/supabase/migrations" /tmp/hidden-ci-migrations
         working-directory: web
       - name: Init and start Supabase
         run: |
-          supabase init --workdir "$CI_SUPABASE_WORKDIR" --force
-          supabase --workdir "$CI_SUPABASE_WORKDIR" start
+          supabase init --workdir "$CI_SUPABASE_DIR" --force
+          supabase --workdir "$CI_SUPABASE_DIR" start
         env:
           SUPABASE_CI: "true"
       - name: Get DB URL and export
         run: |
-          supabase --workdir "$CI_SUPABASE_WORKDIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
+          supabase --workdir "$CI_SUPABASE_DIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
       - name: Verify empty application schema
         run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep "^0$"
       - name: Restore migrations for manual test
         run: |
-          mkdir -p "$CI_SUPABASE_WORKDIR/supabase/migrations"
-          cp -r /tmp/hidden-ci-migrations/* "$CI_SUPABASE_WORKDIR/supabase/migrations/"
+          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
+          cp -r /tmp/hidden-ci-migrations/* "$CI_SUPABASE_DIR/supabase/migrations/"
       - name: Run migration smoke test
         run: EXPECTED_TEST_DATABASE=postgres bash scripts/test-migration.sh
         working-directory: web
@@ -58,12 +63,18 @@ jobs:
           PG_TEST_URL: ${{ env.SUPABASE_DB_URL }}
       - name: Stop Supabase
         if: always()
-        run: supabase --workdir "$CI_SUPABASE_WORKDIR" stop --no-backup
+        run: supabase --workdir "$CI_SUPABASE_DIR" stop --no-backup
 
   rollback-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_SUPABASE_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_SUPABASE_DIR=$CI_SUPABASE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_SUPABASE_DIR"
       - uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
@@ -73,25 +84,25 @@ jobs:
         run: supabase --version
       - name: Create temp project dir
         run: |
-          mkdir -p "$CI_SUPABASE_WORKDIR"
-          cp -r supabase/migrations "$CI_SUPABASE_WORKDIR/supabase/migrations"
-          mv "$CI_SUPABASE_WORKDIR/supabase/migrations" /tmp/hidden-ci-rollback
+          mkdir -p "$CI_SUPABASE_DIR"
+          cp -r supabase/migrations "$CI_SUPABASE_DIR/supabase/migrations"
+          mv "$CI_SUPABASE_DIR/supabase/migrations" /tmp/hidden-ci-rollback
         working-directory: web
       - name: Init and start Supabase
         run: |
-          supabase init --workdir "$CI_SUPABASE_WORKDIR" --force
-          supabase --workdir "$CI_SUPABASE_WORKDIR" start
+          supabase init --workdir "$CI_SUPABASE_DIR" --force
+          supabase --workdir "$CI_SUPABASE_DIR" start
         env:
           SUPABASE_CI: "true"
       - name: Get DB URL
         run: |
-          supabase --workdir "$CI_SUPABASE_WORKDIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
+          supabase --workdir "$CI_SUPABASE_DIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
       - name: Verify empty
         run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep "^0$"
       - name: Restore migrations
         run: |
-          mkdir -p "$CI_SUPABASE_WORKDIR/supabase/migrations"
-          cp -r /tmp/hidden-ci-rollback/* "$CI_SUPABASE_WORKDIR/supabase/migrations/"
+          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
+          cp -r /tmp/hidden-ci-rollback/* "$CI_SUPABASE_DIR/supabase/migrations/"
       - name: Run rollback test
         run: EXPECTED_TEST_DATABASE=postgres bash scripts/test-rollback.sh
         working-directory: web
@@ -99,12 +110,18 @@ jobs:
           PG_TEST_URL: ${{ env.SUPABASE_DB_URL }}
       - name: Stop Supabase
         if: always()
-        run: supabase --workdir "$CI_SUPABASE_WORKDIR" stop --no-backup
+        run: supabase --workdir "$CI_SUPABASE_DIR" stop --no-backup
 
   reset-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_SUPABASE_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_SUPABASE_DIR=$CI_SUPABASE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_SUPABASE_DIR"
       - uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
@@ -114,25 +131,25 @@ jobs:
         run: supabase --version
       - name: Create temp project dir
         run: |
-          mkdir -p "$CI_SUPABASE_WORKDIR"
-          cp -r supabase/migrations "$CI_SUPABASE_WORKDIR/supabase/migrations"
-          mv "$CI_SUPABASE_WORKDIR/supabase/migrations" /tmp/hidden-ci-reset
+          mkdir -p "$CI_SUPABASE_DIR"
+          cp -r supabase/migrations "$CI_SUPABASE_DIR/supabase/migrations"
+          mv "$CI_SUPABASE_DIR/supabase/migrations" /tmp/hidden-ci-reset
         working-directory: web
       - name: Init and start Supabase
         run: |
-          supabase init --workdir "$CI_SUPABASE_WORKDIR" --force
-          supabase --workdir "$CI_SUPABASE_WORKDIR" start
+          supabase init --workdir "$CI_SUPABASE_DIR" --force
+          supabase --workdir "$CI_SUPABASE_DIR" start
         env:
           SUPABASE_CI: "true"
       - name: Get DB URL
         run: |
-          supabase --workdir "$CI_SUPABASE_WORKDIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
+          supabase --workdir "$CI_SUPABASE_DIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
       - name: Verify empty
         run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep "^0$"
       - name: Restore migrations
         run: |
-          mkdir -p "$CI_SUPABASE_WORKDIR/supabase/migrations"
-          cp -r /tmp/hidden-ci-reset/* "$CI_SUPABASE_WORKDIR/supabase/migrations/"
+          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
+          cp -r /tmp/hidden-ci-reset/* "$CI_SUPABASE_DIR/supabase/migrations/"
       - name: Run reset test
         run: EXPECTED_TEST_DATABASE=postgres bash scripts/test-reset.sh
         working-directory: web
@@ -140,12 +157,18 @@ jobs:
           PG_TEST_URL: ${{ env.SUPABASE_DB_URL }}
       - name: Stop Supabase
         if: always()
-        run: supabase --workdir "$CI_SUPABASE_WORKDIR" stop --no-backup
+        run: supabase --workdir "$CI_SUPABASE_DIR" stop --no-backup
 
   auth-rls-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_SUPABASE_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_SUPABASE_DIR=$CI_SUPABASE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_SUPABASE_DIR"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -163,18 +186,18 @@ jobs:
         working-directory: web
       - name: Create temp project dir with migrations
         run: |
-          mkdir -p "$CI_SUPABASE_WORKDIR"
-          cp -r supabase/migrations "$CI_SUPABASE_WORKDIR/supabase/migrations"
+          mkdir -p "$CI_SUPABASE_DIR"
+          cp -r supabase/migrations "$CI_SUPABASE_DIR/supabase/migrations"
         working-directory: web
       - name: Init and start Supabase (migrations apply automatically)
         run: |
-          supabase init --workdir "$CI_SUPABASE_WORKDIR" --force
-          supabase --workdir "$CI_SUPABASE_WORKDIR" start
+          supabase init --workdir "$CI_SUPABASE_DIR" --force
+          supabase --workdir "$CI_SUPABASE_DIR" start
         env:
           SUPABASE_CI: "true"
       - name: Export env vars
         run: |
-          supabase --workdir "$CI_SUPABASE_WORKDIR" status -o env > /tmp/supabase_env.txt
+          supabase --workdir "$CI_SUPABASE_DIR" status -o env > /tmp/supabase_env.txt
           while IFS= read -r line; do
             key=$(echo "$line" | cut -d= -f1)
             val=$(echo "$line" | cut -d= -f2- | sed 's/^"//;s/"$//')
@@ -192,12 +215,12 @@ jobs:
             db_ok=0; auth_ok=0; cli_ok=0
             psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "select 1;" > /dev/null 2>&1 && db_ok=1
             curl --fail --silent --show-error "${NEXT_PUBLIC_SUPABASE_URL}/auth/v1/health" > /dev/null 2>&1 && auth_ok=1
-            supabase --workdir "$CI_SUPABASE_WORKDIR" status > /dev/null 2>&1 && cli_ok=1
+            supabase --workdir "$CI_SUPABASE_DIR" status > /dev/null 2>&1 && cli_ok=1
             [ "$db_ok" = "1" ] && [ "$auth_ok" = "1" ] && [ "$cli_ok" = "1" ] && echo "All healthy" && exit 0
             sleep 2
           done
           echo "FAIL: Services not healthy"
-          supabase --workdir "$CI_SUPABASE_WORKDIR" status || true
+          supabase --workdir "$CI_SUPABASE_DIR" status || true
           exit 1
       - name: Run Auth and RLS tests
         id: test-step
@@ -206,7 +229,7 @@ jobs:
         working-directory: web
       - name: Stop Supabase
         if: always()
-        run: supabase --workdir "$CI_SUPABASE_WORKDIR" stop --no-backup
+        run: supabase --workdir "$CI_SUPABASE_DIR" stop --no-backup
       - name: Check test result
         if: steps.test-step.outcome != 'success'
         run: exit 1
