@@ -11,7 +11,7 @@ on:
       - "web/scripts/**"
 
 jobs:
-  verify:
+  migration-smoke-test:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -26,36 +26,51 @@ jobs:
           --health-cmd pg_isready
           --health-interval 5s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 15
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install psql client
+      - name: Install psql
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Migration smoke test
+        run: bash scripts/verify-migrations.sh
+        working-directory: web
+        env:
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dashboard_test
+      - name: Rollback test
+        run: bash scripts/verify-rollback.sh
+        working-directory: web
+        env:
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dashboard_test
+      - name: RLS schema test
+        run: bash scripts/verify-rls.sh
+        working-directory: web
+        env:
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dashboard_test
+      - name: Reset and reapply
+        run: |
+          psql "$PG_TEST_URL" -f supabase/reset_new_project.sql
+          psql "$PG_TEST_URL" -f supabase/migrations/00001_schema.sql
+          echo "Reset and reapply: OK"
+        working-directory: web
+        env:
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dashboard_test
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+  web-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: web/package-lock.json
-
       - name: Install dependencies
         run: npm ci
         working-directory: web
-
-      - name: Run migration smoke test
-        run: npm run test:db-migrations
-        working-directory: web
-        env:
-          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dashboard_test
-          PGPASSWORD: postgres
-
-      - name: Run web unit tests
+      - name: Web unit tests
         run: npm test
         working-directory: web
-
       - name: Production build
         run: npm run build
         working-directory: web

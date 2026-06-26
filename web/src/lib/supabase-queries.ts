@@ -3,7 +3,51 @@
 import { createServerSupabase } from "./supabase";
 import { cache } from "react";
 
-export const getPublishedModel = cache(async () => {
+export interface ModelSnapshot {
+  id: string;
+  snapshot_id: string;
+  effective_date: string;
+  status: string;
+  published_at: string | null;
+  model_version: { model_id: string; version: string; description: string | null } | null;
+  holdings: Array<{
+    rank: number;
+    target_weight: number;
+    b2_score: number | null;
+    quality_percentile: number | null;
+    quality_components_ok: number;
+    inclusion_reason: string | null;
+    security: { ticker: string; company_name: string | null; sector: string | null; industry: string | null } | null;
+  }>;
+}
+
+export interface Portfolio {
+  id: string;
+  name: string;
+  currency: string;
+  opening_date: string;
+  is_archived: boolean;
+  created_at: string;
+}
+
+export interface Transaction {
+  id: string;
+  event_type: string;
+  event_date: string;
+  quantity: number | null;
+  price: number | null;
+  gross_amount: number;
+  commission: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface QueryResult<T> {
+  data: T | null;
+  error: string | null;
+}
+
+export const getPublishedModel = cache(async (): Promise<QueryResult<ModelSnapshot>> => {
   const supabase = await createServerSupabase();
   const { data, error } = await supabase
     .from("model_snapshots")
@@ -19,10 +63,13 @@ export const getPublishedModel = cache(async () => {
     .eq("status", "PUBLISHED")
     .order("effective_date", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (error) return null;
-  return data;
+  if (error) {
+    console.error("getPublishedModel query failed:", error);
+    return { data: null, error: `Failed to load model: ${error.message}` };
+  }
+  return { data: data as ModelSnapshot | null, error: null };
 });
 
 export const getModelHistory = cache(async () => {

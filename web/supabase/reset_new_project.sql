@@ -3,63 +3,79 @@
 -- ================================================================
 -- For brand-new Supabase development projects with NO real data.
 -- WARNING: This is destructive. All application data will be lost.
--- Will refuse if any application table contains data unless
--- the override comment is uncommented.
+--
+-- Refuses if any application table contains rows.
+-- Override: SET app.reset_override = true; before running.
+--
 -- Does NOT modify: auth, storage, extensions, realtime, supabase_functions
 -- ================================================================
 
 DO $$
 DECLARE
-  has_data boolean;
+  app_tables TEXT[] := ARRAY[
+    'public.owner_decisions', 'public.rebalance_lines', 'public.rebalance_events',
+    'public.portfolio_valuations', 'public.model_publication_events',
+    'public.model_snapshot_holdings', 'public.model_snapshots', 'public.model_versions',
+    'public.data_imports', 'public.audit_events', 'public.benchmark_observations',
+    'public.price_observations', 'public.transactions', 'public.portfolios',
+    'public.securities', 'public.app_settings', 'public.profiles'
+  ];
+  t TEXT;
+  row_count INT;
+  has_data BOOLEAN := false;
+  override BOOLEAN;
 BEGIN
-  -- Safety check: refuse if any table has rows
-  SELECT EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public'
-      AND table_type = 'BASE TABLE'
-      AND table_name IN (
-        'profiles', 'app_settings', 'securities', 'model_versions',
-        'model_snapshots', 'model_snapshot_holdings', 'model_publication_events',
-        'portfolios', 'transactions', 'price_observations', 'benchmark_observations',
-        'portfolio_valuations', 'rebalance_events', 'rebalance_lines',
-        'owner_decisions', 'data_imports', 'audit_events'
-      )
-      -- Check if any have rows
-      AND EXISTS (SELECT 1 FROM (SELECT 1 FROM ONLY (quote_ident(table_name)) LIMIT 1) t)
-  ) INTO has_data;
+  -- Check override
+  BEGIN
+    override := current_setting('app.reset_override', true) = 'true';
+  EXCEPTION WHEN OTHERS THEN
+    override := false;
+  END;
 
-  IF has_data THEN
-    RAISE EXCEPTION 'Application tables contain data. Remove data manually or override.';
+  IF NOT override THEN
+    -- Check if any application table has rows
+    FOREACH t IN ARRAY app_tables
+    LOOP
+      BEGIN
+        EXECUTE format('SELECT count(*) FROM %s LIMIT 1', t) INTO row_count;
+        IF row_count > 0 THEN
+          has_data := true;
+          RAISE WARNING 'Table % has % row(s)', t, row_count;
+        END IF;
+      EXCEPTION WHEN undefined_table THEN
+        -- Table doesn't exist yet — fine
+        NULL;
+      END;
+    END LOOP;
+
+    IF has_data THEN
+      RAISE EXCEPTION 'Application tables contain data. Set app.reset_override = true to override.';
+    END IF;
   END IF;
+
+  -- Drop application objects
+  FOREACH t IN ARRAY app_tables
+  LOOP
+    BEGIN
+      EXECUTE format('DROP TABLE IF EXISTS %s CASCADE', t);
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END LOOP;
+
+  -- Drop custom types
+  BEGIN
+    DROP TYPE IF EXISTS public.snapshot_status CASCADE;
+    DROP TYPE IF EXISTS public.rebalance_status CASCADE;
+    DROP TYPE IF EXISTS public.transaction_event_type CASCADE;
+  EXCEPTION WHEN OTHERS THEN NULL; END;
+
+  -- Drop functions
+  BEGIN
+    DROP FUNCTION IF EXISTS public.update_updated_at_column() CASCADE;
+    DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+    DROP FUNCTION IF EXISTS public.prevent_published_mutation() CASCADE;
+    DROP FUNCTION IF EXISTS public.prevent_portfolio_deletion() CASCADE;
+    DROP FUNCTION IF EXISTS public.is_owner() CASCADE;
+  EXCEPTION WHEN OTHERS THEN NULL; END;
 END $$;
-
--- Drop application objects (schema-qualified for safety)
-DROP TABLE IF EXISTS public.owner_decisions CASCADE;
-DROP TABLE IF EXISTS public.rebalance_lines CASCADE;
-DROP TABLE IF EXISTS public.rebalance_events CASCADE;
-DROP TABLE IF EXISTS public.portfolio_valuations CASCADE;
-DROP TABLE IF EXISTS public.model_publication_events CASCADE;
-DROP TABLE IF EXISTS public.model_snapshot_holdings CASCADE;
-DROP TABLE IF EXISTS public.model_snapshots CASCADE;
-DROP TABLE IF EXISTS public.model_versions CASCADE;
-DROP TABLE IF EXISTS public.data_imports CASCADE;
-DROP TABLE IF EXISTS public.audit_events CASCADE;
-DROP TABLE IF EXISTS public.benchmark_observations CASCADE;
-DROP TABLE IF EXISTS public.price_observations CASCADE;
-DROP TABLE IF EXISTS public.transactions CASCADE;
-DROP TABLE IF EXISTS public.portfolios CASCADE;
-DROP TABLE IF EXISTS public.securities CASCADE;
-DROP TABLE IF EXISTS public.app_settings CASCADE;
-DROP TABLE IF EXISTS public.profiles CASCADE;
-
--- Drop custom types
-DROP TYPE IF EXISTS public.snapshot_status CASCADE;
-DROP TYPE IF EXISTS public.rebalance_status CASCADE;
-DROP TYPE IF EXISTS public.transaction_event_type CASCADE;
-
--- Drop functions
-DROP FUNCTION IF EXISTS public.update_updated_at_column() CASCADE;
-DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
-DROP FUNCTION IF EXISTS public.prevent_published_mutation() CASCADE;
-DROP FUNCTION IF EXISTS public.prevent_portfolio_deletion() CASCADE;
-DROP FUNCTION IF EXISTS public.is_owner() CASCADE;

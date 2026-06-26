@@ -142,34 +142,48 @@ CREATE TABLE public.model_snapshots (
   warnings JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   published_at TIMESTAMPTZ,
-  superseded_at TIMESTAMPTZ,
-  CONSTRAINT chk_snapshot_status_transition CHECK (
-    (status = 'DRAFT') OR
-    (status = 'VALIDATED' AND created_at IS NOT NULL) OR
-    (status = 'APPROVED' AND created_at IS NOT NULL) OR
-    (status = 'PUBLISHED' AND published_at IS NOT NULL) OR
-    (status = 'SUPERSEDED')
-  )
+  superseded_at TIMESTAMPTZ
 );
 
--- Prevent modification of PUBLISHED or SUPERSEDED snapshots
-CREATE OR REPLACE FUNCTION public.prevent_published_mutation()
+-- Enforce valid status transitions for model snapshots
+CREATE OR REPLACE FUNCTION public.check_snapshot_status_transition()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Published/superseded are immutable
   IF OLD.status IN ('PUBLISHED', 'SUPERSEDED') THEN
     RAISE EXCEPTION 'Published or superseded snapshots are immutable';
   END IF;
+
+  -- Valid transitions: DRAFT->VALIDATED->APPROVED->PUBLISHED, any->SUPERSEDED
+  IF NEW.status = 'VALIDATED' AND OLD.status != 'DRAFT' THEN
+    RAISE EXCEPTION 'Only DRAFT can become VALIDATED';
+  END IF;
+  IF NEW.status = 'APPROVED' AND OLD.status != 'VALIDATED' THEN
+    RAISE EXCEPTION 'Only VALIDATED can become APPROVED';
+  END IF;
+  IF NEW.status = 'PUBLISHED' AND OLD.status != 'APPROVED' THEN
+    RAISE EXCEPTION 'Only APPROVED can become PUBLISHED';
+  END IF;
+  IF NEW.status = 'SUPERSEDED' AND OLD.status NOT IN ('PUBLISHED', 'APPROVED') THEN
+    RAISE EXCEPTION 'Only PUBLISHED or APPROVED can become SUPERSEDED';
+  END IF;
+
+  -- Set timestamps
+  IF NEW.status = 'PUBLISHED' AND OLD.status != 'PUBLISHED' THEN
+    NEW.published_at = now();
+  END IF;
+
   RETURN NEW;
 END;
 $$;
 
-CREATE TRIGGER prevent_published_mutation
+CREATE TRIGGER check_snapshot_status_transition
   BEFORE UPDATE ON public.model_snapshots FOR EACH ROW
-  EXECUTE FUNCTION public.prevent_published_mutation();
+  EXECUTE FUNCTION public.check_snapshot_status_transition();
 
 -- ============================================================
 -- 9. Model snapshot holdings
@@ -257,9 +271,6 @@ CREATE TABLE public.transactions (
   corrected_by UUID REFERENCES public.transactions(id),
   owner_id UUID NOT NULL REFERENCES auth.users(id),
   created_at TIMESTAMPTZ DEFAULT now(),
-  CONSTRAINT chk_transaction_owner_matches_portfolio CHECK (
-    owner_id = (SELECT p.owner_id FROM public.portfolios p WHERE p.id = portfolio_id)
-  ),
   CONSTRAINT chk_buy_sell_requires_security CHECK (
     event_type NOT IN ('BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'SYMBOL_CHANGE', 'MERGER', 'SPINOFF')
     OR security_id IS NOT NULL
@@ -274,6 +285,31 @@ CREATE TABLE public.transactions (
     event_type NOT IN ('DEPOSIT', 'WITHDRAWAL') OR gross_amount > 0
   )
 );
+
+-- Enforce transaction owner matches portfolio owner
+CREATE OR REPLACE FUNCTION public.check_transaction_owner()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  port_owner UUID;
+BEGIN
+  SELECT owner_id INTO port_owner FROM public.portfolios WHERE id = NEW.portfolio_id;
+  IF port_owner IS NULL THEN
+    RAISE EXCEPTION 'Portfolio not found';
+  END IF;
+  IF NEW.owner_id != port_owner THEN
+    RAISE EXCEPTION 'Transaction owner must match portfolio owner';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER check_transaction_owner
+  BEFORE INSERT ON public.transactions FOR EACH ROW
+  EXECUTE FUNCTION public.check_transaction_owner();
 
 CREATE INDEX idx_transactions_portfolio ON public.transactions(portfolio_id, event_date);
 CREATE INDEX idx_transactions_owner ON public.transactions(owner_id, event_date);

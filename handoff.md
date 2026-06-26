@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-26 19:45 CEST (Europe/Zagreb)
+2026-06-26 20:15 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -54,27 +54,36 @@ Corrected practical QV backtest (`research/106`–`research/108`): Fixed critica
 
 Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
 
-Database release verification: NOT YET VERIFIED. CI proof required.
+DATABASE RELEASE NOT VERIFIED — CI proof pending.
+GitHub Actions workflow defined at .github/workflows/database-release.yml.
+Push to run: git push origin main
 
-Corrected release migration:
-- Atomic transaction wrapping (BEGIN/COMMIT)
-- Owner-only RLS (all tables use is_owner() check)
-- Append-only transactions (owner has INSERT+SELECT only, no UPDATE/DELETE)
-- Model immutability (prevent_published_mutation trigger, CHECK constraints)
-- Portfolio deletion prevention (prevent_portfolio_deletion trigger)
-- Cascading protection (ON DELETE RESTRICT on transactions)
-- Single authoritative cash source (no starting_cash — transactions only)
-- 31 RLS policies (strict owner isolation with second-user denial)
-- Corporate-action CHECK constraints
-- idempotency_key UNIQUE on transactions and checksum UNIQUE on imports
-- GitHub Actions workflow (.github/workflows/database-release.yml)
+Authoritative schema inventory (verified by static analysis):
+- 17 tables (public schema)
+- 3 enum types (snapshot_status:5 values, rebalance_status:3, transaction_event_type:14)
+- 6 functions (check_snapshot_status_transition, check_transaction_owner,
+  handle_new_user, is_owner, prevent_portfolio_deletion, update_updated_at_column)
+- 6 triggers (set_profiles_updated_at, set_portfolios_updated_at, on_auth_user_created,
+  check_snapshot_status_transition, check_transaction_owner, prevent_portfolio_deletion)
+- 8 secondary indexes
+- 31 RLS policies
+- RLS enabled on all 17 tables
 
-CI must pass before deployment. Actions workflow requires Docker for local
-Supabase PostgreSQL. Current system lacks Docker — proof deferred to CI run.
+Migration defects fixed:
+- CHECK constraints for status transitions replaced by trigger function
+- CHECK constraint for owner consistency replaced by trigger function
+- reset_new_project.sql uses EXECUTE format() for dynamic SQL
+- Reset script refuses with data (override via app.reset_override setting)
+- Tests include transactional rollback, migration smoke, and RLS schema verification
 
-Routes connected to Supabase: /model (async server component with real query).
-Remaining routes (holdings, transactions, rebalance) still show empty states
-awaiting full integration in a subsequent task.
+Routes connected to Supabase:
+- /model: typed queries, error/empty/data states, no any types
+- /model/history: empty state (not connected)
+- /portfolios/[id]: real data with server component
+- /portfolios/[id]/holdings: empty state (not connected)
+- /portfolios/[id]/transactions: empty state (not connected)
+- /portfolios/[id]/rebalance: empty state (not connected)
+- /portfolios/[id]/performance: empty state (not connected)
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
