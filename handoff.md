@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-26 21:15 CEST (Europe/Zagreb)
+2026-06-26 21:30 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -56,16 +56,25 @@ Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OV
 
 DATABASE RELEASE NOT VERIFIED — CI not yet run.
 
-Branch: fix/database-verification (pushed to origin at a822020)
-PR: https://github.com/tcirkven-ship-it/private-investment-dashboard/compare/main...fix/database-verification
-(Create PR from this link. CI will run automatically on PR push.)
+Branch: fix/database-verification (pushed to origin at 0963d23)
 
-CI workflow (.github/workflows/database-release.yml) has 3 jobs:
-1. database-tests: migration smoke, rollback, reset/reapply (Supabase Postgres service)
-2. auth-rls-tests: Supabase Auth + RLS via real clients (local Supabase stack)
-3. web-tests: unit tests + production build
+PR link: https://github.com/tcirkven-ship-it/private-investment-dashboard/compare/main...fix/database-verification
+(Open this URL in a browser, click "Create Pull Request". CI runs automatically.)
 
-Required: GitHub token or browser to create PR. No token available in this environment.
+CI workflow (.github/workflows/database-release.yml) has 5 jobs:
+1. migration-smoke: migration + inventory + constraint tests (fresh Supabase Postgres container)
+2. rollback-test: intentional failure + zero-object verification (fresh Supabase Postgres container)
+3. reset-test: safety, override, reapply idempotency (fresh Supabase Postgres container)
+4. auth-rls-tests: Supabase Auth + real API client tests (local Supabase stack with Docker)
+5. web-tests: 10 Vitest unit tests + production build
+
+Local non-database checks passed:
+- git diff --check: clean
+- npm ci: OK
+- 10 Vitest tests: pass
+- production build: pass
+
+Database, reset, rollback, Auth, RLS and financial integration tests have not yet executed and remain pending CI.
 
 Authoritative schema inventory (verified by static analysis):
 - 17 tables (public schema)

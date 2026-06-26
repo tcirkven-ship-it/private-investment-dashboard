@@ -128,7 +128,7 @@ jobs:
           # Extract for logging (redacted)
           ANON=$(grep SUPABASE_ANON_KEY /tmp/supabase_env.txt | cut -d= -f2-)
           echo "Supabase API URL: $(grep SUPABASE_URL /tmp/supabase_env.txt | cut -d= -f2-)"
-          echo "Anon key: ${ANON:0:10}..." 
+          echo "Anon key: ${ANON:0:10}..."
         working-directory: web
       - name: Health check
         run: |

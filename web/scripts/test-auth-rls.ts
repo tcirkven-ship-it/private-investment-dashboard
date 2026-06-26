@@ -304,82 +304,158 @@ async function main() {
   // ─── Database-backed workflow test ───────────────────────
   console.log("--- Workflow integration test ---");
 
-  // Deposit
-  const { error: wfDepErr } = await serviceClient.from("transactions").insert({
+  // Create securities for AAPL and MSFT
+  const { data: aaplSec, error: aaplSecErr } = await serviceClient.from("securities")
+    .insert({ ticker: "AAPL", company_name: "Apple Inc.", sector: "Technology", industry: "Consumer Electronics" })
+    .select().single();
+  assert(!aaplSecErr && !!aaplSec, "AAPL security created");
+  const aaplId = aaplSec!.id;
+
+  const { data: msftSec, error: msftSecErr } = await serviceClient.from("securities")
+    .insert({ ticker: "MSFT", company_name: "Microsoft Corp.", sector: "Technology", industry: "Software" })
+    .select().single();
+  assert(!msftSecErr && !!msftSec, "MSFT security created");
+  const msftId = msftSec!.id;
+
+  // Insert the deposit
+  const { data: depTx, error: depErr } = await serviceClient.from("transactions").insert({
     portfolio_id: portfolioId, event_type: "DEPOSIT",
     event_date: "2025-01-02", gross_amount: 100000,
     idempotency_key: `wf-dep-${ts}`, owner_id: ownerUser.id,
-  });
-  assert(!wfDepErr, "Workflow deposit");
+  }).select().single();
+  assert(!depErr && !!depTx, "Deposit inserted");
 
-  // Two buys
-  const { error: wfBuy1 } = await serviceClient.from("transactions").insert({
-    portfolio_id: portfolioId, event_type: "BUY",
+  // Buy AAPL 50 @ $185 with $5 commission
+  const { data: buyAapl, error: buy1Err } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, security_id: aaplId, event_type: "BUY",
     event_date: "2025-01-05", quantity: 50, price: 185,
     gross_amount: 9250, commission: 5,
     idempotency_key: `wf-buy1-${ts}`, owner_id: ownerUser.id,
-  });
-  assert(!wfBuy1, "Workflow buy 1 (AAPL 50 @ $185)");
+  }).select().single();
+  assert(!buy1Err && !!buyAapl, "Buy AAPL 50 @ $185 inserted");
 
-  const { error: wfBuy2 } = await serviceClient.from("transactions").insert({
-    portfolio_id: portfolioId, event_type: "BUY",
+  // Buy MSFT 30 @ $420 with $5 commission
+  const { data: buyMsft, error: buy2Err } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, security_id: msftId, event_type: "BUY",
     event_date: "2025-01-05", quantity: 30, price: 420,
     gross_amount: 12600, commission: 5,
     idempotency_key: `wf-buy2-${ts}`, owner_id: ownerUser.id,
-  });
-  assert(!wfBuy2, "Workflow buy 2 (MSFT 30 @ $420)");
+  }).select().single();
+  assert(!buy2Err && !!buyMsft, "Buy MSFT 30 @ $420 inserted");
 
-  // Dividend
-  const { error: wfDiv } = await serviceClient.from("transactions").insert({
-    portfolio_id: portfolioId, event_type: "DIVIDEND",
+  // Dividend $50
+  const { data: divTx, error: divErr } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, security_id: aaplId, event_type: "DIVIDEND",
     event_date: "2025-02-01", gross_amount: 50,
     idempotency_key: `wf-div-${ts}`, owner_id: ownerUser.id,
-  });
-  assert(!wfDiv, "Workflow dividend");
+  }).select().single();
+  assert(!divErr && !!divTx, "Dividend $50 inserted");
 
-  // Fee
-  const { error: wfFee } = await serviceClient.from("transactions").insert({
+  // Fee $5
+  const { data: feeTx, error: feeErr } = await serviceClient.from("transactions").insert({
     portfolio_id: portfolioId, event_type: "FEE",
     event_date: "2025-03-01", gross_amount: 5,
     idempotency_key: `wf-fee-${ts}`, owner_id: ownerUser.id,
-  });
-  assert(!wfFee, "Workflow fee");
+  }).select().single();
+  assert(!feeErr && !!feeTx, "Fee $5 inserted");
 
-  // Partial sale (10 AAPL @ $200)
-  const { error: wfSell } = await serviceClient.from("transactions").insert({
-    portfolio_id: portfolioId, event_type: "SELL",
+  // Sell 10 AAPL @ $200 with $3 commission
+  const { data: sellAapl, error: sellErr } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, security_id: aaplId, event_type: "SELL",
     event_date: "2025-03-15", quantity: 10, price: 200,
     gross_amount: 2000, commission: 3,
     idempotency_key: `wf-sell-${ts}`, owner_id: ownerUser.id,
-  });
-  assert(!wfSell, "Workflow partial sale (10 AAPL @ $200)");
+  }).select().single();
+  assert(!sellErr && !!sellAapl, "Sell 10 AAPL @ $200 inserted");
 
-  // Verify cash, quantities, average costs via transactions
-  const { data: allTxs } = await serviceClient.from("transactions")
-    .select("event_type, gross_amount, commission, quantity, price")
-    .eq("portfolio_id", portfolioId);
-  const cash = (allTxs || []).reduce((sum: number, t: any) => {
-    if (t.event_type === "DEPOSIT") return sum + t.gross_amount;
-    if (t.event_type === "SELL") return sum + t.gross_amount - (t.commission || 0);
-    if (t.event_type === "DIVIDEND") return sum + t.gross_amount;
-    if (t.event_type === "BUY") return sum - t.gross_amount - (t.commission || 0);
-    if (t.event_type === "FEE") return sum - t.gross_amount;
-    return sum;
-  }, 0);
-  assert(cash === 80182, `Cash = $80,182 (calculated: $${cash})`);
+  // 7 transactions expected: DEPOSIT, BUY, BUY, DIVIDEND, FEE, SELL — 6 total + any from RLS setup
+  // Count only workflow transactions
+  const { data: wfTxs, error: wfTxErr } = await serviceClient.from("transactions")
+    .select("id, event_type, gross_amount, commission, quantity, price, security_id, idempotency_key")
+    .eq("portfolio_id", portfolioId)
+    .not("idempotency_key", "like", "rls-tx-%")
+    .order("event_date", { ascending: true });
+  assert(!wfTxErr, "Workflow transactions queried");
+  assert(wfTxs !== null, "Workflow transactions returned non-null");
+  assert(wfTxs!.length === 6, `6 workflow transactions exist (got ${wfTxs!.length})`);
 
-  // Verify quantities (AAPL: 50-10=40, MSFT: 30)
-  const buys = (allTxs || []).filter((t: any) => t.event_type === "BUY");
-  const sells = (allTxs || []).filter((t: any) => t.event_type === "SELL");
-  const totalAapl = buys.filter((t: any) => t.id?.includes("buy1")).reduce((s: number, t: any) => s + t.quantity, 0) -
-    sells.reduce((s: number, t: any) => s + t.quantity, 0);
-  const totalMsft = buys.filter((t: any) => t.id?.includes("buy2")).reduce((s: number, t: any) => s + t.quantity, 0);
-  assert(totalAapl === 40, `AAPL quantity: 40 (got ${totalAapl})`);
-  assert(totalMsft === 30, `MSFT quantity: 30 (got ${totalMsft})`);
+  // === Cash calculation (explicit, exact arithmetic) ===
+  // DEPOSIT       +100,000
+  // BUY AAPL        -9,250 - 5 = -9,255
+  // BUY MSFT       -12,600 - 5 = -12,605
+  // DIVIDEND           +50
+  // FEE                 -5
+  // SELL AAPL      +2,000 - 3 = +1,997
+  //                             --------
+  //                             80,182
 
-  // Verify total commissions
-  const totalComm = (allTxs || []).reduce((s: number, t: any) => s + (t.commission || 0), 0);
-  assert(totalComm === 13, `Total commissions: $13 (got $${totalComm})`);
+  // Use integer cents for exact comparison
+  function cashReducer(sum: number, t: any): number {
+    const comm = t.commission || 0;
+    switch (t.event_type) {
+      case "DEPOSIT": case "INTEREST": return sum + t.gross_amount;
+      case "WITHDRAWAL": case "FEE": case "TAX": return sum - t.gross_amount;
+      case "BUY": return sum - t.gross_amount - comm;
+      case "SELL": return sum + t.gross_amount - comm;
+      case "DIVIDEND": return sum + t.gross_amount;
+      default: return sum;
+    }
+  }
+  const cashCents = Math.round(wfTxs!.reduce(cashReducer, 0) * 100);
+  assert(cashCents === 8018200, `Cash = $80,182.00 (got $${(cashCents / 100).toFixed(2)})`);
+
+  // === Security identification by security_id ===
+  const aaplTxs = wfTxs!.filter((t: any) => t.security_id === aaplId);
+  const msftTxs = wfTxs!.filter((t: any) => t.security_id === msftId);
+
+  const aaplBuys = aaplTxs.filter((t: any) => t.event_type === "BUY");
+  const aaplSells = aaplTxs.filter((t: any) => t.event_type === "SELL");
+  const msftBuys = msftTxs.filter((t: any) => t.event_type === "BUY");
+
+  const aaplBought = aaplBuys.reduce((s: number, t: any) => s + t.quantity, 0);
+  const aaplSold = aaplSells.reduce((s: number, t: any) => s + t.quantity, 0);
+  const msftBought = msftBuys.reduce((s: number, t: any) => s + t.quantity, 0);
+
+  assert(aaplBought === 50, `AAPL bought: 50 (got ${aaplBought})`);
+  assert(aaplSold === 10, `AAPL sold: 10 (got ${aaplSold})`);
+  assert(aaplBought - aaplSold === 40, `AAPL remaining: 40 (got ${aaplBought - aaplSold})`);
+  assert(msftBought === 30, `MSFT bought: 30 (got ${msftBought})`);
+
+  // === Average cost (commissions capitalized into cost basis) ===
+  const aaplTotalCost = aaplBuys.reduce((s: number, t: any) => s + t.gross_amount + (t.commission || 0), 0);
+  const aaplAvgCost = aaplTotalCost / aaplBought; // 9,255 / 50 = 185.10
+  assert(Math.abs(aaplAvgCost - 185.10) < 0.001, `AAPL avg cost: $185.10 (got $${aaplAvgCost.toFixed(2)})`);
+
+  const msftTotalCost = msftBuys.reduce((s: number, t: any) => s + t.gross_amount + (t.commission || 0), 0);
+  const msftAvgCost = msftTotalCost / msftBought; // 12,605 / 30 = 420.1667
+  assert(Math.abs(msftAvgCost - 420.1667) < 0.01, `MSFT avg cost: $420.17 (got $${msftAvgCost.toFixed(2)})`);
+
+  // === Realised gain ===
+  // Cost basis of sold shares = 10 × $185.10 = $1,851
+  const costBasisSold = aaplSold * aaplAvgCost;
+  const netSaleProceeds = aaplSells.reduce((s: number, t: any) => s + t.gross_amount - (t.commission || 0), 0);
+  const realisedGain = netSaleProceeds - costBasisSold;
+  assert(Math.abs(realisedGain - 146.00) < 0.01, `Realised gain: $146.00 (got $${realisedGain.toFixed(2)})`);
+
+  // === Commissions and fees ===
+  const totalCommissions = wfTxs!.reduce((s: number, t: any) => s + (t.commission || 0), 0);
+  assert(totalCommissions === 13, `Total commissions: $13 (got $${totalCommissions})`);
+
+  const purchaseCommissions = wfTxs!.filter((t: any) => t.event_type === "BUY")
+    .reduce((s: number, t: any) => s + (t.commission || 0), 0);
+  assert(purchaseCommissions === 10, `Purchase commissions: $10 (got $${purchaseCommissions})`);
+
+  const dividends = wfTxs!.filter((t: any) => t.event_type === "DIVIDEND")
+    .reduce((s: number, t: any) => s + t.gross_amount, 0);
+  assert(dividends === 50, `Dividends: $50 (got $${dividends})`);
+
+  const fees = wfTxs!.filter((t: any) => t.event_type === "FEE")
+    .reduce((s: number, t: any) => s + t.gross_amount, 0);
+  assert(fees === 5, `Fees: $5 (got $${fees})`);
+
+  const taxes = wfTxs!.filter((t: any) => t.event_type === "TAX")
+    .reduce((s: number, t: any) => s + t.gross_amount, 0);
+  assert(taxes === 0, `Taxes: $0 (got $${taxes})`);
 
   // Rebalance event
   const { data: reb, error: rebErr } = await serviceClient.from("rebalance_events").insert({
