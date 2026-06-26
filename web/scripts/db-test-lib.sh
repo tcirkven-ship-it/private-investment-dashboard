@@ -58,17 +58,46 @@ check() {
 create_db() {
   local dbname="$1"
   echo "Creating database: $dbname"
-  PG_URL="$BASE_URL" $PSQL -c "CREATE DATABASE $dbname;" 2>/dev/null || true
+
+  # Verify source DB has Supabase schemas
+  local has_auth
+  has_auth=$(PG_URL="$BASE_URL" $PSQL -c "SELECT count(*) FROM information_schema.schemata WHERE schema_name = 'auth';" 2>/dev/null | tr -d ' \n' || echo "0")
+  if [ "$has_auth" != "1" ]; then
+    echo "ERROR: Source database does not have 'auth' schema. Is this a Supabase Postgres?"
+    echo "  Run this test against a Supabase-compatible PostgreSQL instance."
+    exit 1
+  fi
+
+  PG_URL="$BASE_URL" $PSQL -v ON_ERROR_STOP=1 -c "CREATE DATABASE $dbname;" 2>/dev/null || {
+    echo "WARNING: Could not create database '$dbname'. It may already exist."
+  }
+
+  # Verify the new database inherited Supabase schemas
+  local has_auth_new
+  has_auth_new=$(PG_URL="$BASE_URL" $PSQL -d "$dbname" -c "SELECT count(*) FROM information_schema.schemata WHERE schema_name = 'auth';" 2>/dev/null | tr -d ' \n' || echo "0")
+  if [ "$has_auth_new" != "1" ]; then
+    echo "WARNING: New database '$dbname' missing 'auth' schema."
+    echo "  Creating manually..."
+    # Template databases may be needed. Try template1
+    PG_URL="$BASE_URL" $PSQL -v ON_ERROR_STOP=1 -c "CREATE DATABASE $dbname TEMPLATE template0;" 2>/dev/null || true
+    # Check again
+    has_auth_new=$(PG_URL="$BASE_URL" $PSQL -d "$dbname" -c "SELECT count(*) FROM information_schema.schemata WHERE schema_name = 'auth';" 2>/dev/null | tr -d ' \n' || echo "0")
+    if [ "$has_auth_new" != "1" ]; then
+      echo "ERROR: Cannot create Supabase-compatible database. The Supabase Postgres image"
+      echo "  should copy auth schema to new databases automatically."
+      exit 1
+    fi
+  fi
+  echo "  Supabase schemas verified in '$dbname'"
 }
 
 drop_db() {
   local dbname="$1"
   echo "Dropping database: $dbname"
-  # Terminate connections first
-  PG_URL="$BASE_URL" $PSQL -c "
-    SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$dbname';
-  " 2>/dev/null || true
-  PG_URL="$BASE_URL" $PSQL -c "DROP DATABASE IF EXISTS $dbname;" 2>/dev/null || true
+  PG_URL="$BASE_URL" $PSQL -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$dbname';" 2>/dev/null || true
+  PG_URL="$BASE_URL" $PSQL -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $dbname;" 2>/dev/null || {
+    echo "WARNING: Could not drop database '$dbname'"
+  }
 }
 
 report_results() {

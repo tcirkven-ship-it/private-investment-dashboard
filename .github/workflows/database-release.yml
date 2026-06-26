@@ -4,6 +4,9 @@ on:
     paths:
       - "web/supabase/migrations/**"
       - "web/scripts/**"
+      - "web/src/lib/supabase-queries.ts"
+      - "web/package.json"
+      - "web/package-lock.json"
       - ".github/workflows/database-release.yml"
   push:
     branches: [main]
@@ -74,20 +77,26 @@ jobs:
           version: latest
 
       - name: Start local Supabase
-        run: supabase start
+        run: |
+          supabase start
+          echo "Waiting for services..."
+          for i in $(seq 1 30); do
+            if curl -s http://127.0.0.1:54321/health > /dev/null 2>&1; then
+              echo "Supabase ready"
+              break
+            fi
+            sleep 2
+          done
         working-directory: web
-        env:
-          SUPABASE_CI: "true"
 
       - name: Run Auth and RLS tests
         run: npx tsx scripts/test-auth-rls.ts
         working-directory: web
         env:
-          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/postgres
-          EXPECTED_TEST_DATABASE: postgres
           ALLOW_DESTRUCTIVE_DB_TESTS: "true"
 
       - name: Stop local Supabase
+        if: always()
         run: supabase stop
         working-directory: web
 

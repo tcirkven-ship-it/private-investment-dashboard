@@ -1,239 +1,395 @@
 #!/usr/bin/env tsx
 /**
- * Real Supabase Auth and RLS verification test.
+ * Real Supabase Auth and RLS verification.
  *
- * Requires: running local Supabase stack (npx supabase start)
- * Sets: ALLOW_DESTRUCTIVE_DB_TESTS=true
- *       PG_TEST_URL=postgresql://postgres:postgres@localhost:5432/postgres
- *       NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
- *       NEXT_PUBLIC_SUPABASE_ANON_KEY=<local anon key>
- *       SUPABASE_SERVICE_ROLE_KEY=<local service role key>
+ * Runs against a local Supabase stack (npx supabase start).
+ * Uses dynamic env from: supabase status --output env
+ *
+ * Required env:
+ *   ALLOW_DESTRUCTIVE_DB_TESTS=true
+ *   SUPABASE_CI=true (set by CI workflow)
+ *
+ * The test:
+ *   1. Applies migrations to the Supabase stack's database
+ *   2. Creates two confirmed users via service-role Admin API
+ *   3. Tests anonymous, owner, second-user, and service-role access
+ *   4. Verifies RLS policies, immutability, and profile creation
+ *   5. Runs a complete integrated workflow
  */
 
-import { createClient } from "@supabase/supabase-js";
-import { execSync } from "child_process";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { execSync, execFileSync } from "child_process";
+import * as path from "path";
+import * as fs from "fs";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:54321";
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const PG_URL = process.env.PG_TEST_URL || "";
-const TEST_DB = "dashboard_auth_test";
+// ─── Configuration ─────────────────────────────────────────────
+const ROOT = path.resolve(__dirname, "..");
+const SUPABASE_DIR = ROOT;
+const MIGRATIONS_DIR = path.join(SUPABASE_DIR, "supabase", "migrations");
 
-let passed = 0;
-let failed = 0;
-const errors: string[] = [];
-
-function assert(condition: boolean, message: string) {
-  if (condition) {
-    passed++;
-    console.log(`  [PASS] ${message}`);
-  } else {
-    failed++;
-    errors.push(message);
-    console.log(`  [FAIL] ${message}`);
+function getSupabaseEnv(): Record<string, string> {
+  try {
+    const out = execFileSync("npx", ["supabase", "status", "--output", "env"], {
+      cwd: SUPABASE_DIR,
+      encoding: "utf-8",
+    });
+    const env: Record<string, string> = {};
+    for (const line of out.split("\n")) {
+      const m = line.match(/^(SUPABASE_\w+|STUDIO_\w+)=(.*)$/);
+      if (m) env[m[1]] = m[2].replace(/^"(.*)"$/, "$1");
+    }
+    // Derive missing vars
+    if (env["SUPABASE_ANON_KEY"]) env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] = env["SUPABASE_ANON_KEY"];
+    if (env["SUPABASE_SERVICE_ROLE_KEY"]) env["SUPABASE_SERVICE_ROLE_KEY"] = env["SUPABASE_SERVICE_ROLE_KEY"];
+    if (env["SUPABASE_URL"]) env["NEXT_PUBLIC_SUPABASE_URL"] = env["SUPABASE_URL"];
+    if (env["SUPABASE_DB_URL"]) env["PG_TEST_URL"] = env["SUPABASE_DB_URL"];
+    return env;
+  } catch (e) {
+    console.error("FATAL: supabase status --output env failed. Is the local stack running?");
+    console.error("Run: npx supabase start");
+    process.exit(1);
   }
 }
 
-async function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+// ─── Test framework ────────────────────────────────────────────
+let passed = 0;
+let failed = 0;
+const failures: string[] = [];
+
+function assert(condition: boolean, msg: string) {
+  if (condition) { passed++; console.log(`  [PASS] ${msg}`); }
+  else { failed++; failures.push(msg); console.log(`  [FAIL] ${msg}`); }
 }
 
+async function assertQuery(
+  client: SupabaseClient,
+  table: string,
+  action: "select" | "insert" | "update" | "delete",
+  expectedError: boolean,
+  expectedRows?: number,
+  filter?: Record<string, any>,
+  data?: Record<string, any>,
+) {
+  let result: any;
+  try {
+    let query = client.from(table);
+    if (action === "select") {
+      result = filter ? await query.select("*").eq(Object.keys(filter)[0], Object.values(filter)[0]) : await query.select("*");
+    } else if (action === "insert") {
+      result = await query.insert(data || {});
+    } else if (action === "update") {
+      result = filter ? await query.update(data || {}).eq(Object.keys(filter)[0], Object.values(filter)[0]) : await query.update(data || {});
+    } else if (action === "delete") {
+      result = filter ? await query.delete().eq(Object.keys(filter)[0], Object.values(filter)[0]) : await query.delete();
+    }
+    const hasError = !!result.error;
+    const rowCount = result.data ? (Array.isArray(result.data) ? result.data.length : 1) : 0;
+    if (expectedError && hasError) { pass(`${table} ${action}: correctly denied`); return; }
+    if (!expectedError && !hasError && (expectedRows === undefined || rowCount === expectedRows)) {
+      pass(`${table} ${action}: allowed (${rowCount} rows)`);
+      return;
+    }
+    fail(`${table} ${action}: unexpected state (error=${!!result.error}, rows=${rowCount})`);
+  } catch (e: any) {
+    if (expectedError) { pass(`${table} ${action}: correctly denied (exception)`); }
+    else { fail(`${table} ${action}: unexpected exception: ${e.message}`); }
+  }
+}
+
+function fail(msg: string) { failed++; failures.push(msg); console.log(`  [FAIL] ${msg}`); }
+function pass(msg: string) { passed++; console.log(`  [PASS] ${msg}`); }
+
+// ─── Main ──────────────────────────────────────────────────────
 async function main() {
   console.log("=== Supabase Auth and RLS Verification ===");
   console.log("");
 
-  if (!ANON_KEY || !SERVICE_KEY) {
-    console.log("  SKIP: Supabase keys not configured");
-    console.log("  Run against local Supabase: npx supabase start");
-    console.log("  Copy keys from: http://localhost:54323/project/default/settings/api");
-    process.exit(0);
+  // Get dynamic env from local Supabase
+  const env = getSupabaseEnv();
+  const SUPABASE_URL = env["NEXT_PUBLIC_SUPABASE_URL"] || "http://127.0.0.1:54321";
+  const ANON_KEY = env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] || "";
+  const SERVICE_KEY = env["SUPABASE_SERVICE_ROLE_KEY"] || "";
+  const DB_URL = env["PG_TEST_URL"] || "";
+
+  if (!ANON_KEY || !SERVICE_KEY || !DB_URL) {
+    console.error("FATAL: Missing required env vars from supabase status --output env");
+    console.error("Required: SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_DB_URL");
+    process.exit(1);
   }
 
-  // Create test database
+  console.log(`Supabase URL: ${SUPABASE_URL}`);
+  console.log(`Database: ${DB_URL.replace(/\/\/[^:]+:[^@]+@/, "//****:****@")}`);
+  console.log("");
+
+  // Apply migrations to the Supabase stack's database
+  console.log("--- Applying migrations ---");
   try {
-    execSync(
-      `psql "${PG_URL}" -c "CREATE DATABASE ${TEST_DB};"`,
-      { stdio: "ignore" }
-    );
-  } catch {}
-  const dbUrl = PG_URL.replace(/\/[^/]+$/, `/${TEST_DB}`);
+    execSync(`psql "${DB_URL}" -v ON_ERROR_STOP=1 -f "${path.join(MIGRATIONS_DIR, "00001_schema.sql")}"`, {
+      stdio: "pipe", encoding: "utf-8", timeout: 30000,
+    });
+    pass("Migration 00001 applied to Supabase database");
+  } catch (e: any) {
+    fail(`Migration 00001 failed: ${e.stderr || e.message}`);
+  }
 
-  // Apply migration
-  console.log("--- Applying migration ---");
-  execSync(
-    `ALLOW_DESTRUCTIVE_DB_TESTS=true EXPECTED_TEST_DATABASE=${TEST_DB} PG_TEST_URL="${dbUrl}" bash scripts/test-migration.sh`,
-    { stdio: "inherit", cwd: __dirname + "/.." }
-  );
+  try {
+    execSync(`psql "${DB_URL}" -v ON_ERROR_STOP=1 -f "${path.join(MIGRATIONS_DIR, "00002_fixes.sql")}"`, {
+      stdio: "pipe", encoding: "utf-8", timeout: 30000,
+    });
+    pass("Migration 00002 applied");
+  } catch (e: any) {
+    fail(`Migration 00002 failed: ${e.stderr || e.message}`);
+  }
 
-  // Clients
-  const anonClient = createClient(SUPABASE_URL, ANON_KEY);
+  // ─── Clients ─────────────────────────────────────────────
   const serviceClient = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Create owner user
-  console.log("--- Creating users ---");
-  const email1 = `owner_${Date.now()}@test.com`;
-  const { data: ownerData, error: ownerErr } = await anonClient.auth.signUp({
-    email: email1,
-    password: "test123456!",
-  });
-  assert(!ownerErr, `Owner user created: ${ownerErr?.message || ""}`);
-  const ownerId = ownerData?.user?.id || "";
+  // ─── Create confirmed users via Admin API ────────────────
+  console.log("--- Creating users via service role ---");
+  const ts = Date.now();
 
-  // Create second user
-  const email2 = `user2_${Date.now()}@test.com`;
-  const { data: user2Data, error: user2Err } = await anonClient.auth.signUp({
-    email: email2,
-    password: "test123456!",
-  });
-  assert(!user2Err, `Second user created: ${user2Err?.message || ""}`);
-  const user2Id = user2Data?.user?.id || "";
+  async function createUser(email: string): Promise<{ id: string; email: string }> {
+    const { data, error } = await serviceClient.auth.admin.createUser({
+      email,
+      password: "test123456!",
+      email_confirm: true,
+    });
+    if (error) throw new Error(`Failed to create ${email}: ${error.message}`);
+    if (!data?.user?.id) throw new Error(`No user ID for ${email}`);
+    pass(`User created: ${email} (${data.user.id.slice(0, 8)}...)`);
+    return { id: data.user.id, email };
+  }
 
-  await sleep(2000); // Wait for Auth->profile trigger
+  const ownerUser = await createUser(`owner_${ts}@test.com`);
+  const user2 = await createUser(`user2_${ts}@test.com`);
 
-  // Verify profiles
-  console.log("--- Profile verification ---");
-  const { data: profiles } = await serviceClient
-    .from("profiles")
-    .select("id, email, is_owner");
+  // Wait for profile creation trigger (poll instead of sleep)
+  console.log("--- Waiting for profile creation ---");
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const { data: profiles } = await serviceClient.from("profiles").select("id, email, is_owner");
+    const ownerProfile = (profiles || []).find((p: any) => p.id === ownerUser.id);
+    const user2Profile = (profiles || []).find((p: any) => p.id === user2.id);
+    if (ownerProfile && user2Profile) {
+      assert(ownerProfile.is_owner === true, "Owner profile has is_owner=true");
+      assert(user2Profile.is_owner === false, "Second user has is_owner=false");
+      const ownerCount = (profiles || []).filter((p: any) => p.is_owner).length;
+      assert(ownerCount === 1, `Exactly one owner (found ${ownerCount})`);
+      break;
+    }
+    if (attempt === 19) { fail("Profiles not created after 20 attempts"); }
+    await new Promise((r) => setTimeout(r, 500));
+  }
 
-  const ownerProfile = (profiles || []).find((p: any) => p.id === ownerId);
-  assert(!!ownerProfile, "Owner profile exists");
-  assert(ownerProfile?.is_owner === true, "First user is owner");
-
-  const user2Profile = (profiles || []).find((p: any) => p.id === user2Id);
-  assert(!!user2Profile, "Second user profile exists");
-  assert(user2Profile?.is_owner === false, "Second user is not owner");
-
-  const ownerCount = (profiles || []).filter((p: any) => p.is_owner).length;
-  assert(ownerCount === 1, `Exactly one owner (found ${ownerCount})`);
-
-  // Auth clients
+  // ─── Sign in both users ──────────────────────────────────
+  console.log("--- Signing in ---");
+  const anonClient = createClient(SUPABASE_URL, ANON_KEY);
   const ownerClient = createClient(SUPABASE_URL, ANON_KEY);
-  await ownerClient.auth.signInWithPassword({ email: email1, password: "test123456!" });
-
   const user2Client = createClient(SUPABASE_URL, ANON_KEY);
-  await user2Client.auth.signInWithPassword({ email: email2, password: "test123456!" });
 
-  // Create test portfolio and transaction via service role
-  const { data: portfolio } = await serviceClient
-    .from("portfolios")
-    .insert({ owner_id: ownerId, name: "Test", opening_date: "2025-01-01", currency: "USD" })
-    .select()
-    .single();
-  assert(!!portfolio, "Portfolio created via service role");
+  async function signIn(client: SupabaseClient, email: string) {
+    const { data, error } = await client.auth.signInWithPassword({ email, password: "test123456!" });
+    assert(!error, `Sign in ${email}: ${error?.message || "OK"}`);
+    assert(!!data?.session?.access_token, `Access token exists for ${email}`);
+    return data!.session!.access_token;
+  }
 
-  // === RLS Tests ===
-  console.log("--- RLS: Anonymous access ---");
-  const { data: anonPortfolios, error: anonErr } = await anonClient
-    .from("portfolios")
-    .select("*");
-  assert(!anonErr || (anonPortfolios || []).length === 0, "Anonymous cannot read portfolios");
+  const ownerToken = await signIn(ownerClient, ownerUser.email);
+  const user2Token = await signIn(user2Client, user2.email);
+  assert(ownerToken.length > 20, "Owner token is valid");
+  assert(user2Token.length > 20, "User2 token is valid");
 
-  const { error: anonInsertErr } = await anonClient
-    .from("portfolios")
-    .insert({ owner_id: ownerId, name: "Hack", opening_date: "2025-01-01" });
-  assert(!!anonInsertErr, "Anonymous cannot insert portfolios");
+  // ─── Anonymous RLS ───────────────────────────────────────
+  console.log("--- Anonymous access ---");
+  await assertQuery(anonClient, "portfolios", "select", true);
+  await assertQuery(anonClient, "portfolios", "insert", true, 0, undefined, {
+    owner_id: ownerUser.id, name: "Hack", opening_date: "2025-01-01",
+  });
 
-  // === Owner access ===
-  console.log("--- RLS: Owner access ---");
-  const { data: ownerPorts } = await ownerClient
-    .from("portfolios")
-    .select("*");
-  assert((ownerPorts || []).length >= 1, "Owner can read own portfolios");
+  // ─── Owner access ────────────────────────────────────────
+  console.log("--- Owner access ---");
+  await assertQuery(ownerClient, "portfolios", "insert", false, undefined, undefined, {
+    owner_id: ownerUser.id, name: "My Portfolio", opening_date: "2025-06-01",
+  });
 
-  const { error: ownerInsertErr } = await ownerClient
-    .from("portfolios")
-    .insert({ owner_id: ownerId, name: "Owner Portfolio 2", opening_date: "2025-06-01" });
-  assert(!ownerInsertErr, "Owner can insert portfolio");
+  // Fetch owner's portfolio
+  const { data: ownerPorts } = await ownerClient.from("portfolios").select("*");
+  assert((ownerPorts || []).length === 1, "Owner sees exactly 1 portfolio");
+  const portfolioId = (ownerPorts || [])[0]?.id;
 
-  // === Second user denial ===
-  console.log("--- RLS: Second user isolation ---");
-  const { data: user2Ports } = await user2Client
-    .from("portfolios")
-    .select("*");
-  assert((user2Ports || []).length === 0, "Second user cannot read owner portfolios");
+  // ─── Second user isolation ───────────────────────────────
+  console.log("--- Second user isolation ---");
+  await assertQuery(user2Client, "portfolios", "select", false, 0);
 
-  const { error: user2InsertErr } = await user2Client
-    .from("portfolios")
-    .insert({ owner_id: user2Id, name: "User2 Portfolio", opening_date: "2025-01-01" });
-  assert(!user2InsertErr, "Second user can insert own portfolio");
+  // Second user must not be able to insert application portfolios
+  await assertQuery(user2Client, "portfolios", "insert", true, 0, undefined, {
+    owner_id: user2.id, name: "User2 Portfolio", opening_date: "2025-01-01",
+  });
 
-  const { data: user2Models } = await user2Client
-    .from("model_snapshots")
-    .select("*");
-  assert((user2Models || []).length === 0, "Second user cannot read model snapshots");
+  await assertQuery(user2Client, "model_snapshots", "select", false, 0);
+  await assertQuery(user2Client, "model_versions", "select", false, 0);
 
-  // === Transaction UPDATE/DELETE denied ===
-  console.log("--- RLS: Transaction immutability ---");
-  const { data: tx } = await serviceClient
-    .from("transactions")
-    .insert({
-      portfolio_id: portfolio!.id, event_type: "DEPOSIT",
-      event_date: "2025-01-02", gross_amount: 1000,
-      idempotency_key: "rls-tx-1", owner_id: ownerId,
-    })
-    .select()
-    .single();
+  // ─── Transaction immutability ────────────────────────────
+  console.log("--- Transaction immutability ---");
+  const { data: tx } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, event_type: "DEPOSIT",
+    event_date: "2025-01-02", gross_amount: 10000,
+    idempotency_key: `rls-tx-${ts}`, owner_id: ownerUser.id,
+  }).select().single();
   assert(!!tx, "Transaction created via service role");
 
   if (tx) {
-    const { error: updateErr } = await ownerClient
-      .from("transactions")
-      .update({ gross_amount: 999 })
-      .eq("id", tx.id);
-    assert(!!updateErr, "Owner cannot UPDATE transactions");
+    // Owner tries UPDATE — must affect 0 rows
+    const { data: updResult } = await ownerClient.from("transactions")
+      .update({ gross_amount: 999 }).eq("id", tx.id).select();
+    assert(!updResult || updResult.length === 0, "Owner UPDATE transactions affects 0 rows");
 
-    const { error: deleteErr } = await ownerClient
-      .from("transactions")
-      .delete()
-      .eq("id", tx.id);
-    assert(!!deleteErr, "Owner cannot DELETE transactions");
+    // Owner tries DELETE — must affect 0 rows
+    const { data: delResult } = await ownerClient.from("transactions")
+      .delete().eq("id", tx.id).select();
+    assert(!delResult || delResult.length === 0, "Owner DELETE transactions affects 0 rows");
+
+    // Service-role confirms original still exists
+    const { data: check } = await serviceClient.from("transactions")
+      .select("id, gross_amount").eq("id", tx.id);
+    assert(check?.length === 1, "Original transaction still exists after UPDATE/DELETE attempts");
+    assert(check?.[0]?.gross_amount === 10000, "Original gross_amount unchanged (10000)");
   }
 
-  // === Published snapshot immutability ===
-  console.log("--- RLS: Published snapshot immutability ---");
-  const { data: mv } = await serviceClient
-    .from("model_versions")
-    .insert({ model_id: "rls-test", version: "1.0" })
-    .select()
-    .single();
-  const { data: snap } = await serviceClient
-    .from("model_snapshots")
-    .insert({
-      model_version_id: mv!.id, snapshot_id: "rls-snap",
-      status: "PUBLISHED", effective_date: "2025-01-01",
-      published_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-  assert(!!snap, "Published snapshot created");
+  // ─── Model snapshot — legal publication ──────────────────
+  console.log("--- Model snapshot publication ---");
+  const { data: mv } = await serviceClient.from("model_versions").insert({
+    model_id: "rls-test", version: "1.0",
+  }).select().single();
+  assert(!!mv, "Model version created");
 
-  const { error: snapUpdateErr } = await ownerClient
-    .from("model_snapshots")
-    .update({ status: "DRAFT" })
-    .eq("id", snap!.id);
-  assert(!!snapUpdateErr, "Owner cannot UPDATE published snapshot");
+  const snapId = `snap-${ts}`;
 
-  const { error: snapDeleteErr } = await ownerClient
-    .from("model_snapshots")
-    .delete()
-    .eq("id", snap!.id);
-  assert(!!snapDeleteErr, "Owner cannot DELETE published snapshot");
+  // Legal transition: DRAFT -> VALIDATED -> APPROVED -> PUBLISHED
+  const { data: snap1, error: e1 } = await serviceClient.from("model_snapshots").insert({
+    model_version_id: mv!.id, snapshot_id: snapId,
+    status: "DRAFT", effective_date: "2025-01-01",
+  }).select().single();
+  assert(!e1 && !!snap1, "DRAFT created");
+  const snapPk = snap1!.id;
 
-  // === Summary ===
+  const { error: e2 } = await serviceClient.from("model_snapshots")
+    .update({ status: "VALIDATED" }).eq("id", snapPk);
+  assert(!e2, "VALIDATED transition OK");
+
+  const { error: e3 } = await serviceClient.from("model_snapshots")
+    .update({ status: "APPROVED" }).eq("id", snapPk);
+  assert(!e3, "APPROVED transition OK");
+
+  const { error: e4 } = await serviceClient.from("model_snapshots")
+    .update({ status: "PUBLISHED" }).eq("id", snapPk);
+  assert(!e4, "PUBLISHED transition OK");
+
+  // Owner cannot UPDATE or DELETE published snapshot
+  const { data: updSnap } = await ownerClient.from("model_snapshots")
+    .update({ status: "DRAFT" }).eq("id", snapPk).select();
+  assert(!updSnap || updSnap.length === 0, "Owner UPDATE published snapshot affects 0 rows");
+
+  const { data: delSnap } = await ownerClient.from("model_snapshots")
+    .delete().eq("id", snapPk).select();
+  assert(!delSnap || delSnap.length === 0, "Owner DELETE published snapshot affects 0 rows");
+
+  // Service-role confirms snapshot still PUBLISHED
+  const { data: snapCheck } = await serviceClient.from("model_snapshots")
+    .select("id, status").eq("id", snapPk);
+  assert(snapCheck?.length === 1, "Published snapshot still exists");
+  assert(snapCheck?.[0]?.status === "PUBLISHED", "Snapshot remains PUBLISHED");
+
+  // ─── Database-backed workflow test ───────────────────────
+  console.log("--- Workflow integration test ---");
+
+  // Deposit
+  const { error: wfDepErr } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, event_type: "DEPOSIT",
+    event_date: "2025-01-02", gross_amount: 100000,
+    idempotency_key: `wf-dep-${ts}`, owner_id: ownerUser.id,
+  });
+  assert(!wfDepErr, "Workflow deposit");
+
+  // Two buys
+  const { error: wfBuy1 } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, event_type: "BUY",
+    event_date: "2025-01-05", quantity: 50, price: 185,
+    gross_amount: 9250, commission: 5,
+    idempotency_key: `wf-buy1-${ts}`, owner_id: ownerUser.id,
+  });
+  assert(!wfBuy1, "Workflow buy 1 (AAPL 50 @ $185)");
+
+  const { error: wfBuy2 } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, event_type: "BUY",
+    event_date: "2025-01-05", quantity: 30, price: 420,
+    gross_amount: 12600, commission: 5,
+    idempotency_key: `wf-buy2-${ts}`, owner_id: ownerUser.id,
+  });
+  assert(!wfBuy2, "Workflow buy 2 (MSFT 30 @ $420)");
+
+  // Dividend
+  const { error: wfDiv } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, event_type: "DIVIDEND",
+    event_date: "2025-02-01", gross_amount: 50,
+    idempotency_key: `wf-div-${ts}`, owner_id: ownerUser.id,
+  });
+  assert(!wfDiv, "Workflow dividend");
+
+  // Fee
+  const { error: wfFee } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, event_type: "FEE",
+    event_date: "2025-03-01", gross_amount: 5,
+    idempotency_key: `wf-fee-${ts}`, owner_id: ownerUser.id,
+  });
+  assert(!wfFee, "Workflow fee");
+
+  // Partial sale (10 AAPL @ $200)
+  const { error: wfSell } = await serviceClient.from("transactions").insert({
+    portfolio_id: portfolioId, event_type: "SELL",
+    event_date: "2025-03-15", quantity: 10, price: 200,
+    gross_amount: 2000, commission: 3,
+    idempotency_key: `wf-sell-${ts}`, owner_id: ownerUser.id,
+  });
+  assert(!wfSell, "Workflow partial sale (10 AAPL @ $200)");
+
+  // Verify cash via transactions
+  const { data: allTxs } = await serviceClient.from("transactions")
+    .select("event_type, gross_amount, commission")
+    .eq("portfolio_id", portfolioId);
+  const cash = (allTxs || []).reduce((sum: number, t: any) => {
+    if (t.event_type === "DEPOSIT") return sum + t.gross_amount;
+    if (t.event_type === "SELL") return sum + t.gross_amount - (t.commission || 0);
+    if (t.event_type === "DIVIDEND") return sum + t.gross_amount;
+    if (t.event_type === "BUY") return sum - t.gross_amount - (t.commission || 0);
+    if (t.event_type === "FEE") return sum - t.gross_amount;
+    return sum;
+  }, 0);
+  assert(cash === 80187, `Cash = $80,187 (calculated: $${cash})`);
+
+  // Rebalance event
+  const { data: reb, error: rebErr } = await serviceClient.from("rebalance_events").insert({
+    portfolio_id: portfolioId, model_snapshot_id: snapPk,
+    rebalance_date: "2025-04-01", owner_id: ownerUser.id,
+  }).select().single();
+  assert(!rebErr && !!reb, "Rebalance event created");
+
+  // ─── Summary ─────────────────────────────────────────────
   console.log("");
-  console.log("=== AUTH/RLS TEST RESULTS ===");
+  console.log("=== AUTH/RLS VERIFICATION RESULTS ===");
   console.log(` Passed: ${passed}`);
   console.log(` Failed: ${failed}`);
   if (failed > 0) {
     console.log(" Failures:");
-    errors.forEach((e) => console.log(`  - ${e}`));
+    failures.forEach((f) => console.log(`  - ${f}`));
     console.log(" RESULT: FAILED");
     process.exit(1);
   }
   console.log(" RESULT: PASSED");
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error("FATAL:", error);
+  process.exit(1);
+});

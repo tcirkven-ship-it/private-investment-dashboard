@@ -15,9 +15,9 @@ echo "--- Phase 1: Apply migration ---"
 $PSQL -f "supabase/migrations/00001_schema.sql" "$DB_URL" || { fail "Migration failed"; report_results "RESET TEST"; }
 
 # Create test user + data to test reset safety
-$PSQL "$DB_URL" -c "INSERT INTO auth.users (id, email) VALUES ('r-0000-0000-0000-000000000001', 'reset@t.com');"
+$PSQL "$DB_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO auth.users (id, email, encrypted_password) VALUES ('00000000-0000-0000-0000-000000000002', 'reset@t.com', '\$2a\$10\$dummyhash') ON CONFLICT (id) DO NOTHING;" || fail "Could not create test user"
 $PSQL "$DB_URL" -c "INSERT INTO public.model_versions (model_id, version) VALUES ('rv', '1');"
-$PSQL "$DB_URL" -c "INSERT INTO public.portfolios (owner_id, name, opening_date) VALUES ('r-0000-0000-0000-000000000001', 'RP', '2025-01-01');"
+$PSQL "$DB_URL" -c "INSERT INTO public.portfolios (owner_id, name, opening_date) VALUES ('00000000-0000-0000-0000-000000000002', 'RP', '2025-01-01');"
 
 check "Data exists before reset" "1" \
   "SELECT count(*) FROM public.model_versions;"

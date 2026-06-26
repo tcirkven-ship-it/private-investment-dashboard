@@ -100,7 +100,7 @@ $PSQL -f "supabase/migrations/00002_fixes.sql" "$DB_URL" || fail "Migration 0000
 
 # Phase 5: Test status transitions
 echo "--- Phase 5: Status transitions ---"
-$PSQL "$DB_URL" -c "INSERT INTO auth.users (id, email, created_at) VALUES ('t-0000-0000-0000-000000000001', 'test@t.com', now());" 2>/dev/null
+$PSQL "$DB_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO auth.users (id, email, encrypted_password, created_at) VALUES ('00000000-0000-0000-0000-000000000001', 'test@t.com', '\$2a\$10\$dummyhash', now()) ON CONFLICT (id) DO NOTHING;" || fail "Could not create test user in auth.users"
 $PSQL "$DB_URL" -c "INSERT INTO public.model_versions (model_id, version) VALUES ('test-m', '1.0');"
 MV_ID=$($PSQL "$DB_URL" -c "SELECT id FROM public.model_versions LIMIT 1;" 2>/dev/null | head -1)
 $PSQL "$DB_URL" -c "INSERT INTO public.model_snapshots (model_version_id, snapshot_id, status, effective_date) VALUES ('$MV_ID', 's1', 'DRAFT', '2025-01-01');"
@@ -131,14 +131,14 @@ fi
 
 # Phase 6: Test transaction owner consistency
 echo "--- Phase 6: Transaction owner ---"
-$PSQL "$DB_URL" -c "INSERT INTO public.portfolios (owner_id, name, opening_date) VALUES ('t-0000-0000-0000-000000000001', 'TP', '2025-01-01');"
+$PSQL "$DB_URL" -c "INSERT INTO public.portfolios (owner_id, name, opening_date) VALUES ('00000000-0000-0000-0000-000000000001', 'TP', '2025-01-01');"
 PF_ID=$($PSQL "$DB_URL" -c "SELECT id FROM public.portfolios LIMIT 1;" 2>/dev/null | head -1)
 
 # Valid insert
-$PSQL "$DB_URL" -c "INSERT INTO public.transactions (portfolio_id, event_type, event_date, gross_amount, idempotency_key, owner_id) VALUES ('$PF_ID', 'DEPOSIT', '2025-01-02', 100, 'tk1', 't-0000-0000-0000-000000000001');" 2>/dev/null && pass "Transaction with matching owner allowed" || fail "Transaction with matching owner blocked"
+$PSQL "$DB_URL" -c "INSERT INTO public.transactions (portfolio_id, event_type, event_date, gross_amount, idempotency_key, owner_id) VALUES ('$PF_ID', 'DEPOSIT', '2025-01-02', 100, 'tk1', '00000000-0000-0000-0000-000000000001');" 2>/dev/null && pass "Transaction with matching owner allowed" || fail "Transaction with matching owner blocked"
 
 # Invalid insert (wrong owner)
-if echo "INSERT INTO public.transactions (portfolio_id, event_type, event_date, gross_amount, idempotency_key, owner_id) VALUES ('$PF_ID', 'DEPOSIT', '2025-01-02', 100, 'tk2', 't-0000-0000-0000-000000000099');" | $PSQL "$DB_URL" 2>/dev/null; then
+if echo "INSERT INTO public.transactions (portfolio_id, event_type, event_date, gross_amount, idempotency_key, owner_id) VALUES ('$PF_ID', 'DEPOSIT', '2025-01-02', 100, 'tk2', '00000000-0000-0000-0000-000000000099');" | $PSQL "$DB_URL" 2>/dev/null; then
   fail "Transaction with wrong owner should be rejected"
 else
   pass "Transaction with wrong owner correctly rejected"
