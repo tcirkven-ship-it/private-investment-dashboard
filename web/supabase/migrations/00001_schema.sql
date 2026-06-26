@@ -14,6 +14,21 @@ CREATE TABLE profiles (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+
+-- Shared updated_at trigger function.
+-- Must be defined before any trigger that references it.
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
 CREATE TRIGGER set_profiles_updated_at
   BEFORE UPDATE ON profiles FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
