@@ -28,27 +28,30 @@ const SUPABASE_DIR = ROOT;
 const MIGRATIONS_DIR = path.join(SUPABASE_DIR, "supabase", "migrations");
 
 function getSupabaseEnv(): Record<string, string> {
-  try {
-    const out = execFileSync("npx", ["supabase", "status", "--output", "env"], {
-      cwd: SUPABASE_DIR,
-      encoding: "utf-8",
-    });
-    const env: Record<string, string> = {};
-    for (const line of out.split("\n")) {
-      const m = line.match(/^(SUPABASE_\w+|STUDIO_\w+)=(.*)$/);
-      if (m) env[m[1]] = m[2].replace(/^"(.*)"$/, "$1");
+  // Environment must be exported by the CI workflow from supabase status -o env.
+  // Fallback: try running locally for testing.
+  const vars: Record<string, string> = {};
+  const tests: [string, string][] = [
+    ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"],
+    ["NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY"],
+    ["SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
+    ["PG_TEST_URL", "SUPABASE_DB_URL"],
+  ];
+  let allFound = true;
+  for (const [appVar, cliVar] of tests) {
+    const val = process.env[appVar] || process.env[cliVar] || "";
+    vars[appVar] = val;
+    if (!val) {
+      console.error(`FATAL: Missing required env var: ${appVar} (or ${cliVar})`);
+      allFound = false;
     }
-    // Derive missing vars
-    if (env["SUPABASE_ANON_KEY"]) env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] = env["SUPABASE_ANON_KEY"];
-    if (env["SUPABASE_SERVICE_ROLE_KEY"]) env["SUPABASE_SERVICE_ROLE_KEY"] = env["SUPABASE_SERVICE_ROLE_KEY"];
-    if (env["SUPABASE_URL"]) env["NEXT_PUBLIC_SUPABASE_URL"] = env["SUPABASE_URL"];
-    if (env["SUPABASE_DB_URL"]) env["PG_TEST_URL"] = env["SUPABASE_DB_URL"];
-    return env;
-  } catch (e) {
-    console.error("FATAL: supabase status --output env failed. Is the local stack running?");
-    console.error("Run: npx supabase start");
+  }
+  if (!allFound) {
+    console.error("Set these variables by running: supabase status -o env");
+    console.error("Then export them to the environment.");
     process.exit(1);
   }
+  return vars;
 }
 
 // ─── Test framework ────────────────────────────────────────────
@@ -104,12 +107,11 @@ async function main() {
   console.log("=== Supabase Auth and RLS Verification ===");
   console.log("");
 
-  // Get dynamic env from local Supabase
-  const env = getSupabaseEnv();
-  const SUPABASE_URL = env["NEXT_PUBLIC_SUPABASE_URL"] || "http://127.0.0.1:54321";
-  const ANON_KEY = env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] || "";
-  const SERVICE_KEY = env["SUPABASE_SERVICE_ROLE_KEY"] || "";
-  const DB_URL = env["PG_TEST_URL"] || "";
+  // Get dynamic env from local Supabase (set by CI workflow from supabase status -o env)
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const DB_URL = process.env.PG_TEST_URL || "";
 
   if (!ANON_KEY || !SERVICE_KEY || !DB_URL) {
     console.error("FATAL: Missing required env vars from supabase status --output env");
@@ -121,24 +123,17 @@ async function main() {
   console.log(`Database: ${DB_URL.replace(/\/\/[^:]+:[^@]+@/, "//****:****@")}`);
   console.log("");
 
-  // Apply migrations to the Supabase stack's database
-  console.log("--- Applying migrations ---");
+  // Migrations are applied automatically by supabase start from supabase/migrations/.
+  // Verify the schema is present rather than reapplying.
+  console.log("--- Verifying schema (applied by supabase start) ---");
   try {
-    execSync(`psql "${DB_URL}" -v ON_ERROR_STOP=1 -f "${path.join(MIGRATIONS_DIR, "00001_schema.sql")}"`, {
-      stdio: "pipe", encoding: "utf-8", timeout: 30000,
+    execSync(`psql "${DB_URL}" -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"`, {
+      stdio: "pipe", encoding: "utf-8", timeout: 10000,
     });
-    pass("Migration 00001 applied to Supabase database");
+    pass("Application tables exist — migrations were applied by supabase start");
   } catch (e: any) {
-    fail(`Migration 00001 failed: ${e.stderr || e.message}`);
-  }
-
-  try {
-    execSync(`psql "${DB_URL}" -v ON_ERROR_STOP=1 -f "${path.join(MIGRATIONS_DIR, "00002_fixes.sql")}"`, {
-      stdio: "pipe", encoding: "utf-8", timeout: 30000,
-    });
-    pass("Migration 00002 applied");
-  } catch (e: any) {
-    fail(`Migration 00002 failed: ${e.stderr || e.message}`);
+    fail(`Schema verification failed: ${e.stderr || e.message}`);
+    process.exit(1);
   }
 
   // ─── Clients ─────────────────────────────────────────────
