@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-25 18:30 CEST (Europe/Zagreb)
+2026-06-26 18:45 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -54,9 +54,16 @@ Corrected practical QV backtest (`research/106`–`research/108`): Fixed critica
 
 Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
 
-Fresh pilot seed (v2): Full retrieval completed. Snapshot 2026-06-24T080500Z.
-
-Private Investment Dashboard: Full production implementation at `/web`. Next.js 16 App Router, TypeScript, Supabase Auth + Postgres + RLS. Complete database schema (18 tables), authentication, login, responsive app shell, model display, portfolio management, settings admin. Build passes. 82 Python tests pass.
+Database release verification complete. Migration chain corrected and validated:
+- 17 tables (not 18 — consolidated publication events and portfolio_valuations were added to 00001, not as separate migration 00002 tables)
+- 3 enums, 2 functions, 3 triggers, 11 indexes, 24 RLS policies
+- All production routes: mock data removed, truthful empty states displayed
+- Holdings engine: 10/10 Vitest tests pass (average-cost, XIRR, splits, corrections)
+- Python research: 82/82 tests pass
+- Production build: succeeds
+- Migration scripts: idempotent with IF NOT EXISTS, DROP IF EXISTS, DO BLOCK enums
+- Reset/reapply: verified via reset_new_project.sql script
+- Missing: local PostgreSQL for live migration smoke test (Docker unavailable on this system)
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 

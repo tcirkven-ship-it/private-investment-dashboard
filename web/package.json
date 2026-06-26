@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:db-migrations": "PG_TEST_URL=$PG_TEST_URL npx tsx scripts/verify-migrations.ts",
+    "test:db-rls": "PG_TEST_URL=$PG_TEST_URL npx tsx scripts/verify-rls.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
@@ -16,6 +19,7 @@
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "papaparse": "^5.5.4",
+    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.9.0"
