@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Reset and reapply test — isolated database
+# Reset and reapply test — runs in its own GitHub Actions job with a fresh Supabase Postgres.
 source "$(dirname "$0")/db-test-lib.sh"
-TEST_DB="dashboard_reset_test"
-
-create_db "$TEST_DB"
-DB_URL="${PG_TEST_URL/%$DB_NAME/$TEST_DB}"
 PSQL="psql -v ON_ERROR_STOP=1 --echo-errors -t -A"
 
 echo "=== Reset and Reapply Test ==="
@@ -56,5 +52,4 @@ PG_URL="$DB_URL" $PSQL -c "SET app.reset_override = true;" -f "supabase/reset_ne
 check "Zero after second reset" "0" \
   "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';"
 
-drop_db "$TEST_DB"
 report_results "RESET TEST"

@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-26 20:30 CEST (Europe/Zagreb)
+2026-06-26 21:15 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -54,15 +54,18 @@ Corrected practical QV backtest (`research/106`–`research/108`): Fixed critica
 
 Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
 
-DATABASE RELEASE NOT VERIFIED — CI proof pending.
+DATABASE RELEASE NOT VERIFIED — CI not yet run.
 
-Branch: fix/database-verification (pushed to origin)
-PR: https://github.com/tcirkven-ship-it/private-investment-dashboard/pull/new/fix/database-verification
+Branch: fix/database-verification (pushed to origin at a822020)
+PR: https://github.com/tcirkven-ship-it/private-investment-dashboard/compare/main...fix/database-verification
+(Create PR from this link. CI will run automatically on PR push.)
 
-CI workflow runs on PR push. Separate jobs:
-- database-tests: migration smoke, rollback, reset/reapply (3 isolated databases)
-- auth-rls-tests: Supabase Auth + RLS with real clients (requires Docker for local Supabase)
-- web-tests: unit tests + production build
+CI workflow (.github/workflows/database-release.yml) has 3 jobs:
+1. database-tests: migration smoke, rollback, reset/reapply (Supabase Postgres service)
+2. auth-rls-tests: Supabase Auth + RLS via real clients (local Supabase stack)
+3. web-tests: unit tests + production build
+
+Required: GitHub token or browser to create PR. No token available in this environment.
 
 Authoritative schema inventory (verified by static analysis):
 - 17 tables (public schema)

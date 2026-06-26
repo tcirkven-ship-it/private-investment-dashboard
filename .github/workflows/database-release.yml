@@ -18,7 +18,8 @@ env:
   ALLOW_DESTRUCTIVE_DB_TESTS: "true"
 
 jobs:
-  database-tests:
+  # Migration, rollback, and reset tests each get a fresh Supabase Postgres container
+  migration-smoke:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -34,12 +35,10 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 15
-
     steps:
       - uses: actions/checkout@v4
       - name: Install psql
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
       - name: Migration smoke test
         run: bash scripts/test-migration.sh
         working-directory: web
@@ -47,6 +46,26 @@ jobs:
           PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/postgres
           EXPECTED_TEST_DATABASE: postgres
 
+  rollback-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: supabase/postgres:16.6.0
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Rollback test
         run: bash scripts/test-rollback.sh
         working-directory: web
@@ -54,6 +73,26 @@ jobs:
           PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/postgres
           EXPECTED_TEST_DATABASE: postgres
 
+  reset-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: supabase/postgres:16.6.0
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Reset and reapply test
         run: bash scripts/test-reset.sh
         working-directory: web
@@ -70,34 +109,53 @@ jobs:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: web/package-lock.json
-
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
-
       - name: Start local Supabase
+        id: supabase-start
         run: |
           supabase start
-          echo "Waiting for services..."
+          # Export env vars for subsequent steps
+          supabase status --output env > /tmp/supabase_env.txt
+          while IFS= read -r line; do
+            echo "$line" >> "$GITHUB_ENV"
+          done < /tmp/supabase_env.txt
+          # Extract for logging (redacted)
+          ANON=$(grep SUPABASE_ANON_KEY /tmp/supabase_env.txt | cut -d= -f2-)
+          echo "Supabase API URL: $(grep SUPABASE_URL /tmp/supabase_env.txt | cut -d= -f2-)"
+          echo "Anon key: ${ANON:0:10}..." 
+        working-directory: web
+      - name: Health check
+        run: |
+          API_URL="${NEXT_PUBLIC_SUPABASE_URL:-http://127.0.0.1:54321}"
+          DB_URL="${SUPABASE_DB_URL:-}"
+          echo "Checking Supabase services..."
           for i in $(seq 1 30); do
-            if curl -s http://127.0.0.1:54321/health > /dev/null 2>&1; then
-              echo "Supabase ready"
-              break
+            api_ok=false
+            db_ok=false
+            if curl -sf "$API_URL/health" > /dev/null 2>&1; then api_ok=true; fi
+            if [ -n "$DB_URL" ] && pg_isready -d "$DB_URL" > /dev/null 2>&1; then db_ok=true; fi
+            if $api_ok && $db_ok; then
+              echo "All services healthy"
+              exit 0
             fi
             sleep 2
           done
-        working-directory: web
-
-      - name: Run Auth and RLS tests
-        run: npx tsx scripts/test-auth-rls.ts
-        working-directory: web
+          echo "FAIL: Supabase services did not become healthy within 60s"
+          exit 1
         env:
-          ALLOW_DESTRUCTIVE_DB_TESTS: "true"
-
+          PGPASSWORD: postgres
+      - name: Run Auth and RLS tests
+        run: npx --no-install tsx scripts/test-auth-rls.ts
+        working-directory: web
       - name: Stop local Supabase
         if: always()
-        run: supabase stop
+        run: supabase stop --no-backup
         working-directory: web
 
   web-tests:

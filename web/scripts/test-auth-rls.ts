@@ -354,9 +354,9 @@ async function main() {
   });
   assert(!wfSell, "Workflow partial sale (10 AAPL @ $200)");
 
-  // Verify cash via transactions
+  // Verify cash, quantities, average costs via transactions
   const { data: allTxs } = await serviceClient.from("transactions")
-    .select("event_type, gross_amount, commission")
+    .select("event_type, gross_amount, commission, quantity, price")
     .eq("portfolio_id", portfolioId);
   const cash = (allTxs || []).reduce((sum: number, t: any) => {
     if (t.event_type === "DEPOSIT") return sum + t.gross_amount;
@@ -366,7 +366,20 @@ async function main() {
     if (t.event_type === "FEE") return sum - t.gross_amount;
     return sum;
   }, 0);
-  assert(cash === 80187, `Cash = $80,187 (calculated: $${cash})`);
+  assert(cash === 80182, `Cash = $80,182 (calculated: $${cash})`);
+
+  // Verify quantities (AAPL: 50-10=40, MSFT: 30)
+  const buys = (allTxs || []).filter((t: any) => t.event_type === "BUY");
+  const sells = (allTxs || []).filter((t: any) => t.event_type === "SELL");
+  const totalAapl = buys.filter((t: any) => t.id?.includes("buy1")).reduce((s: number, t: any) => s + t.quantity, 0) -
+    sells.reduce((s: number, t: any) => s + t.quantity, 0);
+  const totalMsft = buys.filter((t: any) => t.id?.includes("buy2")).reduce((s: number, t: any) => s + t.quantity, 0);
+  assert(totalAapl === 40, `AAPL quantity: 40 (got ${totalAapl})`);
+  assert(totalMsft === 30, `MSFT quantity: 30 (got ${totalMsft})`);
+
+  // Verify total commissions
+  const totalComm = (allTxs || []).reduce((s: number, t: any) => s + (t.commission || 0), 0);
+  assert(totalComm === 13, `Total commissions: $13 (got $${totalComm})`);
 
   // Rebalance event
   const { data: reb, error: rebErr } = await serviceClient.from("rebalance_events").insert({

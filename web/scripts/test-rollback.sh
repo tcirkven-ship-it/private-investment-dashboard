@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Transactional rollback test — isolated database
+# Transactional rollback test — runs in its own GitHub Actions job with a fresh Supabase Postgres.
 source "$(dirname "$0")/db-test-lib.sh"
-TEST_DB="dashboard_rollback_test"
-
-create_db "$TEST_DB"
-DB_URL="${PG_TEST_URL/%$DB_NAME/$TEST_DB}"
 PSQL="psql -v ON_ERROR_STOP=1 --echo-errors -t -A"
 
 echo "=== Rollback Test ==="
@@ -47,5 +43,4 @@ check "Zero RLS policies" "0" \
 check "Zero application sequences" "0" \
   "SELECT count(*) FROM information_schema.sequences WHERE sequence_schema = 'public';"
 
-drop_db "$TEST_DB"
 report_results "ROLLBACK TEST"

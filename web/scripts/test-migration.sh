@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Migration smoke test — isolated database
+# Migration smoke test — runs in its own GitHub Actions job with a fresh Supabase Postgres.
 source "$(dirname "$0")/db-test-lib.sh"
-TEST_DB="dashboard_migration_test"
-
-create_db "$TEST_DB"
-DB_URL="${PG_TEST_URL/%$DB_NAME/$TEST_DB}"
 PSQL="psql -v ON_ERROR_STOP=1 --echo-errors -t -A"
 
 echo "=== Migration Smoke Test ==="
@@ -137,12 +133,20 @@ PF_ID=$($PSQL "$DB_URL" -c "SELECT id FROM public.portfolios LIMIT 1;" 2>/dev/nu
 # Valid insert
 $PSQL "$DB_URL" -c "INSERT INTO public.transactions (portfolio_id, event_type, event_date, gross_amount, idempotency_key, owner_id) VALUES ('$PF_ID', 'DEPOSIT', '2025-01-02', 100, 'tk1', '00000000-0000-0000-0000-000000000001');" 2>/dev/null && pass "Transaction with matching owner allowed" || fail "Transaction with matching owner blocked"
 
-# Invalid insert (wrong owner)
-if echo "INSERT INTO public.transactions (portfolio_id, event_type, event_date, gross_amount, idempotency_key, owner_id) VALUES ('$PF_ID', 'DEPOSIT', '2025-01-02', 100, 'tk2', '00000000-0000-0000-0000-000000000099');" | $PSQL "$DB_URL" 2>/dev/null; then
-  fail "Transaction with wrong owner should be rejected"
+# Create second user for wrong-owner test
+$PSQL "$DB_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO auth.users (id, email, encrypted_password) VALUES ('00000000-0000-0000-0000-000000000099', 'user2@t.com', '\$2a\$10\$dummyhash') ON CONFLICT (id) DO NOTHING;" || fail "Could not create second user"
+
+# Invalid insert (existing user, wrong owner)
+ERROR_MSG=$(echo "INSERT INTO public.transactions (portfolio_id, event_type, event_date, gross_amount, idempotency_key, owner_id) VALUES ('$PF_ID', 'DEPOSIT', '2025-01-02', 100, 'tk2', '00000000-0000-0000-0000-000000000099');" | $PSQL "$DB_URL" 2>&1 || true)
+if echo "$ERROR_MSG" | grep -qi "check_transaction_owner"; then
+  pass "Transaction with wrong owner correctly rejected by check_transaction_owner trigger"
 else
-  pass "Transaction with wrong owner correctly rejected"
+  fail "Transaction with wrong owner was not rejected by trigger (error: $ERROR_MSG)"
 fi
+
+# Verify no transaction was inserted
+check "Wrong-owner transaction not inserted" "0" \
+  "SELECT count(*) FROM public.transactions WHERE idempotency_key = 'tk2';"
 
 # Verify UPDATE/DELETE denied via trigger
 $PSQL "$DB_URL" -c "UPDATE public.transactions SET gross_amount = 999 WHERE idempotency_key = 'tk1';" 2>/dev/null && fail "UPDATE allowed (should be blocked)" || pass "UPDATE correctly blocked"
@@ -155,5 +159,4 @@ else
 fi
 
 # Cleanup: drop the whole database
-drop_db "$TEST_DB"
 report_results "MIGRATION SMOKE TEST"
