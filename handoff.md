@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-26 20:15 CEST (Europe/Zagreb)
+2026-06-26 20:30 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -55,8 +55,14 @@ Corrected practical QV backtest (`research/106`–`research/108`): Fixed critica
 Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
 
 DATABASE RELEASE NOT VERIFIED — CI proof pending.
-GitHub Actions workflow defined at .github/workflows/database-release.yml.
-Push to run: git push origin main
+
+Branch: fix/database-verification (pushed to origin)
+PR: https://github.com/tcirkven-ship-it/private-investment-dashboard/pull/new/fix/database-verification
+
+CI workflow runs on PR push. Separate jobs:
+- database-tests: migration smoke, rollback, reset/reapply (3 isolated databases)
+- auth-rls-tests: Supabase Auth + RLS with real clients (requires Docker for local Supabase)
+- web-tests: unit tests + production build
 
 Authoritative schema inventory (verified by static analysis):
 - 17 tables (public schema)
