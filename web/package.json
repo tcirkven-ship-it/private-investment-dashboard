@@ -8,8 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:db-migrations": "PG_TEST_URL=$PG_TEST_URL npx tsx scripts/verify-migrations.ts",
-    "test:db-rls": "PG_TEST_URL=$PG_TEST_URL npx tsx scripts/verify-rls.ts"
+    "test:db-migrations": "PG_TEST_URL=${PG_TEST_URL:-} bash scripts/verify-migrations.sh",
+    "test:db-rls": "PG_TEST_URL=${PG_TEST_URL:-} bash scripts/verify-rls.sh",
+    "test:all": "npm test && npm run test:db-migrations && npm run test:db-rls && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

@@ -1,0 +1,61 @@
+name: Database Release Verification
+on:
+  push:
+    paths:
+      - "web/supabase/migrations/**"
+      - "web/scripts/**"
+      - ".github/workflows/database-release.yml"
+  pull_request:
+    paths:
+      - "web/supabase/migrations/**"
+      - "web/scripts/**"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: supabase/postgres:16.6.0
+        env:
+          POSTGRES_DB: dashboard_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Run migration smoke test
+        run: npm run test:db-migrations
+        working-directory: web
+        env:
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dashboard_test
+          PGPASSWORD: postgres
+
+      - name: Run web unit tests
+        run: npm test
+        working-directory: web
+
+      - name: Production build
+        run: npm run build
+        working-directory: web

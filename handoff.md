@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-26 18:45 CEST (Europe/Zagreb)
+2026-06-26 19:45 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -54,16 +54,27 @@ Corrected practical QV backtest (`research/106`–`research/108`): Fixed critica
 
 Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
 
-Database release verification complete. Migration chain corrected and validated:
-- 17 tables (not 18 — consolidated publication events and portfolio_valuations were added to 00001, not as separate migration 00002 tables)
-- 3 enums, 2 functions, 3 triggers, 11 indexes, 24 RLS policies
-- All production routes: mock data removed, truthful empty states displayed
-- Holdings engine: 10/10 Vitest tests pass (average-cost, XIRR, splits, corrections)
-- Python research: 82/82 tests pass
-- Production build: succeeds
-- Migration scripts: idempotent with IF NOT EXISTS, DROP IF EXISTS, DO BLOCK enums
-- Reset/reapply: verified via reset_new_project.sql script
-- Missing: local PostgreSQL for live migration smoke test (Docker unavailable on this system)
+Database release verification: NOT YET VERIFIED. CI proof required.
+
+Corrected release migration:
+- Atomic transaction wrapping (BEGIN/COMMIT)
+- Owner-only RLS (all tables use is_owner() check)
+- Append-only transactions (owner has INSERT+SELECT only, no UPDATE/DELETE)
+- Model immutability (prevent_published_mutation trigger, CHECK constraints)
+- Portfolio deletion prevention (prevent_portfolio_deletion trigger)
+- Cascading protection (ON DELETE RESTRICT on transactions)
+- Single authoritative cash source (no starting_cash — transactions only)
+- 31 RLS policies (strict owner isolation with second-user denial)
+- Corporate-action CHECK constraints
+- idempotency_key UNIQUE on transactions and checksum UNIQUE on imports
+- GitHub Actions workflow (.github/workflows/database-release.yml)
+
+CI must pass before deployment. Actions workflow requires Docker for local
+Supabase PostgreSQL. Current system lacks Docker — proof deferred to CI run.
+
+Routes connected to Supabase: /model (async server component with real query).
+Remaining routes (holdings, transactions, rebalance) still show empty states
+awaiting full integration in a subsequent task.
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 
