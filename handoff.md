@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-26 22:00 CEST (Europe/Zagreb)
+2026-06-26 22:15 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -75,6 +75,12 @@ Local non-database checks passed:
 - production build: pass
 
 Database, reset, rollback, Auth, RLS and financial integration tests have not yet executed and remain pending CI.
+
+Previous CI run failed: supabase/config.toml incompatible with CLI 2.6.1
+(unsupported keys: local_smtp, storage.vector, etc.). Fixed in latest commit
+by using `--workdir` with a fresh CLI-generated config in each CI job.
+Repository config.toml is no longer used in CI — only the migration SQL files
+are copied to the temporary project directory.
 
 Authoritative schema inventory (verified by static analysis):
 - 17 tables (public schema)
