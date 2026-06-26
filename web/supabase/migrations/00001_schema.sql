@@ -132,7 +132,7 @@ CREATE TABLE portfolios (
 ALTER TABLE portfolios ENABLE ROW LEVEL SECURITY;
 
 -- 8. Transactions (source of truth for holdings)
-CREATE TABLE transaction_types AS ENUM (
+CREATE TYPE transaction_types AS ENUM (
   'BUY', 'SELL', 'DIVIDEND', 'DEPOSIT', 'WITHDRAWAL',
   'FEE', 'TAX', 'INTEREST', 'SPLIT', 'SYMBOL_CHANGE',
   'MERGER', 'SPINOFF', 'ADJUSTMENT', 'CORRECTION'
