@@ -1,22 +1,11 @@
--- Private Investment Dashboard — Complete Schema
--- Run this in Supabase SQL Editor to initialize the database.
+-- Private Investment Dashboard — Corrected Complete Schema
+-- Run this in Supabase SQL Editor to initialize a fresh database.
+-- All statements are idempotent where safe. No production data exists.
 
 -- 0. Extensions
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. Profiles
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  display_name TEXT,
-  totp_enabled BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-
--- Shared updated_at trigger function.
--- Must be defined before any trigger that references it.
+-- 1. Shared updated_at trigger function (create before any trigger)
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -29,26 +18,45 @@ BEGIN
 END;
 $$;
 
+-- 2. Profiles (extends Supabase auth.users)
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  display_name TEXT,
+  totp_enabled BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS set_profiles_updated_at ON profiles;
 CREATE TRIGGER set_profiles_updated_at
   BEFORE UPDATE ON profiles FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- Auto-create profile on signup
+-- Auto-create profile on user signup
 CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, display_name)
-  VALUES (NEW.id, NEW.email, split_part(NEW.email, '@', 1));
+  VALUES (NEW.id, NEW.email, split_part(NEW.email, '@', 1))
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users FOR EACH ROW
   EXECUTE FUNCTION handle_new_user();
 
--- 2. App settings
-CREATE TABLE app_settings (
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- 3. App settings
+CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,
   value JSONB NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -56,8 +64,8 @@ CREATE TABLE app_settings (
 
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 
--- 3. Securities
-CREATE TABLE securities (
+-- 4. Securities reference
+CREATE TABLE IF NOT EXISTS securities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ticker TEXT NOT NULL UNIQUE,
   company_name TEXT,
@@ -72,8 +80,8 @@ CREATE TABLE securities (
 
 ALTER TABLE securities ENABLE ROW LEVEL SECURITY;
 
--- 4. Model versions
-CREATE TABLE model_versions (
+-- 5. Model versions
+CREATE TABLE IF NOT EXISTS model_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   model_id TEXT NOT NULL,
   version TEXT NOT NULL,
@@ -86,10 +94,19 @@ CREATE TABLE model_versions (
 
 ALTER TABLE model_versions ENABLE ROW LEVEL SECURITY;
 
--- 5. Model snapshots
-CREATE TYPE snapshot_status AS ENUM ('DRAFT', 'VALIDATED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED');
+-- 6. Enums for model snapshots and publication
+DO $$ BEGIN
+  CREATE TYPE snapshot_status AS ENUM ('DRAFT', 'VALIDATED', 'APPROVED', 'PUBLISHED', 'SUPERSEDED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE model_snapshots (
+DO $$ BEGIN
+  CREATE TYPE rebalance_status AS ENUM ('PENDING', 'COMPLETED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 7. Model snapshots
+CREATE TABLE IF NOT EXISTS model_snapshots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   model_version_id UUID NOT NULL REFERENCES model_versions(id),
   snapshot_id TEXT NOT NULL UNIQUE,
@@ -105,13 +122,20 @@ CREATE TABLE model_snapshots (
   warnings JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   published_at TIMESTAMPTZ,
-  superseded_at TIMESTAMPTZ
+  superseded_at TIMESTAMPTZ,
+  CONSTRAINT valid_status_transition CHECK (
+    (status = 'DRAFT') OR
+    (status = 'VALIDATED') OR
+    (status = 'APPROVED') OR
+    (status = 'PUBLISHED') OR
+    (status = 'SUPERSEDED')
+  )
 );
 
 ALTER TABLE model_snapshots ENABLE ROW LEVEL SECURITY;
 
--- 6. Model snapshot holdings
-CREATE TABLE model_snapshot_holdings (
+-- 8. Model snapshot holdings
+CREATE TABLE IF NOT EXISTS model_snapshot_holdings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   snapshot_id UUID NOT NULL REFERENCES model_snapshots(id) ON DELETE CASCADE,
   security_id UUID NOT NULL REFERENCES securities(id),
@@ -121,16 +145,27 @@ CREATE TABLE model_snapshot_holdings (
   quality_percentile NUMERIC(8,6),
   quality_components_ok INT DEFAULT 0,
   prior_rank INT,
-  change_from_prior TEXT,
-  data_quality_flags TEXT[] DEFAULT '{}',
   inclusion_reason TEXT,
   UNIQUE(snapshot_id, security_id)
 );
 
 ALTER TABLE model_snapshot_holdings ENABLE ROW LEVEL SECURITY;
 
--- 7. Portfolios
-CREATE TABLE portfolios (
+-- 9. Model publication events (audit trail for status transitions)
+CREATE TABLE IF NOT EXISTS model_publication_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  snapshot_id UUID NOT NULL REFERENCES model_snapshots(id),
+  from_status TEXT,
+  to_status TEXT NOT NULL,
+  changed_by UUID REFERENCES auth.users(id),
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE model_publication_events ENABLE ROW LEVEL SECURITY;
+
+-- 10. Portfolios
+CREATE TABLE IF NOT EXISTS portfolios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES auth.users(id),
   name TEXT NOT NULL,
@@ -144,27 +179,35 @@ CREATE TABLE portfolios (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS set_portfolios_updated_at ON portfolios;
+CREATE TRIGGER set_portfolios_updated_at
+  BEFORE UPDATE ON portfolios FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 ALTER TABLE portfolios ENABLE ROW LEVEL SECURITY;
 
--- 8. Transactions (source of truth for holdings)
-CREATE TYPE transaction_types AS ENUM (
-  'BUY', 'SELL', 'DIVIDEND', 'DEPOSIT', 'WITHDRAWAL',
-  'FEE', 'TAX', 'INTEREST', 'SPLIT', 'SYMBOL_CHANGE',
-  'MERGER', 'SPINOFF', 'ADJUSTMENT', 'CORRECTION'
-);
+-- 11. Transaction event types (single authoritative enum)
+DO $$ BEGIN
+  CREATE TYPE transaction_event_type AS ENUM (
+    'DEPOSIT', 'WITHDRAWAL', 'BUY', 'SELL', 'DIVIDEND',
+    'FEE', 'TAX', 'INTEREST', 'SPLIT', 'SYMBOL_CHANGE',
+    'MERGER', 'SPINOFF', 'CORRECTION', 'TRANSFER'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE transactions (
+-- 12. Transactions (immutable source of truth for holdings and cash)
+CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   portfolio_id UUID NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
   security_id UUID REFERENCES securities(id),
-  event_type transaction_types NOT NULL,
+  event_type transaction_event_type NOT NULL,
   event_date DATE NOT NULL,
   quantity NUMERIC(14,6),
   price NUMERIC(14,4),
   gross_amount NUMERIC(14,2),
   commission NUMERIC(10,2) DEFAULT 0,
-  tax NUMERIC(10,2) DEFAULT 0,
-  fx_rate NUMERIC(12,6) DEFAULT 1,
+  tax_amount NUMERIC(10,2) DEFAULT 0,
   notes TEXT,
   idempotency_key TEXT UNIQUE,
   corrected_by UUID REFERENCES transactions(id),
@@ -174,8 +217,10 @@ CREATE TABLE transactions (
 
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
--- 9. Price observations
-CREATE TABLE price_observations (
+-- Alternative: holdings and cash are DERIVED from transactions (not stored directly).
+
+-- 13. Price observations (timestamped, sourced)
+CREATE TABLE IF NOT EXISTS price_observations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   security_id UUID NOT NULL REFERENCES securities(id),
   observation_date DATE NOT NULL,
@@ -188,8 +233,8 @@ CREATE TABLE price_observations (
 
 ALTER TABLE price_observations ENABLE ROW LEVEL SECURITY;
 
--- 10. Benchmark observations
-CREATE TABLE benchmark_observations (
+-- 14. Benchmark observations
+CREATE TABLE IF NOT EXISTS benchmark_observations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ticker TEXT NOT NULL,
   observation_date DATE NOT NULL,
@@ -200,10 +245,22 @@ CREATE TABLE benchmark_observations (
 
 ALTER TABLE benchmark_observations ENABLE ROW LEVEL SECURITY;
 
--- 11. Rebalance events
-CREATE TYPE rebalance_status AS ENUM ('PENDING', 'COMPLETED', 'CANCELLED');
+-- 15. Portfolio valuations (derived, reproducible)
+CREATE TABLE IF NOT EXISTS portfolio_valuations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  portfolio_id UUID NOT NULL REFERENCES portfolios(id),
+  valuation_date DATE NOT NULL,
+  total_value NUMERIC(14,2) NOT NULL,
+  cash_balance NUMERIC(14,2) DEFAULT 0,
+  total_deposits NUMERIC(14,2) DEFAULT 0,
+  total_withdrawals NUMERIC(14,2) DEFAULT 0,
+  UNIQUE(portfolio_id, valuation_date)
+);
 
-CREATE TABLE rebalance_events (
+ALTER TABLE portfolio_valuations ENABLE ROW LEVEL SECURITY;
+
+-- 16. Rebalance events
+CREATE TABLE IF NOT EXISTS rebalance_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   portfolio_id UUID NOT NULL REFERENCES portfolios(id),
   model_snapshot_id UUID NOT NULL REFERENCES model_snapshots(id),
@@ -216,8 +273,8 @@ CREATE TABLE rebalance_events (
 
 ALTER TABLE rebalance_events ENABLE ROW LEVEL SECURITY;
 
--- 12. Rebalance lines
-CREATE TABLE rebalance_lines (
+-- 17. Rebalance lines
+CREATE TABLE IF NOT EXISTS rebalance_lines (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   rebalance_event_id UUID NOT NULL REFERENCES rebalance_events(id) ON DELETE CASCADE,
   security_id UUID NOT NULL REFERENCES securities(id),
@@ -232,21 +289,21 @@ CREATE TABLE rebalance_lines (
 
 ALTER TABLE rebalance_lines ENABLE ROW LEVEL SECURITY;
 
--- 13. Audit events
-CREATE TABLE audit_events (
+-- 18. Owner decisions (for quarterly review approval)
+CREATE TABLE IF NOT EXISTS owner_decisions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id UUID REFERENCES auth.users(id),
-  event_type TEXT NOT NULL,
-  description TEXT,
-  ip_address INET,
-  metadata JSONB,
+  rebalance_line_id UUID REFERENCES rebalance_lines(id),
+  decision_type TEXT NOT NULL,
+  decision_data JSONB,
+  notes TEXT,
+  owner_id UUID NOT NULL REFERENCES auth.users(id),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE owner_decisions ENABLE ROW LEVEL SECURITY;
 
--- 14. Data imports
-CREATE TABLE data_imports (
+-- 19. Data imports (idempotency tracking)
+CREATE TABLE IF NOT EXISTS data_imports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   import_type TEXT NOT NULL,
   source TEXT,
@@ -260,95 +317,139 @@ CREATE TABLE data_imports (
 
 ALTER TABLE data_imports ENABLE ROW LEVEL SECURITY;
 
--- 15. Owner decisions
-CREATE TABLE owner_decisions (
+-- 20. Audit events (append-only, immutable record)
+CREATE TABLE IF NOT EXISTS audit_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  rebalance_line_id UUID REFERENCES rebalance_lines(id),
-  decision_type TEXT NOT NULL,
-  decision_data JSONB,
-  notes TEXT,
-  owner_id UUID NOT NULL REFERENCES auth.users(id),
+  owner_id UUID REFERENCES auth.users(id),
+  event_type TEXT NOT NULL,
+  description TEXT,
+  ip_address INET,
+  metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-ALTER TABLE owner_decisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 
 -- Indexes
-CREATE INDEX idx_transactions_portfolio ON transactions(portfolio_id, event_date);
-CREATE INDEX idx_transactions_owner ON transactions(owner_id);
-CREATE INDEX idx_portfolios_owner ON portfolios(owner_id);
-CREATE INDEX idx_model_snapshots_status ON model_snapshots(status);
-CREATE INDEX idx_model_snapshot_holdings_snapshot ON model_snapshot_holdings(snapshot_id);
-CREATE INDEX idx_price_observations_security ON price_observations(security_id, observation_date);
-CREATE INDEX idx_benchmark_observations ON benchmark_observations(ticker, observation_date);
-CREATE INDEX idx_rebalance_events_portfolio ON rebalance_events(portfolio_id);
-CREATE INDEX idx_audit_events_owner ON audit_events(owner_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_portfolio ON transactions(portfolio_id, event_date);
+CREATE INDEX IF NOT EXISTS idx_transactions_owner ON transactions(owner_id, event_date);
+CREATE INDEX IF NOT EXISTS idx_portfolios_owner ON portfolios(owner_id);
+CREATE INDEX IF NOT EXISTS idx_model_snapshots_status ON model_snapshots(status);
+CREATE INDEX IF NOT EXISTS idx_model_snapshot_holdings_snapshot ON model_snapshot_holdings(snapshot_id);
+CREATE INDEX IF NOT EXISTS idx_price_observations_security ON price_observations(security_id, observation_date);
+CREATE INDEX IF NOT EXISTS idx_benchmark_observations ON benchmark_observations(ticker, observation_date);
+CREATE INDEX IF NOT EXISTS idx_rebalance_events_portfolio ON rebalance_events(portfolio_id, owner_id);
+CREATE INDEX IF NOT EXISTS idx_audit_events_owner ON audit_events(owner_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_portfolio_valuations_portfolio ON portfolio_valuations(portfolio_id, valuation_date);
+CREATE INDEX IF NOT EXISTS idx_model_publication_events_snapshot ON model_publication_events(snapshot_id);
 
 -- Row Level Security Policies
+
 -- Profiles
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (id = auth.uid());
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (id = auth.uid());
 
--- Portfolios
-CREATE POLICY "Users can manage own portfolios" ON portfolios
-  FOR ALL USING (owner_id = auth.uid());
+-- App settings
+DROP POLICY IF EXISTS "Authenticated can view app settings" ON app_settings;
+CREATE POLICY "Authenticated can view app settings" ON app_settings
+  FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Service can manage app settings" ON app_settings;
+CREATE POLICY "Service can manage app settings" ON app_settings
+  FOR ALL USING (auth.role() = 'service_role');
 
--- Transactions
-CREATE POLICY "Users can manage own transactions" ON transactions
-  FOR ALL USING (owner_id = auth.uid());
+-- Securities
+DROP POLICY IF EXISTS "Authenticated can view securities" ON securities;
+CREATE POLICY "Authenticated can view securities" ON securities
+  FOR SELECT USING (auth.role() = 'authenticated');
 
--- Model snapshots (readable by authenticated, writable by service)
+-- Model versions
+DROP POLICY IF EXISTS "Service can manage model versions" ON model_versions;
+CREATE POLICY "Authenticated can view model versions" ON model_versions
+  FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Service can manage model versions" ON model_versions
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Model snapshots
+DROP POLICY IF EXISTS "Authenticated can view model snapshots" ON model_snapshots;
 CREATE POLICY "Authenticated can view model snapshots" ON model_snapshots
   FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Service can manage model snapshots" ON model_snapshots;
 CREATE POLICY "Service can manage model snapshots" ON model_snapshots
   FOR ALL USING (auth.role() = 'service_role');
 
 -- Model snapshot holdings
-CREATE POLICY "Authenticated can view holdings" ON model_snapshot_holdings
+DROP POLICY IF EXISTS "Authenticated can view snapshot holdings" ON model_snapshot_holdings;
+CREATE POLICY "Authenticated can view snapshot holdings" ON model_snapshot_holdings
   FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Service can manage holdings" ON model_snapshot_holdings
+DROP POLICY IF EXISTS "Service can manage snapshot holdings" ON model_snapshot_holdings;
+CREATE POLICY "Service can manage snapshot holdings" ON model_snapshot_holdings
   FOR ALL USING (auth.role() = 'service_role');
 
--- Securities
-CREATE POLICY "Authenticated can view securities" ON securities
+-- Model publication events
+DROP POLICY IF EXISTS "Authenticated can view publication events" ON model_publication_events;
+CREATE POLICY "Authenticated can view publication events" ON model_publication_events
   FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Service can manage publication events" ON model_publication_events;
+CREATE POLICY "Service can manage publication events" ON model_publication_events
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Portfolios
+DROP POLICY IF EXISTS "Users can manage own portfolios" ON portfolios;
+CREATE POLICY "Users can manage own portfolios" ON portfolios
+  FOR ALL USING (owner_id = auth.uid());
+
+-- Transactions
+DROP POLICY IF EXISTS "Users can manage own transactions" ON transactions;
+CREATE POLICY "Users can manage own transactions" ON transactions
+  FOR ALL USING (owner_id = auth.uid());
 
 -- Price observations
+DROP POLICY IF EXISTS "Authenticated can view prices" ON price_observations;
 CREATE POLICY "Authenticated can view prices" ON price_observations
   FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Benchmark observations
+DROP POLICY IF EXISTS "Authenticated can view benchmarks" ON benchmark_observations;
 CREATE POLICY "Authenticated can view benchmarks" ON benchmark_observations
   FOR SELECT USING (auth.role() = 'authenticated');
 
+-- Portfolio valuations
+DROP POLICY IF EXISTS "Users can view own valuations" ON portfolio_valuations;
+CREATE POLICY "Users can view own valuations" ON portfolio_valuations
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM portfolios p WHERE p.id = portfolio_id AND p.owner_id = auth.uid())
+  );
+
 -- Rebalance events
+DROP POLICY IF EXISTS "Users can manage own rebalance events" ON rebalance_events;
 CREATE POLICY "Users can manage own rebalance events" ON rebalance_events
   FOR ALL USING (owner_id = auth.uid());
 
 -- Rebalance lines
+DROP POLICY IF EXISTS "Users can view own rebalance lines" ON rebalance_lines;
 CREATE POLICY "Users can view own rebalance lines" ON rebalance_lines
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM rebalance_events re WHERE re.id = rebalance_event_id AND re.owner_id = auth.uid())
   );
 
--- Audit events
-CREATE POLICY "Users can view own audit events" ON audit_events
-  FOR SELECT USING (owner_id = auth.uid());
-
--- App settings
-CREATE POLICY "Authenticated can view app settings" ON app_settings
-  FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Service can manage app settings" ON app_settings
-  FOR ALL USING (auth.role() = 'service_role');
+-- Owner decisions
+DROP POLICY IF EXISTS "Users can manage own decisions" ON owner_decisions;
+CREATE POLICY "Users can manage own decisions" ON owner_decisions
+  FOR ALL USING (owner_id = auth.uid());
 
 -- Data imports
+DROP POLICY IF EXISTS "Users can view own imports" ON data_imports;
 CREATE POLICY "Users can view own imports" ON data_imports
   FOR SELECT USING (owner_id = auth.uid());
+DROP POLICY IF EXISTS "Users can insert own imports" ON data_imports;
 CREATE POLICY "Users can insert own imports" ON data_imports
   FOR INSERT WITH CHECK (owner_id = auth.uid());
 
--- Owner decisions
-CREATE POLICY "Users can manage own decisions" ON owner_decisions
-  FOR ALL USING (owner_id = auth.uid());
+-- Audit events
+DROP POLICY IF EXISTS "Users can view own audit events" ON audit_events;
+CREATE POLICY "Users can view own audit events" ON audit_events
+  FOR SELECT USING (owner_id = auth.uid());

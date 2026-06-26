@@ -15,13 +15,14 @@ interface Tx {
   price: number;
   gross_amount: number;
   commission: number;
+  tax_amount: number;
 }
 
 const MOCK_TXS: Tx[] = [
-  { id: "1", event_type: "DEPOSIT", event_date: "2026-01-02", ticker: "", quantity: 0, price: 0, gross_amount: 100000, commission: 0 },
-  { id: "2", event_type: "BUY", event_date: "2026-01-05", ticker: "AAPL", quantity: 50, price: 185, gross_amount: 9250, commission: 5 },
-  { id: "3", event_type: "BUY", event_date: "2026-01-05", ticker: "MSFT", quantity: 30, price: 420, gross_amount: 12600, commission: 5 },
-  { id: "4", event_type: "DIVIDEND", event_date: "2026-02-15", ticker: "AAPL", quantity: 0, price: 0, gross_amount: 50, commission: 0 },
+  { id: "1", event_type: "DEPOSIT", event_date: "2026-01-02", ticker: "", quantity: 0, price: 0, gross_amount: 100000, commission: 0, tax_amount: 0 },
+  { id: "2", event_type: "BUY", event_date: "2026-01-05", ticker: "AAPL", quantity: 50, price: 185, gross_amount: 9250, commission: 5, tax_amount: 0 },
+  { id: "3", event_type: "BUY", event_date: "2026-01-05", ticker: "MSFT", quantity: 30, price: 420, gross_amount: 12600, commission: 5, tax_amount: 0 },
+  { id: "4", event_type: "DIVIDEND", event_date: "2026-02-15", ticker: "AAPL", quantity: 0, price: 0, gross_amount: 50, commission: 0, tax_amount: 0 },
 ];
 
 export default function TransactionsPage() {

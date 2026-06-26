@@ -6,18 +6,20 @@ import Link from "next/link";
 import { ArrowLeft, Download } from "lucide-react";
 import { deriveHoldings, totalNav } from "@/lib/holdings";
 
+import type { TransactionEventType } from "@/lib/holdings";
+
 interface Tx {
-  event_type: string; event_date: string; ticker: string;
-  quantity: number; price: number; gross_amount: number; commission: number; tax: number;
+  event_type: TransactionEventType; event_date: string; ticker: string;
+  quantity: number; price: number; gross_amount: number; commission: number; tax_amount: number;
 }
 
 const MOCK_TXS: Tx[] = [
-  { event_type: "DEPOSIT", event_date: "2026-01-02", ticker: "", quantity: 0, price: 0, gross_amount: 100000, commission: 0, tax: 0 },
-  { event_type: "BUY", event_date: "2026-01-05", ticker: "AAPL", quantity: 50, price: 185, gross_amount: 9250, commission: 5, tax: 0 },
-  { event_type: "BUY", event_date: "2026-01-05", ticker: "MSFT", quantity: 30, price: 420, gross_amount: 12600, commission: 5, tax: 0 },
-  { event_type: "BUY", event_date: "2026-02-01", ticker: "GOOGL", quantity: 20, price: 190, gross_amount: 3800, commission: 3, tax: 0 },
-  { event_type: "DIVIDEND", event_date: "2026-02-15", ticker: "AAPL", quantity: 0, price: 0, gross_amount: 50, commission: 0, tax: 0 },
-  { event_type: "FEE", event_date: "2026-03-01", ticker: "", quantity: 0, price: 0, gross_amount: 5, commission: 0, tax: 0 },
+  { event_type: "DEPOSIT", event_date: "2026-01-02", ticker: "", quantity: 0, price: 0, gross_amount: 100000, commission: 0, tax_amount: 0 },
+  { event_type: "BUY", event_date: "2026-01-05", ticker: "AAPL", quantity: 50, price: 185, gross_amount: 9250, commission: 5, tax_amount: 0 },
+  { event_type: "BUY", event_date: "2026-01-05", ticker: "MSFT", quantity: 30, price: 420, gross_amount: 12600, commission: 5, tax_amount: 0 },
+  { event_type: "BUY", event_date: "2026-02-01", ticker: "GOOGL", quantity: 20, price: 190, gross_amount: 3800, commission: 3, tax_amount: 0 },
+  { event_type: "DIVIDEND", event_date: "2026-02-15", ticker: "AAPL", quantity: 0, price: 0, gross_amount: 50, commission: 0, tax_amount: 0 },
+  { event_type: "FEE", event_date: "2026-03-01", ticker: "", quantity: 0, price: 0, gross_amount: 5, commission: 0, tax_amount: 0 },
 ];
 
 const PRICES = new Map([["AAPL", 195], ["MSFT", 440], ["GOOGL", 185]]);

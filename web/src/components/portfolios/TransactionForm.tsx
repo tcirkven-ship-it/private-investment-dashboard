@@ -38,7 +38,7 @@ export default function TransactionForm({ portfolioId, onSaved }: TransactionFor
       price: parseFloat(price) || 0,
       gross_amount: parseFloat(grossAmount) || 0,
       commission: parseFloat(commission) || 0,
-      tax: parseFloat(tax) || 0,
+      tax_amount: parseFloat(tax) || 0,
       notes: notes || null,
     };
 
