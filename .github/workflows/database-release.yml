@@ -140,3 +140,105 @@ jobs:
           else
             echo "Nothing to stop"
           fi
+
+  reset-reapply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_DIR=$CI_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_DIR"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize project with migrations
+        shell: bash
+        run: |
+          supabase init --workdir "$CI_DIR" --force
+          test -f "$CI_DIR/supabase/config.toml"
+          mkdir -p "$CI_DIR/supabase/migrations"
+          cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_DIR/supabase/migrations/"
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Print CLI version
+        shell: bash
+        run: supabase --version
+      - name: Start Supabase
+        shell: bash
+        run: supabase --workdir "$CI_DIR" start
+      - name: Get database URL
+        shell: bash
+        run: |
+          eval "$(supabase --workdir "$CI_DIR" status -o env 2>/dev/null | sed 's/^export //')"
+          : "${DB_URL:?}"
+          echo "PG_TEST_URL=$DB_URL" >> "$GITHUB_ENV"
+      - name: Confirm 17 application tables
+        shell: bash
+        run: |
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
+          echo "Tables: $TC"; [ "$TC" = "17" ] || { echo "FAIL: Expected 17"; exit 1; }
+      - name: Insert test data
+        shell: bash
+        run: |
+          psql "$PG_TEST_URL" -c "INSERT INTO auth.users (id, email, encrypted_password) VALUES ('00000000-0000-0000-0000-000000000001', 'reset@t.com', '\$2a\$10\$x') ON CONFLICT (id) DO NOTHING;"
+          psql "$PG_TEST_URL" -c "INSERT INTO public.portfolios (owner_id, name, opening_date) VALUES ('00000000-0000-0000-0000-000000000001', 'Test', '2025-01-01');"
+          echo "Data inserted"
+      - name: Reset without override (must refuse)
+        shell: bash
+        run: |
+          if psql "$PG_TEST_URL" -f "$GITHUB_WORKSPACE/web/supabase/reset_new_project.sql" 2>&1; then
+            echo "FAIL: Reset should have refused"; exit 1
+          else
+            echo "PASS: Reset correctly refused"
+          fi
+      - name: Reset with override
+        shell: bash
+        run: >
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1
+          -c "SET app.reset_override = true;"
+          -f "$GITHUB_WORKSPACE/web/supabase/reset_new_project.sql"
+      - name: Verify zero objects after reset
+        shell: bash
+        run: |
+          for obj in "tables|information_schema.tables WHERE table_schema = 'public'" \
+                     "enums|pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace::regnamespace = 'public'" \
+                     "functions|pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f'" \
+                     "triggers|information_schema.triggers WHERE trigger_schema = 'public'" \
+                     "policies|pg_policies WHERE schemaname = 'public'"; do
+            label="${obj%%|*}"; query="${obj#*|}"
+            count=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM $query;")
+            echo "$label: $count"
+            [ "$count" = "0" ] || { echo "FAIL: Expected 0 $label after reset"; exit 1; }
+          done
+      - name: Reapply migration
+        shell: bash
+        run: |
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/web/supabase/migrations/00001_schema.sql"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/web/supabase/migrations/00002_fixes.sql"
+      - name: Verify inventory after reapply
+        shell: bash
+        run: |
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
+          echo "Tables: $TC"; [ "$TC" = "17" ] || { echo "FAIL: Expected 17 tables after reapply"; exit 1; }
+          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace::regnamespace = 'public';")
+          echo "Enums: $EC"; [ "$EC" = "3" ] || { echo "FAIL: Expected 3 enums after reapply"; exit 1; }
+          FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ('check_snapshot_status_transition','check_transaction_owner','handle_new_user','is_owner','prevent_portfolio_deletion','update_updated_at_column');")
+          echo "Core functions: $FC"; [ "$FC" = "6" ] || { echo "FAIL: Expected 6 core functions"; exit 1; }
+          TRC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.triggers WHERE trigger_schema = 'public';")
+          echo "Triggers: $TRC"; [ "$TRC" = "6" ] || { echo "FAIL: Expected 6 triggers"; exit 1; }
+          PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public';")
+          echo "Policies: $PC"; [ "$PC" = "31" ] || { echo "FAIL: Expected 31 policies"; exit 1; }
+          RC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relrowsecurity = true AND n.nspname = 'public';")
+          echo "RLS-enabled tables: $RC"; [ "$RC" = "17" ] || { echo "FAIL: Expected 17 RLS-enabled tables"; exit 1; }
+      - name: Stop Supabase
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$CI_DIR" ] && [ -f "$CI_DIR/supabase/config.toml" ]; then
+            supabase --workdir "$CI_DIR" stop --no-backup
+          else
+            echo "Nothing to stop"
+          fi
