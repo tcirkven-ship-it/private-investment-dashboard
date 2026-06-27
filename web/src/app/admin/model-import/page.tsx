@@ -5,7 +5,7 @@ import { Upload, Check, AlertTriangle } from "lucide-react";
 
 export default function ModelImportPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<any>(null);
+  const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -17,7 +17,7 @@ export default function ModelImportPage() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const data = JSON.parse(ev.target?.result as string);
+        const data = JSON.parse(ev.target?.result as string) as Record<string, unknown>;
         setPreview(data);
       } catch {
         setPreview(null);
@@ -59,10 +59,10 @@ export default function ModelImportPage() {
         <div className="card space-y-3">
           <h2 className="text-sm font-semibold flex items-center gap-2"><Check className="w-4 h-4 text-green-400" /> Preview</h2>
           <div className="text-sm text-neutral-400 space-y-1">
-            <p>Snapshot ID: {preview.snapshot_id || "—"}</p>
-            <p>Effective Date: {preview.effective_date || "—"}</p>
-            <p>Holdings: {preview.holdings?.length || 0} stocks</p>
-            <p>Model: {preview.model_id || "—"}</p>
+            <p>Snapshot ID: {(preview.snapshot_id as string) || "—"}</p>
+            <p>Effective Date: {(preview.effective_date as string) || "—"}</p>
+            <p>Holdings: {Array.isArray(preview.holdings) ? preview.holdings.length : 0} stocks</p>
+            <p>Model: {(preview.model_id as string) || "—"}</p>
           </div>
           <button onClick={handleImport} disabled={importing} className="btn-primary">
             {importing ? "Importing..." : "Import as Draft"}
