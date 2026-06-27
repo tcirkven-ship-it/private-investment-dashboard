@@ -36,7 +36,7 @@ export interface Transaction {
   price: number | null;
   gross_amount: number;
   commission: number | null;
-  tax_amount: number | null;
+  tax: number | null;
   security_ticker: string | null;
   notes: string | null;
   created_at: string;
@@ -95,7 +95,7 @@ export const getTransactions = cache(async (portfolioId: string): Promise<QueryR
   const { data, error } = await supabase
     .from("transactions")
     .select(`
-      id, event_type, event_date, quantity, price, gross_amount, commission, tax_amount, notes, created_at,
+      id, event_type, event_date, quantity, price, gross_amount, commission, tax, notes, created_at,
       security:security_id(ticker)
     `)
     .eq("portfolio_id", portfolioId)

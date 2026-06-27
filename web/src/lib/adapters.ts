@@ -95,7 +95,7 @@ export interface TransactionData {
   price: number;
   gross_amount: number;
   commission: number;
-  tax_amount: number;
+  tax: number;
   ticker: string;
   notes: string | null;
   created_at: string;
@@ -113,7 +113,7 @@ export function getTransaction(row: unknown): TransactionData | null {
     price: typeof r.price === "number" ? r.price : 0,
     gross_amount: typeof r.gross_amount === "number" ? r.gross_amount : 0,
     commission: typeof r.commission === "number" ? r.commission : 0,
-    tax_amount: typeof r.tax_amount === "number" ? r.tax_amount : 0,
+    tax: typeof r.tax === "number" ? r.tax : Number(r.tax_amount ?? 0),
     ticker: getTicker(r.security),
     notes: typeof r.notes === "string" ? r.notes : null,
     created_at: String(r.created_at ?? ""),

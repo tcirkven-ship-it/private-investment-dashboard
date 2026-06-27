@@ -20,7 +20,7 @@ export interface Transaction {
   price: number;
   gross_amount: number;
   commission: number;
-  tax_amount: number;
+  tax: number;
   notes?: string;
   corrected_by?: string;
 }
@@ -77,7 +77,7 @@ export function deriveHoldings(transactions: Transaction[], prices?: Map<string,
     const price = tx.price || 0;
     const gross = tx.gross_amount || 0;
     const comm = tx.commission || 0;
-    const tax = tx.tax_amount || 0;
+    const tax = tx.tax || 0;
 
     switch (tx.event_type) {
       case "DEPOSIT":

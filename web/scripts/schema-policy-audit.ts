@@ -37,7 +37,7 @@ function normDefault(d: string | null): string {
 
 function normDataType(col: string, dt: string, udt: string): string {
   // Use udt_name for enums
-  if (["snapshot_status", "rebalance_status", "transaction_event_type"].includes(udt)) return udt;
+  if (["snapshot_status", "rebalance_status", "transaction_types"].includes(udt)) return udt;
   // Canonicalize timestamptz
   if (dt === "timestamp with time zone") return "timestamptz";
   if (dt === "timestamp without time zone") return "timestamp";
@@ -70,13 +70,13 @@ function colKey(c: ColumnDef): string {
 const EXPECTED_TABLES: Record<string, string> = {
   profiles: "id:uuid:NN:|email:text:NN:|display_name:text::|totp_enabled:boolean::false|is_owner:boolean::false|created_at:timestamptz::now()|updated_at:timestamptz::now()",
   app_settings: "key:text:NN:|value:jsonb:NN:|updated_at:timestamptz::now()",
-  securities: "id:uuid:NN:gen_random_uuid()|ticker:text:NN:|company_name:text::|sector:text::|industry:text::|is_active:boolean::true|data_source:text::yfinance|created_at:timestamptz::now()",
+  securities: "id:uuid:NN:gen_random_uuid()|ticker:text:NN:|company_name:text::|sector:text::|industry:text::|asset_class:text::|is_active:boolean::true|data_source:text::yfinance|superseded_by:uuid::|created_at:timestamptz::now()",
   model_versions: "id:uuid:NN:gen_random_uuid()|model_id:text:NN:|version:text:NN:|description:text::|config_hash:text::|formula_version:text::|created_at:timestamptz::now()",
   model_snapshots: "id:uuid:NN:gen_random_uuid()|model_version_id:uuid:NN:|snapshot_id:text:NN:|status:snapshot_status:NN:DRAFT|effective_date:date:NN:|decision_timestamp:timestamptz::|execution_convention:text::next_valid_session_close|universe_screened:integer::|eligible_count:integer::|valid_score_count:integer::|integrity_hash:text::|source_commit:text::|warnings:jsonb::|created_at:timestamptz::now()|published_at:timestamptz::|superseded_at:timestamptz::",
-  model_snapshot_holdings: "id:uuid:NN:gen_random_uuid()|snapshot_id:uuid:NN:|security_id:uuid:NN:|rank:integer:NN:|target_weight:numeric:NN:|b2_score:numeric::|quality_percentile:numeric::|quality_components_ok:integer::0|inclusion_reason:text::",
+  model_snapshot_holdings: "id:uuid:NN:gen_random_uuid()|snapshot_id:uuid:NN:|security_id:uuid:NN:|rank:integer:NN:|target_weight:numeric:NN:|b2_score:numeric::|quality_percentile:numeric::|quality_components_ok:integer::0|prior_rank:integer::|change_from_prior:text::|data_quality_flags:ARRAY::|inclusion_reason:text::",
   model_publication_events: "id:uuid:NN:gen_random_uuid()|snapshot_id:uuid:NN:|from_status:text::|to_status:text:NN:|changed_by:uuid::|reason:text::|created_at:timestamptz::now()",
-  portfolios: "id:uuid:NN:gen_random_uuid()|owner_id:uuid:NN:|name:text:NN:|currency:text::USD|opening_date:date:NN:|notes:text::|is_archived:boolean::false|created_at:timestamptz::now()|updated_at:timestamptz::now()",
-  transactions: "id:uuid:NN:gen_random_uuid()|portfolio_id:uuid:NN:|security_id:uuid::|event_type:transaction_event_type:NN:|event_date:date:NN:|quantity:numeric::|price:numeric::|gross_amount:numeric:NN:|commission:numeric::0|notes:text::|idempotency_key:text:NN:|corrected_by:uuid::|owner_id:uuid:NN:|created_at:timestamptz::now()",
+  portfolios: "id:uuid:NN:gen_random_uuid()|owner_id:uuid:NN:|name:text:NN:|currency:text::USD|opening_date:date:NN:|starting_cash:numeric::|benchmark_ticker:text::|notes:text::|is_archived:boolean::false|created_at:timestamptz::now()|updated_at:timestamptz::now()",
+  transactions: "id:uuid:NN:gen_random_uuid()|portfolio_id:uuid:NN:|security_id:uuid::|event_type:transaction_types:NN:|event_date:date:NN:|quantity:numeric::|price:numeric::|gross_amount:numeric:NN:|commission:numeric::0|tax:numeric::0|fx_rate:numeric::|notes:text::|idempotency_key:text:NN:|corrected_by:uuid::|owner_id:uuid:NN:|created_at:timestamptz::now()",
   price_observations: "id:uuid:NN:gen_random_uuid()|security_id:uuid:NN:|observation_date:date:NN:|close:numeric::|adj_close:numeric::|volume:bigint::|source:text::yfinance",
   benchmark_observations: "id:uuid:NN:gen_random_uuid()|ticker:text:NN:|observation_date:date:NN:|price:numeric::|total_return_index:numeric::",
   portfolio_valuations: "id:uuid:NN:gen_random_uuid()|portfolio_id:uuid:NN:|valuation_date:date:NN:|total_value:numeric:NN:|cash_balance:numeric::0|total_deposits:numeric::0|total_withdrawals:numeric::0",
@@ -109,7 +109,7 @@ console.log("--- Enums ---");
 const ENUMS: [string, string][] = [
   ["snapshot_status", "DRAFT,VALIDATED,APPROVED,PUBLISHED,SUPERSEDED"],
   ["rebalance_status", "PENDING,COMPLETED,CANCELLED"],
-  ["transaction_event_type", "DEPOSIT,WITHDRAWAL,BUY,SELL,DIVIDEND,FEE,TAX,INTEREST,SPLIT,SYMBOL_CHANGE,MERGER,SPINOFF,CORRECTION,TRANSFER"],
+  ["transaction_types", "DEPOSIT,WITHDRAWAL,BUY,SELL,DIVIDEND,FEE,TAX,INTEREST,SPLIT,SYMBOL_CHANGE,MERGER,SPINOFF,CORRECTION,TRANSFER"],
 ];
 for (const [name, vals] of ENUMS) {
   const actual = sql(`SELECT string_agg(enumlabel::text, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = '${name}' AND t.typnamespace = 'public'::regnamespace;`);

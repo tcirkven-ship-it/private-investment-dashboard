@@ -87,8 +87,10 @@ CREATE TABLE public.securities (
   company_name TEXT,
   sector TEXT,
   industry TEXT,
+  asset_class TEXT,
   is_active BOOLEAN DEFAULT true,
   data_source TEXT DEFAULT 'yfinance',
+  superseded_by UUID REFERENCES public.securities(id),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -117,7 +119,7 @@ CREATE TYPE public.rebalance_status AS ENUM (
   'PENDING', 'COMPLETED', 'CANCELLED'
 );
 
-CREATE TYPE public.transaction_event_type AS ENUM (
+CREATE TYPE public.transaction_types AS ENUM (
   'DEPOSIT', 'WITHDRAWAL', 'BUY', 'SELL', 'DIVIDEND',
   'FEE', 'TAX', 'INTEREST', 'SPLIT', 'SYMBOL_CHANGE',
   'MERGER', 'SPINOFF', 'CORRECTION', 'TRANSFER'
@@ -197,6 +199,9 @@ CREATE TABLE public.model_snapshot_holdings (
   b2_score NUMERIC(8,6) CHECK (b2_score >= 0 AND b2_score <= 1),
   quality_percentile NUMERIC(8,6) CHECK (quality_percentile >= 0 AND quality_percentile <= 1),
   quality_components_ok INT DEFAULT 0 CHECK (quality_components_ok >= 0 AND quality_components_ok <= 4),
+  prior_rank INT,
+  change_from_prior TEXT,
+  data_quality_flags TEXT[],
   inclusion_reason TEXT,
   UNIQUE(snapshot_id, rank),
   UNIQUE(snapshot_id, security_id)
@@ -224,6 +229,8 @@ CREATE TABLE public.portfolios (
   name TEXT NOT NULL,
   currency TEXT DEFAULT 'USD',
   opening_date DATE NOT NULL,
+  starting_cash NUMERIC(14,2),
+  benchmark_ticker TEXT,
   notes TEXT,
   is_archived BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -260,12 +267,14 @@ CREATE TABLE public.transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   portfolio_id UUID NOT NULL REFERENCES public.portfolios(id) ON DELETE RESTRICT,
   security_id UUID REFERENCES public.securities(id),
-  event_type public.transaction_event_type NOT NULL,
+  event_type public.transaction_types NOT NULL,
   event_date DATE NOT NULL,
   quantity NUMERIC(14,6) CHECK (quantity IS NULL OR quantity >= 0),
   price NUMERIC(14,4) CHECK (price IS NULL OR price >= 0),
   gross_amount NUMERIC(14,2) NOT NULL,
   commission NUMERIC(10,2) DEFAULT 0 CHECK (commission >= 0),
+  tax NUMERIC(10,2) DEFAULT 0 CHECK (tax >= 0),
+  fx_rate NUMERIC(10,6),
   notes TEXT,
   idempotency_key TEXT NOT NULL UNIQUE,
   corrected_by UUID REFERENCES public.transactions(id),
@@ -434,6 +443,7 @@ CREATE INDEX idx_benchmark_observations ON public.benchmark_observations(ticker,
 CREATE INDEX idx_rebalance_events_portfolio ON public.rebalance_events(portfolio_id, owner_id);
 CREATE INDEX idx_portfolio_valuations_portfolio ON public.portfolio_valuations(portfolio_id, valuation_date);
 CREATE INDEX idx_model_publication_events_snapshot ON public.model_publication_events(snapshot_id);
+CREATE INDEX idx_securities_superseded_by ON public.securities(superseded_by);
 CREATE INDEX idx_audit_events_owner ON public.audit_events(owner_id, created_at DESC);
 
 -- ============================================================
