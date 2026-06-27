@@ -64,39 +64,37 @@ function assert(condition: boolean, msg: string) {
   else { failed++; failures.push(msg); console.log(`  [FAIL] ${msg}`); }
 }
 
-async function assertQuery(
-  client: SupabaseClient,
-  table: string,
-  action: "select" | "insert" | "update" | "delete",
-  expectedError: boolean,
-  expectedRows?: number,
-  filter?: Record<string, any>,
-  data?: Record<string, any>,
-) {
-  let result: any;
-  try {
-    let query = client.from(table);
-    if (action === "select") {
-      result = filter ? await query.select("*").eq(Object.keys(filter)[0], Object.values(filter)[0]) : await query.select("*");
-    } else if (action === "insert") {
-      result = await query.insert(data || {});
-    } else if (action === "update") {
-      result = filter ? await query.update(data || {}).eq(Object.keys(filter)[0], Object.values(filter)[0]) : await query.update(data || {});
-    } else if (action === "delete") {
-      result = filter ? await query.delete().eq(Object.keys(filter)[0], Object.values(filter)[0]) : await query.delete();
-    }
-    const hasError = !!result.error;
-    const rowCount = result.data ? (Array.isArray(result.data) ? result.data.length : 1) : 0;
-    if (expectedError && hasError) { pass(`${table} ${action}: correctly denied`); return; }
-    if (!expectedError && !hasError && (expectedRows === undefined || rowCount === expectedRows)) {
-      pass(`${table} ${action}: allowed (${rowCount} rows)`);
-      return;
-    }
-    fail(`${table} ${action}: unexpected state (error=${!!result.error}, rows=${rowCount})`);
-  } catch (e: any) {
-    if (expectedError) { pass(`${table} ${action}: correctly denied (exception)`); }
-    else { fail(`${table} ${action}: unexpected exception: ${e.message}`); }
-  }
+function expectSelectDeniedOrEmpty(label: string, result: any) {
+  const error = !!result?.error;
+  const rows = result?.data;
+  const rowCount = Array.isArray(rows) ? rows.length : 0;
+  assert(error || rowCount === 0, `${label}: denied or empty result (error=${error}, rows=${rowCount})`);
+}
+
+function expectRows(label: string, result: any, expectedCount: number) {
+  assert(!result?.error, `${label}: query should not error`);
+  assert(Array.isArray(result?.data), `${label}: rows should be array`);
+  assert(result.data.length === expectedCount, `${label}: expected ${expectedCount}, got ${result.data.length}`);
+}
+
+function expectInsertAllowed(label: string, result: any) {
+  assert(!result?.error, `${label}: insert should succeed`);
+}
+
+function expectInsertDenied(label: string, result: any) {
+  assert(!!result?.error, `${label}: insert should be denied`);
+}
+
+function expectUpdateDenied(label: string, result: any) {
+  const rows = result?.data;
+  const rowCount = Array.isArray(rows) ? rows.length : 0;
+  assert(rowCount === 0, `${label}: UPDATE should affect 0 rows (affected ${rowCount})`);
+}
+
+function expectDeleteDenied(label: string, result: any) {
+  const rows = result?.data;
+  const rowCount = Array.isArray(rows) ? rows.length : 0;
+  assert(rowCount === 0, `${label}: DELETE should affect 0 rows (affected ${rowCount})`);
 }
 
 function fail(msg: string) { failed++; failures.push(msg); console.log(`  [FAIL] ${msg}`); }
@@ -197,33 +195,35 @@ async function main() {
 
   // ─── Anonymous RLS ───────────────────────────────────────
   console.log("--- Anonymous access ---");
-  await assertQuery(anonClient, "portfolios", "select", true);
-  await assertQuery(anonClient, "portfolios", "insert", true, 0, undefined, {
+  expectSelectDeniedOrEmpty("Anonymous portfolios SELECT", await anonClient.from("portfolios").select("*"));
+  expectInsertDenied("Anonymous portfolios INSERT", await anonClient.from("portfolios").insert({
     owner_id: ownerUser.id, name: "Hack", opening_date: "2025-01-01",
-  });
+  }));
 
   // ─── Owner access ────────────────────────────────────────
   console.log("--- Owner access ---");
-  await assertQuery(ownerClient, "portfolios", "insert", false, undefined, undefined, {
+  expectInsertAllowed("Owner portfolios INSERT", await ownerClient.from("portfolios").insert({
     owner_id: ownerUser.id, name: "My Portfolio", opening_date: "2025-06-01",
-  });
+  }));
 
   // Fetch owner's portfolio
-  const { data: ownerPorts } = await ownerClient.from("portfolios").select("*");
-  assert((ownerPorts || []).length === 1, "Owner sees exactly 1 portfolio");
-  const portfolioId = (ownerPorts || [])[0]?.id;
+  const { data: ownerPorts, error: ownerPortsErr } = await ownerClient.from("portfolios").select("*");
+  assert(!ownerPortsErr, "Owner portfolios SELECT query succeeded");
+  assert(Array.isArray(ownerPorts), "Owner portfolios result is array");
+  assert(ownerPorts!.length === 1, `Owner sees exactly 1 portfolio (got ${ownerPorts!.length})`);
+  const portfolioId = ownerPorts![0]?.id;
 
   // ─── Second user isolation ───────────────────────────────
   console.log("--- Second user isolation ---");
-  await assertQuery(user2Client, "portfolios", "select", false, 0);
+  expectSelectDeniedOrEmpty("Second user portfolios SELECT", await user2Client.from("portfolios").select("*"));
 
   // Second user must not be able to insert application portfolios
-  await assertQuery(user2Client, "portfolios", "insert", true, 0, undefined, {
+  expectInsertDenied("Second user portfolios INSERT", await user2Client.from("portfolios").insert({
     owner_id: user2.id, name: "User2 Portfolio", opening_date: "2025-01-01",
-  });
+  }));
 
-  await assertQuery(user2Client, "model_snapshots", "select", false, 0);
-  await assertQuery(user2Client, "model_versions", "select", false, 0);
+  expectSelectDeniedOrEmpty("Second user model_snapshots SELECT", await user2Client.from("model_snapshots").select("*"));
+  expectSelectDeniedOrEmpty("Second user model_versions SELECT", await user2Client.from("model_versions").select("*"));
 
   // ─── Transaction immutability ────────────────────────────
   console.log("--- Transaction immutability ---");
@@ -236,20 +236,19 @@ async function main() {
 
   if (tx) {
     // Owner tries UPDATE — must affect 0 rows
-    const { data: updResult } = await ownerClient.from("transactions")
-      .update({ gross_amount: 999 }).eq("id", tx.id).select();
-    assert(!updResult || updResult.length === 0, "Owner UPDATE transactions affects 0 rows");
+    expectUpdateDenied("Owner UPDATE transactions", await ownerClient.from("transactions")
+      .update({ gross_amount: 999 }).eq("id", tx.id).select());
 
     // Owner tries DELETE — must affect 0 rows
-    const { data: delResult } = await ownerClient.from("transactions")
-      .delete().eq("id", tx.id).select();
-    assert(!delResult || delResult.length === 0, "Owner DELETE transactions affects 0 rows");
+    expectDeleteDenied("Owner DELETE transactions", await ownerClient.from("transactions")
+      .delete().eq("id", tx.id).select());
 
     // Service-role confirms original still exists
+    expectRows("Original transaction after UPDATE/DELETE attempts",
+      await serviceClient.from("transactions").select("id, gross_amount").eq("id", tx.id), 1);
     const { data: check } = await serviceClient.from("transactions")
-      .select("id, gross_amount").eq("id", tx.id);
-    assert(check?.length === 1, "Original transaction still exists after UPDATE/DELETE attempts");
-    assert(check?.[0]?.gross_amount === 10000, "Original gross_amount unchanged (10000)");
+      .select("gross_amount").eq("id", tx.id).single();
+    assert(check?.gross_amount === 10000, "Original gross_amount unchanged (10000)");
   }
 
   // ─── Model snapshot — legal publication ──────────────────
