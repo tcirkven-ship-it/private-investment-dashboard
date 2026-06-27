@@ -1,6 +1,6 @@
 import { getModelHistory } from "@/lib/supabase-queries";
+import type { ModelSnapshotSummary } from "@/lib/types";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 
 export default async function ModelHistoryPage() {
   const result = await getModelHistory();
@@ -16,12 +16,12 @@ export default async function ModelHistoryPage() {
     );
   }
 
-  const snapshots = result.data || [];
+  const snapshots = (result.data || []) as ModelSnapshotSummary[];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/model" className="btn-ghost p-1"><ChevronRight className="w-4 h-4 rotate-180" /></Link>
+        <Link href="/model" className="btn-ghost p-1"><span className="text-lg">←</span></Link>
         <h1 className="text-xl font-semibold">Model History</h1>
       </div>
 
@@ -32,7 +32,7 @@ export default async function ModelHistoryPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {snapshots.map((s: any) => (
+          {snapshots.map((s) => (
             <div key={s.id} className="card flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-3">

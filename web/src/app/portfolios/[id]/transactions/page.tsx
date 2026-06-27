@@ -1,25 +1,31 @@
 import { createServerSupabase } from "@/lib/supabase";
+import type { TransactionRow } from "@/lib/types";
 import Link from "next/link";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import TransactionForm from "@/components/portfolios/TransactionForm";
+
+interface DbTransaction {
+  id: string;
+  event_type: string;
+  event_date: string;
+  quantity: number | null;
+  price: number | null;
+  gross_amount: number;
+  commission: number | null;
+  created_at: string;
+  security: { ticker: string }[] | { ticker: string } | null;
+}
 
 export default async function TransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createServerSupabase();
 
-  const { data: transactions, error } = await supabase
+  const { data: dbRows, error } = await supabase
     .from("transactions")
     .select("id, event_type, event_date, quantity, price, gross_amount, commission, created_at, security:security_id(ticker)")
-    .eq("portfolio_id", id)
+    .eq("portfolio_id", id as string)
     .is("corrected_by", null)
     .order("event_date", { ascending: false });
-
-  const csvContent = [
-    "Date,Type,Ticker,Qty,Price,Amount",
-    ...(transactions || []).map((t: any) =>
-      `${t.event_date},${t.event_type},${t.security?.ticker || ""},${t.quantity || 0},${t.price || 0},${t.gross_amount}`
-    ),
-  ].join("\n");
 
   if (error) {
     return (
@@ -35,6 +41,24 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
     );
   }
 
+  const transactions: TransactionRow[] = (dbRows || []).map((t: Record<string, any>) => {
+    const secData = Array.isArray(t.security) ? t.security[0] : t.security;
+    const row: TransactionRow = {
+      id: t.id,
+      event_type: t.event_type,
+      event_date: t.event_date,
+      quantity: t.quantity,
+      price: t.price,
+      gross_amount: t.gross_amount,
+      commission: t.commission,
+      tax_amount: null,
+      notes: null,
+      created_at: t.created_at,
+      security_ticker: secData?.ticker || null,
+    };
+    return row;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -42,14 +66,12 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
           <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
           <div>
             <h1 className="text-xl font-semibold">Transactions</h1>
-            <p className="text-sm text-neutral-500">{transactions?.length || 0} records</p>
+            <p className="text-sm text-neutral-500">{transactions.length} records</p>
           </div>
         </div>
-        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(csvContent)}`}
-           download="transactions.csv" className="btn-secondary"><Download className="w-4 h-4 mr-1" />CSV</a>
       </div>
 
-      {(!transactions || transactions.length === 0) ? (
+      {transactions.length === 0 ? (
         <div className="card text-center py-12">
           <p className="text-neutral-500">No transactions yet.</p>
           <p className="text-sm text-neutral-600 mt-2">Add your first deposit or trade below.</p>
@@ -69,7 +91,7 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
                 </tr>
               </thead>
               <tbody>
-                {(transactions || []).map((tx: any) => (
+                {transactions.map((tx) => (
                   <tr key={tx.id} className="border-b border-neutral-800/50">
                     <td className="table-cell-text">{tx.event_date}</td>
                     <td className="table-cell-text">
@@ -80,8 +102,8 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
                         "bg-neutral-800 text-neutral-300"
                       }`}>{tx.event_type}</span>
                     </td>
-                    <td className="table-cell-text font-semibold">{tx.security?.ticker || "—"}</td>
-                    <td className="table-cell text-right">{tx.quantity || "—"}</td>
+                    <td className="table-cell-text font-semibold">{tx.security_ticker || "—"}</td>
+                    <td className="table-cell text-right">{tx.quantity ?? "—"}</td>
                     <td className="table-cell text-right">${tx.gross_amount.toLocaleString()}</td>
                     <td className="table-cell text-right">{tx.commission ? `$${tx.commission}` : "—"}</td>
                   </tr>
