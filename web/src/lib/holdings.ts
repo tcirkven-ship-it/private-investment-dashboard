@@ -4,18 +4,23 @@
  * Average-cost method. No silent mutation of historical transactions.
  */
 
+export type TransactionEventType =
+  | "DEPOSIT" | "WITHDRAWAL" | "BUY" | "SELL" | "DIVIDEND"
+  | "FEE" | "TAX" | "INTEREST" | "SPLIT" | "SYMBOL_CHANGE"
+  | "MERGER" | "SPINOFF" | "CORRECTION" | "TRANSFER";
+
 export interface Transaction {
   id?: string;
   portfolio_id?: string;
   security_id?: string;
   ticker?: string;
-  event_type: string;
+  event_type: TransactionEventType;
   event_date: string;
   quantity: number;
   price: number;
   gross_amount: number;
   commission: number;
-  tax: number;
+  tax_amount: number;
   notes?: string;
   corrected_by?: string;
 }
@@ -72,7 +77,7 @@ export function deriveHoldings(transactions: Transaction[], prices?: Map<string,
     const price = tx.price || 0;
     const gross = tx.gross_amount || 0;
     const comm = tx.commission || 0;
-    const tax = tx.tax || 0;
+    const tax = tx.tax_amount || 0;
 
     switch (tx.event_type) {
       case "DEPOSIT":

@@ -6,7 +6,7 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-25 16:30 CEST (Europe/Zagreb)
+2026-06-26 22:15 CEST (Europe/Zagreb)
 
 ## Active checkpoint
 
@@ -54,9 +54,60 @@ Corrected practical QV backtest (`research/106`–`research/108`): Fixed critica
 
 Decision correction (`research/109`–`research/111`): NO MODEL PASSES — TO OVERRIDE REQUIRED. Selected: M1 B2 QUALITY VETO.
 
-Fresh pilot seed (v2): Full retrieval completed. Snapshot 2026-06-24T080500Z.
+DATABASE RELEASE NOT VERIFIED — CI not yet run.
 
-Private Investment Dashboard: Full production implementation at `/web`. Next.js 16 App Router, TypeScript, Supabase Auth + Postgres + RLS. Complete database schema (18 tables), authentication, login, responsive app shell, model display, portfolio management, settings admin. Build passes. 82 Python tests pass.
+Branch: fix/database-verification (pushed to origin at 0963d23)
+
+PR link: https://github.com/tcirkven-ship-it/private-investment-dashboard/compare/main...fix/database-verification
+(Open this URL in a browser, click "Create Pull Request". CI runs automatically.)
+
+CI workflow (.github/workflows/database-release.yml) has 5 jobs:
+1. migration-smoke: migration + inventory + constraint tests (fresh Supabase Postgres container)
+2. rollback-test: intentional failure + zero-object verification (fresh Supabase Postgres container)
+3. reset-test: safety, override, reapply idempotency (fresh Supabase Postgres container)
+4. auth-rls-tests: Supabase Auth + real API client tests (local Supabase stack with Docker)
+5. web-tests: 10 Vitest unit tests + production build
+
+Local non-database checks passed:
+- git diff --check: clean
+- npm ci: OK
+- 10 Vitest tests: pass
+- production build: pass
+
+Database, reset, rollback, Auth, RLS and financial integration tests have not yet executed and remain pending CI.
+
+Previous CI run failed: supabase/config.toml incompatible with CLI 2.6.1
+(unsupported keys: local_smtp, storage.vector, etc.). Fixed in latest commit
+by using `--workdir` with a fresh CLI-generated config in each CI job.
+Repository config.toml is no longer used in CI — only the migration SQL files
+are copied to the temporary project directory.
+
+Authoritative schema inventory (verified by static analysis):
+- 17 tables (public schema)
+- 3 enum types (snapshot_status:5 values, rebalance_status:3, transaction_event_type:14)
+- 6 functions (check_snapshot_status_transition, check_transaction_owner,
+  handle_new_user, is_owner, prevent_portfolio_deletion, update_updated_at_column)
+- 6 triggers (set_profiles_updated_at, set_portfolios_updated_at, on_auth_user_created,
+  check_snapshot_status_transition, check_transaction_owner, prevent_portfolio_deletion)
+- 8 secondary indexes
+- 31 RLS policies
+- RLS enabled on all 17 tables
+
+Migration defects fixed:
+- CHECK constraints for status transitions replaced by trigger function
+- CHECK constraint for owner consistency replaced by trigger function
+- reset_new_project.sql uses EXECUTE format() for dynamic SQL
+- Reset script refuses with data (override via app.reset_override setting)
+- Tests include transactional rollback, migration smoke, and RLS schema verification
+
+Routes connected to Supabase:
+- /model: typed queries, error/empty/data states, no any types
+- /model/history: empty state (not connected)
+- /portfolios/[id]: real data with server component
+- /portfolios/[id]/holdings: empty state (not connected)
+- /portfolios/[id]/transactions: empty state (not connected)
+- /portfolios/[id]/rebalance: empty state (not connected)
+- /portfolios/[id]/performance: empty state (not connected)
 
 82 tests pass (73 original + 4 instrumentation + 5 state machine).
 

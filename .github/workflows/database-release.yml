@@ -1,0 +1,470 @@
+name: Database Release Verification
+on:
+  pull_request:
+    paths:
+      - "web/supabase/migrations/**"
+      - "web/scripts/**"
+      - "web/src/lib/**"
+      - "web/package.json"
+      - "web/package-lock.json"
+      - ".github/workflows/database-release.yml"
+  push:
+    branches: [main]
+
+env:
+  SUPABASE_CLI_VERSION: "2.19.7"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Initialize temp Supabase project with app migrations
+        shell: bash
+        run: |
+          CI_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_DIR=$CI_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_DIR"
+          supabase init --workdir "$CI_DIR" --force
+          test -f "$CI_DIR/supabase/config.toml"
+          mkdir -p "$CI_DIR/supabase/migrations"
+          cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_DIR/supabase/migrations/"
+
+      - name: Install psql
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Start local Supabase
+        shell: bash
+        run: supabase --workdir "$CI_DIR" start
+
+      - name: Export environment
+        shell: bash
+        run: |
+          # Parse supabase status -o env output
+          eval "$(supabase --workdir "$CI_DIR" status -o env 2>/dev/null | sed 's/^export //')"
+          : "${API_URL:?}" "${DB_URL:?}" "${ANON_KEY:?}" "${SERVICE_ROLE_KEY:?}"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo "PG_TEST_URL=$DB_URL" >> "$GITHUB_ENV"
+          echo "API_URL present: yes"
+          echo "DB_URL present: yes"
+          echo "Anon key present: yes"
+          echo "Service-role key present: yes"
+
+      - name: Health check
+        shell: bash
+        run: |
+          echo "Checking services (timeout: 60s)..."
+          for i in $(seq 1 30); do
+            db_result="pass"; auth_result="pass"; rest_result="pass"
+
+            # Database check
+            if ! psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "select 1;" > /dev/null 2>&1; then
+              db_result="fail"
+            fi
+
+            # Auth health check
+            if ! curl --fail --silent --show-error \
+              -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+              "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/health" > /dev/null 2>&1; then
+              auth_result="fail"
+            fi
+
+            # REST API check
+            if ! curl --fail --silent --show-error \
+              -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+              "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/" > /dev/null 2>&1; then
+              rest_result="fail"
+            fi
+
+            echo "Attempt $i/30: db=$db_result auth=$auth_result rest=$rest_result"
+
+            if [ "$db_result" = "pass" ] && [ "$auth_result" = "pass" ] && [ "$rest_result" = "pass" ]; then
+              echo "All services healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "FAILED: Services not healthy within 60s"
+          echo "--- Final diagnostics ---"
+          psql "$PG_TEST_URL" -c "select 1;" 2>&1 || echo "DB check failed"
+          curl -s -o /dev/null -w "Auth HTTP status: %{http_code}\n" \
+            -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+            "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/health" || echo "Auth check failed"
+          curl -s -o /dev/null -w "REST HTTP status: %{http_code}\n" \
+            -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+            "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/" || echo "REST check failed"
+          echo "API URL present: $([ -n \"$NEXT_PUBLIC_SUPABASE_URL\" ] && echo yes || echo no)"
+          echo "DB URL present: $([ -n \"$PG_TEST_URL\" ] && echo yes || echo no)"
+          echo "Anon key present: $([ -n \"$NEXT_PUBLIC_SUPABASE_ANON_KEY\" ] && echo yes || echo no)"
+          echo "Service-role key present: $([ -n \"$SUPABASE_SERVICE_ROLE_KEY\" ] && echo yes || echo no)"
+          exit 1
+
+      - name: Run Auth and RLS tests
+        shell: bash
+        run: npm run test:auth-rls
+        working-directory: web
+
+      - name: Web unit tests
+        run: npm test
+        working-directory: web
+
+      - name: Production build
+        run: npm run build
+        working-directory: web
+
+      - name: Stop Supabase
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$CI_DIR" ] && [ -f "$CI_DIR/supabase/config.toml" ]; then
+            supabase --workdir "$CI_DIR" stop --no-backup
+          else
+            echo "Nothing to stop"
+          fi
+
+  reset-reapply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_DIR=$CI_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_DIR"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize project with migrations
+        shell: bash
+        run: |
+          supabase init --workdir "$CI_DIR" --force
+          test -f "$CI_DIR/supabase/config.toml"
+          mkdir -p "$CI_DIR/supabase/migrations"
+          cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_DIR/supabase/migrations/"
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Print CLI version
+        shell: bash
+        run: supabase --version
+      - name: Start Supabase
+        shell: bash
+        run: supabase --workdir "$CI_DIR" start
+      - name: Get database URL
+        shell: bash
+        run: |
+          eval "$(supabase --workdir "$CI_DIR" status -o env 2>/dev/null | sed 's/^export //')"
+          : "${DB_URL:?}"
+          echo "PG_TEST_URL=$DB_URL" >> "$GITHUB_ENV"
+      - name: Confirm 17 application tables
+        shell: bash
+        run: |
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
+          echo "Tables: $TC"; [ "$TC" = "17" ] || { echo "FAIL: Expected 17"; exit 1; }
+      - name: Insert test data
+        shell: bash
+        run: |
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO auth.users (id, email, encrypted_password, created_at) VALUES ('00000000-0000-0000-0000-000000000001', 'reset@t.com', '\$2a\$10\$x', now()) ON CONFLICT (id) DO NOTHING;"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO public.portfolios (owner_id, name, opening_date) VALUES ('00000000-0000-0000-0000-000000000001', 'Test', '2025-01-01');"
+          echo "Data inserted"
+      - name: Verify test data exists
+        shell: bash
+        run: |
+          PF=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM public.portfolios;")
+          echo "portfolios: $PF"
+          [ "$PF" -gt "0" ] || { echo "FAIL: portfolios has no data (test insert failed)"; exit 1; }
+          echo "PASS: Application data exists"
+      - name: Diagnostic before reset refusal test
+        shell: bash
+        run: |
+          echo "=== Pre-reset diagnostics ==="
+          echo "reset_override setting:"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "SELECT current_setting('app.reset_override', true) AS reset_override;"
+          echo "portfolios row count:"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "SELECT count(*) AS portfolios_rows FROM public.portfolios;"
+          echo "portfolios regclass:"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "SELECT to_regclass('public.portfolios') AS portfolios_regclass;"
+      - name: Reset without override (must refuse)
+        shell: bash
+        run: |
+          if psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/web/supabase/reset_new_project.sql" 2>&1; then
+            echo "FAIL: Reset should have refused"
+            psql "$PG_TEST_URL" -c "SELECT count(*) FROM public.portfolios;" || true
+            exit 1
+          else
+            echo "PASS: Reset correctly refused with data present"
+          fi
+      - name: Verify data still exists after refused reset
+        shell: bash
+        run: |
+          PF=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM public.portfolios;")
+          [ "$PF" -gt "0" ] || { echo "FAIL: Data was lost even though reset was refused"; exit 1; }
+          echo "PASS: Data preserved after refused reset ($PF rows)"
+      - name: Reset with override
+        shell: bash
+        run: >
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1
+          -c "SET app.reset_override = true;"
+          -f "$GITHUB_WORKSPACE/web/supabase/reset_new_project.sql"
+      - name: Verify zero objects after reset
+        shell: bash
+        run: |
+          APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
+          APP_TRIGGERS_PUBLIC="'set_profiles_updated_at','set_portfolios_updated_at','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
+          APP_TRIGGER_AUTH="on_auth_user_created"
+
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ($APP_TABLES);")
+          echo "tables: $TC"; [ "$TC" = "0" ] || { echo "FAIL: Expected 0 app tables"; exit 1; }
+
+          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace = 'public'::regnamespace AND t.typname IN ($APP_ENUMS);")
+          echo "enums: $EC"; [ "$EC" = "0" ] || { echo "FAIL: Expected 0 app enums"; exit 1; }
+
+          FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ($APP_FUNCS);")
+          echo "functions: $FC"; [ "$FC" = "0" ] || { echo "FAIL: Expected 0 app functions"; exit 1; }
+
+          # Count triggers on public tables
+          TRC_PUB=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'public' AND tg.tgname IN ($APP_TRIGGERS_PUBLIC);")
+          echo "public triggers: $TRC_PUB"; [ "$TRC_PUB" = "0" ] || { echo "FAIL: Expected 0 app triggers on public"; exit 1; }
+
+          # Count application trigger on auth.users
+          TRC_AUTH=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'auth' AND cls.relname = 'users' AND tg.tgname = '$APP_TRIGGER_AUTH';")
+          echo "auth trigger: $TRC_AUTH"; [ "$TRC_AUTH" = "0" ] || { echo "FAIL: Expected 0 auth triggers after reset"; exit 1; }
+
+          PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename IN ($APP_TABLES);")
+          echo "policies: $PC"; [ "$PC" = "0" ] || { echo "FAIL: Expected 0 app policies"; exit 1; }
+      - name: Reapply migration
+        shell: bash
+        run: |
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/web/supabase/migrations/00001_schema.sql"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/web/supabase/migrations/00002_fixes.sql"
+      - name: Diagnostic trigger inventory after reapply
+        shell: bash
+        run: |
+          echo "=== information_schema triggers ==="
+          psql "$PG_TEST_URL" -c "SELECT event_object_schema, event_object_table, trigger_name FROM information_schema.triggers WHERE trigger_name IN ('set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion') ORDER BY event_object_schema, trigger_name;"
+          echo "=== pg_trigger inventory ==="
+          psql "$PG_TEST_URL" -c "SELECT ns.nspname AS table_schema, cls.relname AS table_name, tg.tgname AS trigger_name FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND tg.tgname IN ('set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion') ORDER BY ns.nspname, tg.tgname;"
+      - name: Verify inventory after reapply
+        shell: bash
+        run: |
+          APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
+          APP_TRIGGERS="'set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
+
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ($APP_TABLES);")
+          echo "Tables: $TC"; [ "$TC" = "17" ] || { echo "FAIL: Expected 17 tables"; exit 1; }
+
+          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace = 'public'::regnamespace AND t.typname IN ($APP_ENUMS);")
+          echo "Enums: $EC"; [ "$EC" = "3" ] || { echo "FAIL: Expected 3 enums"; exit 1; }
+
+          FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ($APP_FUNCS);")
+          echo "Functions: $FC"; [ "$FC" = "6" ] || { echo "FAIL: Expected 6 functions"; exit 1; }
+
+          TRC_PUB=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'public' AND tg.tgname IN ('set_profiles_updated_at','set_portfolios_updated_at','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion');")
+          TRC_AUTH=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'auth' AND cls.relname = 'users' AND tg.tgname = 'on_auth_user_created';")
+          TRC=$((TRC_PUB + TRC_AUTH))
+          echo "Triggers: $TRC (public=$TRC_PUB, auth=$TRC_AUTH)"; [ "$TRC" = "6" ] || { echo "FAIL: Expected 6 triggers"; exit 1; }
+
+          PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename IN ($APP_TABLES);")
+          echo "Policies: $PC"; [ "$PC" = "31" ] || { echo "FAIL: Expected 31 policies"; exit 1; }
+
+          RC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relrowsecurity = true AND n.nspname = 'public' AND c.relname IN ($APP_TABLES);")
+          echo "RLS-enabled tables: $RC"; [ "$RC" = "17" ] || { echo "FAIL: Expected 17 RLS-enabled tables"; exit 1; }
+      - name: Stop Supabase
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$CI_DIR" ] && [ -f "$CI_DIR/supabase/config.toml" ]; then
+            supabase --workdir "$CI_DIR" stop --no-backup
+          else
+            echo "Nothing to stop"
+          fi
+
+  rollback-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_DIR=$CI_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_DIR"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize temp project with empty migrations (no app objects)
+        shell: bash
+        run: |
+          supabase init --workdir "$CI_DIR" --force
+          test -f "$CI_DIR/supabase/config.toml"
+          rm -rf "$CI_DIR/supabase/migrations"
+          mkdir -p "$CI_DIR/supabase/migrations"
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Print CLI version
+        shell: bash
+        run: supabase --version
+      - name: Start Supabase (no app migrations)
+        shell: bash
+        run: supabase --workdir "$CI_DIR" db start
+      - name: Get database URL
+        shell: bash
+        run: |
+          eval "$(supabase --workdir "$CI_DIR" status -o env 2>/dev/null | sed 's/^export //')"
+          : "${DB_URL:?}"
+          echo "PG_TEST_URL=$DB_URL" >> "$GITHUB_ENV"
+      - name: Prove zero application objects before test
+        shell: bash
+        run: |
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
+          echo "tables: $TC"; [ "$TC" = "0" ] || { echo "FAIL: Expected 0 tables"; exit 1; }
+          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace = 'public'::regnamespace;")
+          echo "enums: $EC"; [ "$EC" = "0" ] || { echo "FAIL: Expected 0 enums"; exit 1; }
+      - name: Create deliberate failing migration
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/failing_migration.sql" << 'SQLEOF'
+          BEGIN;
+
+          CREATE TYPE public.rollback_test_enum AS ENUM ('A');
+
+          CREATE TABLE public.rollback_test_table (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+          );
+
+          CREATE TABLE public.rollback_test_second_table (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            test_id uuid NOT NULL REFERENCES public.rollback_test_table(id)
+          );
+
+          -- Guaranteed failure:
+          SELECT 1 / 0;
+
+          COMMIT;
+          SQLEOF
+          echo "Failing migration created"
+      - name: Run failing migration (must fail)
+        shell: bash
+        run: |
+          if psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/failing_migration.sql" 2>&1; then
+            echo "FAIL: Migration should have failed"
+            exit 1
+          else
+            echo "PASS: Migration correctly failed"
+          fi
+      - name: Verify zero rollback objects remain after failure
+        shell: bash
+        run: |
+          RT=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT CASE WHEN to_regclass('public.rollback_test_table') IS NULL THEN 0 ELSE 1 END;")
+          echo "rollback_test_table exists: $RT"; [ "$RT" = "0" ] || { echo "FAIL: rollback_test_table should not exist"; exit 1; }
+          RS=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT CASE WHEN to_regclass('public.rollback_test_second_table') IS NULL THEN 0 ELSE 1 END;")
+          echo "rollback_test_second_table exists: $RS"; [ "$RS" = "0" ] || { echo "FAIL: rollback_test_second_table should not exist"; exit 1; }
+          RE=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_type WHERE typname = 'rollback_test_enum' AND typnamespace = 'public'::regnamespace;")
+          echo "rollback_test_enum count: $RE"; [ "$RE" = "0" ] || { echo "FAIL: rollback_test_enum should not exist"; exit 1; }
+      - name: Verify zero real application objects remain
+        shell: bash
+        run: |
+          APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
+          APP_TRIGGERS_PUBLIC="'set_profiles_updated_at','set_portfolios_updated_at','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
+          APP_TRIGGER_AUTH="on_auth_user_created"
+          APP_POLICIES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
+
+          echo "=== App object inventory after rollback ==="
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ($APP_TABLES);")
+          echo "tables: $TC"; [ "$TC" = "0" ] || { echo "FAIL: Expected 0 app tables"; exit 1; }
+          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace = 'public'::regnamespace AND t.typname IN ($APP_ENUMS);")
+          echo "enums: $EC"; [ "$EC" = "0" ] || { echo "FAIL: Expected 0 app enums"; exit 1; }
+          FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ($APP_FUNCS);")
+          echo "functions: $FC"; [ "$FC" = "0" ] || { echo "FAIL: Expected 0 app functions"; exit 1; }
+          TRC_PUB=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'public' AND tg.tgname IN ($APP_TRIGGERS_PUBLIC);")
+          TRC_AUTH=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'auth' AND cls.relname = 'users' AND tg.tgname = '$APP_TRIGGER_AUTH';")
+          TRC=$((TRC_PUB + TRC_AUTH))
+          echo "triggers: $TRC"; [ "$TRC" = "0" ] || { echo "FAIL: Expected 0 app triggers"; exit 1; }
+          PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename IN ($APP_POLICIES);")
+          echo "policies: $PC"; [ "$PC" = "0" ] || { echo "FAIL: Expected 0 app policies"; exit 1; }
+      - name: Stop Supabase
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$CI_DIR" ] && [ -f "$CI_DIR/supabase/config.toml" ]; then
+            supabase --workdir "$CI_DIR" stop --no-backup
+          else
+            echo "Nothing to stop"
+          fi
+
+  schema-policy-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_DIR=$CI_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_DIR"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize temp project with app migrations
+        shell: bash
+        run: |
+          supabase init --workdir "$CI_DIR" --force
+          test -f "$CI_DIR/supabase/config.toml"
+          mkdir -p "$CI_DIR/supabase/migrations"
+          cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_DIR/supabase/migrations/"
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Start Supabase
+        shell: bash
+        run: supabase --workdir "$CI_DIR" start
+      - name: Get database URL
+        shell: bash
+        run: |
+          eval "$(supabase --workdir "$CI_DIR" status -o env 2>/dev/null | sed 's/^export //')"
+          : "${DB_URL:?}"
+          echo "PG_TEST_URL=$DB_URL" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web
+      - name: Run schema and policy audit
+        run: npx tsx scripts/schema-policy-audit.ts
+        working-directory: web
+      - name: Stop Supabase
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$CI_DIR" ] && [ -f "$CI_DIR/supabase/config.toml" ]; then
+            supabase --workdir "$CI_DIR" stop --no-backup
+          else
+            echo "Nothing to stop"
+          fi

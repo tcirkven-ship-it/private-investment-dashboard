@@ -9,7 +9,7 @@ function tx(overrides: Partial<import("./holdings").Transaction> = {}): import("
     price: 0,
     gross_amount: 0,
     commission: 0,
-    tax: 0,
+    tax_amount: 0,
     ...overrides,
   };
 }
