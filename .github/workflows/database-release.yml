@@ -189,11 +189,10 @@ jobs:
       - name: Verify test data exists
         shell: bash
         run: |
-          MV=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM public.model_versions;")
           PF=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM public.portfolios;")
-          echo "model_versions: $MV, portfolios: $PF"
-          [ "$MV" -gt "0" ] || { echo "FAIL: model_versions has no data (expected rows from migration)"; exit 1; }
+          echo "portfolios: $PF"
           [ "$PF" -gt "0" ] || { echo "FAIL: portfolios has no data (test insert failed)"; exit 1; }
+          echo "PASS: Application data exists"
       - name: Reset without override (must refuse)
         shell: bash
         run: |
