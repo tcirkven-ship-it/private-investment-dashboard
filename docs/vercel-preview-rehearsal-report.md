@@ -62,34 +62,53 @@ In Supabase Dashboard → Authentication → URL Configuration:
 Push the `vercel-preview-rehearsal` branch to GitHub.
 Vercel will automatically create a preview deployment.
 
-### Step 5 — Run Smoke Tests
-Against the preview URL, verify:
-- [ ] App loads without errors
-- [ ] Login page renders
-- [ ] Sign in works (test user)
-- [ ] Dashboard loads
-- [ ] Model page loads
-- [ ] Model history page loads
-- [ ] Portfolio detail shows empty state
-- [ ] Holdings shows empty state
-- [ ] Transactions shows empty state
-- [ ] Add transaction form is safe (validates)
-- [ ] Performance page loads
-- [ ] Rebalance page loads (empty state)
-- [ ] Error states do not leak secrets
-- [ ] Sign out works
-
 ---
+
+## Execution Results
+
+| Check | Result |
+|-------|--------|
+| Vercel connected | ✅ |
+| Root directory | `web` |
+| Install command | `npm ci` |
+| Build command | `npm run build` |
+| App loads | ✅ |
+| Login page | ✅ |
+| Sign in works | ✅ |
+| Dashboard mock data | ❌ **FAILED** — showed fake $100K values |
+| Model page | ⏳ |
+| Model history | ⏳ |
+| Portfolio empty state | ✅ |
+| Holdings empty state | ✅ |
+| Transactions empty state | ✅ |
+| Performance page | ⏳ |
+| Rebalance page | ⏳ |
+| Sign out | ✅ |
+
+### Dashboard Mock-Data Fix
+
+**Problem**: `DashboardClient.tsx` contained a `MOCK_DATA` constant with hardcoded
+values (`$100,000` total value, `$5,000` cash, `73.3%` model alignment, fake
+performance returns, fake SPY/QQQ benchmark numbers, fake model date).
+
+**Fix applied**:
+- Removed `MOCK_DATA` constant entirely
+- Dashboard page is now a server component that queries Supabase for real data
+- `DashboardClient` receives `data` and `error` as props
+- Zero portfolio + no published model → shows truthful empty state
+- Query errors → show error card, never fake data
+- No hardcoded financial values anywhere in the rendering path
+
+**Test results**: `npm run lint` — 0 errors │ `npm test` — 49/49 │ `npm run build` — passed
 
 ## Conclusion
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║  VERCEL PREVIEW NOT YET EXECUTED                                ║
-║  PRODUCTION PROMOTION STILL BLOCKED                             ║
+║  VERCEL PREVIEW FAILED — PRODUCTION PROMOTION BLOCKED            ║
 ║                                                                  ║
-║  Vercel is not yet connected to this repository.                ║
-║  vercel.json has been created.                                  ║
+║  Dashboard mock-data issue identified and fixed.                ║
+║  Push to vercel-preview-rehearsal branch for retest.            ║
 ║  No Supabase schema changes were made.                          ║
 ║  Vercel production was not deployed.                            ║
 ╚══════════════════════════════════════════════════════════════════╝
