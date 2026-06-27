@@ -1,5 +1,3 @@
-// Server-side Supabase queries for production routes
-
 import { createServerSupabase } from "./supabase";
 import { cache } from "react";
 
@@ -38,6 +36,8 @@ export interface Transaction {
   price: number | null;
   gross_amount: number;
   commission: number | null;
+  tax_amount: number | null;
+  security_ticker: string | null;
   notes: string | null;
   created_at: string;
 }
@@ -65,39 +65,46 @@ export const getPublishedModel = cache(async (): Promise<QueryResult<ModelSnapsh
     .limit(1)
     .maybeSingle();
 
-  if (error) {
-    console.error("getPublishedModel query failed:", error);
-    return { data: null, error: `Failed to load model: ${error.message}` };
-  }
+  if (error) return { data: null, error: `Failed to load model: ${error.message}` };
   return { data: data as ModelSnapshot | null, error: null };
 });
 
-export const getModelHistory = cache(async () => {
+export const getModelHistory = cache(async (): Promise<QueryResult<any[]>> => {
   const supabase = await createServerSupabase();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("model_snapshots")
     .select("id, snapshot_id, effective_date, status, created_at")
     .order("effective_date", { ascending: false });
-  return data || [];
+  if (error) return { data: null, error: error.message };
+  return { data: data || [], error: null };
 });
 
-export const getPortfolios = cache(async () => {
+export const getPortfolios = cache(async (): Promise<QueryResult<Portfolio[]>> => {
   const supabase = await createServerSupabase();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("portfolios")
     .select("id, name, currency, opening_date, is_archived, created_at")
     .is("is_archived", false)
     .order("created_at", { ascending: false });
-  return data || [];
+  if (error) return { data: null, error: error.message };
+  return { data: data as Portfolio[], error: null };
 });
 
-export const getTransactions = cache(async (portfolioId: string) => {
+export const getTransactions = cache(async (portfolioId: string): Promise<QueryResult<Transaction[]>> => {
   const supabase = await createServerSupabase();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("transactions")
-    .select("id, event_type, event_date, quantity, price, gross_amount, commission, notes, created_at")
+    .select(`
+      id, event_type, event_date, quantity, price, gross_amount, commission, tax_amount, notes, created_at,
+      security:security_id(ticker)
+    `)
     .eq("portfolio_id", portfolioId)
     .is("corrected_by", null)
     .order("event_date", { ascending: false });
-  return data || [];
+  if (error) return { data: null, error: error.message };
+  const transactions = (data || []).map((t: any) => ({
+    ...t,
+    security_ticker: t.security?.ticker || null,
+  }));
+  return { data: transactions as Transaction[], error: null };
 });
