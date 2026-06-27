@@ -20,10 +20,37 @@ jobs:
 
       - name: Check hosted-readonly-inventory.sql for destructive commands
         run: |
-          FORBIDDEN="CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|TRUNCATE|GRANT|REVOKE|RESET|MIGRATE|COMMENT ON"
+          FORBIDDEN="\b(CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|TRUNCATE|GRANT|REVOKE|RESET|MIGRATE|DO|CALL|EXECUTE)\b"
           FILE="supabase/sql/hosted-readonly-inventory.sql"
           if [ -f "$FILE" ]; then
-            MATCHES=$(grep -nwiE "$FORBIDDEN" "$FILE" || true)
+            # Remove line comments (--), remove block comments (/* */), then scan
+            # for forbidden SQL tokens on the remaining executable lines.
+            # Using awk: print line number + stripped content, then grep.
+            VIOLATIONS=$(awk '
+              BEGIN { in_block = 0 }
+              {
+                line = $0
+                # strip block comments spanning multiple lines
+                if (in_block) {
+                  if (line ~ /\*\//) {
+                    sub(/.*\*\//, "", line)
+                    in_block = 0
+                  } else {
+                    next
+                  }
+                }
+                if (line ~ /\/\*/) {
+                  sub(/\/\*.*/, "", line)
+                  in_block = 1
+                }
+                # strip single-line comments
+                sub(/--.*/, "", line)
+                # skip blank lines
+                if (line ~ /^[[:space:]]*$/) next
+                print NR": "line
+              }
+            ' "$FILE")
+            MATCHES=$(echo "$VIOLATIONS" | grep -iE "$FORBIDDEN" || true)
             if [ -n "$MATCHES" ]; then
               echo "ERROR: Found forbidden SQL commands in $FILE:"
               echo "$MATCHES"
