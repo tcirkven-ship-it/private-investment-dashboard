@@ -1,22 +1,26 @@
-import { getModelHistory } from "@/lib/supabase-queries";
-import type { ModelSnapshotSummary } from "@/lib/types";
+import { loadModelHistory } from "@/lib/route-loaders";
 import Link from "next/link";
 
 export default async function ModelHistoryPage() {
-  const result = await getModelHistory();
+  let snapshots: Awaited<ReturnType<typeof loadModelHistory>> = [];
+  let error: string | null = null;
 
-  if (result.error) {
+  try {
+    snapshots = await loadModelHistory();
+  } catch (e: unknown) {
+    error = e instanceof Error ? e.message : "Unknown error";
+  }
+
+  if (error) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Model History</h1>
         <div className="card border-red-500/30 bg-red-500/5">
-          <p className="text-sm text-red-400">Error: {result.error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       </div>
     );
   }
-
-  const snapshots = (result.data || []) as ModelSnapshotSummary[];
 
   return (
     <div className="space-y-6">

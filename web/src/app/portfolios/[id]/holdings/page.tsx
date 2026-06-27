@@ -1,29 +1,19 @@
-import { createServerSupabase } from "@/lib/supabase";
-import { deriveHoldings, totalNav } from "@/lib/holdings";
-import type { Transaction } from "@/lib/holdings";
-import type { PriceRow } from "@/lib/types";
+import { loadHoldings } from "@/lib/route-loaders";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export default async function HoldingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createServerSupabase();
+  let data: Awaited<ReturnType<typeof loadHoldings>> | null = null;
+  let error: string | null = null;
 
-  const [txResult, priceResult] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select("id, event_type, event_date, quantity, price, gross_amount, commission, tax_amount, security:security_id(ticker)")
-      .eq("portfolio_id", id as string)
-      .is("corrected_by", null)
-      .order("event_date", { ascending: true }),
-    supabase
-      .from("price_observations")
-      .select("close, observation_date, security:security_id(ticker)")
-      .order("observation_date", { ascending: false })
-      .limit(2000),
-  ]);
+  try {
+    data = await loadHoldings(id as string);
+  } catch (e: unknown) {
+    error = e instanceof Error ? e.message : "Unknown error";
+  }
 
-  if (txResult.error) {
+  if (error || !data) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -31,38 +21,13 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
           <h1 className="text-xl font-semibold">Holdings</h1>
         </div>
         <div className="card border-red-500/30 bg-red-500/5">
-          <p className="text-sm text-red-400">Error loading transactions: {txResult.error.message}</p>
+          <p className="text-sm text-red-400">{error || "Failed to load holdings"}</p>
         </div>
       </div>
     );
   }
 
-  // Build price map from observations (latest price per ticker)
-  const priceMap = new Map<string, number>();
-  if (priceResult.data) {
-    for (const row of priceResult.data as any[]) {
-      const ticker: string | undefined = row.security?.ticker;
-      if (ticker && !priceMap.has(ticker) && row.close) {
-        priceMap.set(ticker, Number(row.close));
-      }
-    }
-  }
-
-  // Map DB rows to Transaction type
-  const txs: Transaction[] = (txResult.data || []).map((t: any) => ({
-    event_type: t.event_type,
-    event_date: t.event_date,
-    ticker: t.security?.ticker || "",
-    quantity: t.quantity || 0,
-    price: t.price || 0,
-    gross_amount: t.gross_amount,
-    commission: t.commission || 0,
-    tax_amount: t.tax_amount || 0,
-    corrected_by: undefined,
-  }));
-
-  const state = deriveHoldings(txs, priceMap);
-  const nav = totalNav(state);
+  const { state, nav, priceCount } = data;
 
   return (
     <div className="space-y-6">
@@ -73,7 +38,7 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
             <h1 className="text-xl font-semibold">Holdings</h1>
             <p className="text-sm text-neutral-500">
               NAV: ${nav.toLocaleString()}
-              {priceMap.size === 0 ? " · prices unavailable" : ""}
+              {priceCount === 0 ? " · prices unavailable" : ""}
             </p>
           </div>
         </div>

@@ -1,31 +1,19 @@
-import { createServerSupabase } from "@/lib/supabase";
-import type { TransactionRow } from "@/lib/types";
+import { loadTransactions } from "@/lib/route-loaders";
+import type { TransactionData } from "@/lib/adapters";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import TransactionForm from "@/components/portfolios/TransactionForm";
 
-interface DbTransaction {
-  id: string;
-  event_type: string;
-  event_date: string;
-  quantity: number | null;
-  price: number | null;
-  gross_amount: number;
-  commission: number | null;
-  created_at: string;
-  security: { ticker: string }[] | { ticker: string } | null;
-}
-
 export default async function TransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createServerSupabase();
+  let transactions: TransactionData[] = [];
+  let error: string | null = null;
 
-  const { data: dbRows, error } = await supabase
-    .from("transactions")
-    .select("id, event_type, event_date, quantity, price, gross_amount, commission, created_at, security:security_id(ticker)")
-    .eq("portfolio_id", id as string)
-    .is("corrected_by", null)
-    .order("event_date", { ascending: false });
+  try {
+    transactions = await loadTransactions(id as string);
+  } catch (e: unknown) {
+    error = e instanceof Error ? e.message : "Unknown error";
+  }
 
   if (error) {
     return (
@@ -35,29 +23,11 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
           <h1 className="text-xl font-semibold">Transactions</h1>
         </div>
         <div className="card border-red-500/30 bg-red-500/5">
-          <p className="text-sm text-red-400">Error loading transactions: {error.message}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       </div>
     );
   }
-
-  const transactions: TransactionRow[] = (dbRows || []).map((t: Record<string, any>) => {
-    const secData = Array.isArray(t.security) ? t.security[0] : t.security;
-    const row: TransactionRow = {
-      id: t.id,
-      event_type: t.event_type,
-      event_date: t.event_date,
-      quantity: t.quantity,
-      price: t.price,
-      gross_amount: t.gross_amount,
-      commission: t.commission,
-      tax_amount: null,
-      notes: null,
-      created_at: t.created_at,
-      security_ticker: secData?.ticker || null,
-    };
-    return row;
-  });
 
   return (
     <div className="space-y-6">
@@ -102,8 +72,8 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
                         "bg-neutral-800 text-neutral-300"
                       }`}>{tx.event_type}</span>
                     </td>
-                    <td className="table-cell-text font-semibold">{tx.security_ticker || "—"}</td>
-                    <td className="table-cell text-right">{tx.quantity ?? "—"}</td>
+                    <td className="table-cell-text font-semibold">{tx.ticker || "—"}</td>
+                    <td className="table-cell text-right">{tx.quantity || "—"}</td>
                     <td className="table-cell text-right">${tx.gross_amount.toLocaleString()}</td>
                     <td className="table-cell text-right">{tx.commission ? `$${tx.commission}` : "—"}</td>
                   </tr>
