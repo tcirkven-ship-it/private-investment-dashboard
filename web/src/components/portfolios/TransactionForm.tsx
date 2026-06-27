@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { insertTransaction } from "@/lib/actions";
 
 const TX_TYPES = [
   "DEPOSIT", "WITHDRAWAL", "BUY", "SELL", "DIVIDEND", "FEE", "TAX",
@@ -9,10 +10,9 @@ const TX_TYPES = [
 
 interface TransactionFormProps {
   portfolioId: string;
-  onSaved?: () => void;
 }
 
-export default function TransactionForm({ portfolioId, onSaved }: TransactionFormProps) {
+export default function TransactionForm({ portfolioId }: TransactionFormProps) {
   const [eventType, setEventType] = useState("BUY");
   const [ticker, setTicker] = useState("");
   const [eventDate, setEventDate] = useState(new Date().toISOString().split("T")[0]);
@@ -20,48 +20,57 @@ export default function TransactionForm({ portfolioId, onSaved }: TransactionFor
   const [price, setPrice] = useState("");
   const [grossAmount, setGrossAmount] = useState("");
   const [commission, setCommission] = useState("0");
-  const [tax, setTax] = useState("0");
-  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-
-    const payload = {
-      portfolio_id: portfolioId,
-      event_type: eventType,
-      event_date: eventDate,
-      ticker: ticker || null,
-      quantity: parseFloat(quantity) || 0,
-      price: parseFloat(price) || 0,
-      gross_amount: parseFloat(grossAmount) || 0,
-      commission: parseFloat(commission) || 0,
-      tax_amount: parseFloat(tax) || 0,
-      notes: notes || null,
-    };
-
-    // In production, save to Supabase
-    console.log("Saving transaction:", payload);
-    await new Promise((r) => setTimeout(r, 500));
-
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-    if (onSaved) onSaved();
-  }
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   const needsTicker = ["BUY", "SELL", "DIVIDEND", "SPLIT", "SYMBOL_CHANGE"].includes(eventType);
   const needsQuantity = ["BUY", "SELL", "SPLIT", "CORRECTION"].includes(eventType);
   const needsPrice = ["BUY", "SELL", "CORRECTION"].includes(eventType);
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess(false);
+
+    const formData = new FormData();
+    formData.set("portfolio_id", portfolioId);
+    formData.set("event_type", eventType);
+    formData.set("event_date", eventDate);
+    formData.set("gross_amount", grossAmount);
+    formData.set("commission", commission);
+    if (ticker) formData.set("ticker", ticker);
+    if (quantity) formData.set("quantity", quantity);
+    if (price) formData.set("price", price);
+
+    const result = await insertTransaction(formData);
+
+    if (result.error) {
+      setError(result.error);
+      setSaving(false);
+    } else {
+      setSaving(false);
+      setSuccess(true);
+      // Reset form
+      setTicker("");
+      setQuantity("");
+      setPrice("");
+      setGrossAmount("");
+      setCommission("0");
+      setTimeout(() => setSuccess(false), 3000);
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && <div className="text-sm text-red-400 bg-red-500/10 rounded px-3 py-2">{error}</div>}
+      {success && <div className="text-sm text-green-400 bg-green-500/10 rounded px-3 py-2">Transaction recorded. Page refreshed.</div>}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Type</label>
-          <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="input">
+          <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="input" required>
             {TX_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
@@ -72,13 +81,13 @@ export default function TransactionForm({ portfolioId, onSaved }: TransactionFor
         {needsTicker && (
           <div>
             <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Ticker</label>
-            <input type="text" value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} className="input" placeholder="AAPL" required />
+            <input type="text" value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} className="input" placeholder="AAPL" />
           </div>
         )}
         {needsQuantity && (
           <div>
             <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Quantity</label>
-            <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="input" step="any" min="0" required />
+            <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="input" step="any" min="0" />
           </div>
         )}
         {needsPrice && (
@@ -95,17 +104,9 @@ export default function TransactionForm({ portfolioId, onSaved }: TransactionFor
           <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Commission ($)</label>
           <input type="number" value={commission} onChange={(e) => setCommission(e.target.value)} className="input" step="0.01" min="0" />
         </div>
-        <div>
-          <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Tax ($)</label>
-          <input type="number" value={tax} onChange={(e) => setTax(e.target.value)} className="input" step="0.01" min="0" />
-        </div>
-      </div>
-      <div>
-        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Notes</label>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input" rows={2} placeholder="Optional notes..." />
       </div>
       <button type="submit" disabled={saving} className="btn-primary">
-        {saving ? "Saving..." : saved ? "Saved ✓" : "Record Transaction"}
+        {saving ? "Saving..." : success ? "Saved ✓" : "Record Transaction"}
       </button>
     </form>
   );

@@ -1,83 +1,102 @@
-"use client";
-
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { loadHoldings, loadBenchmarkReturns } from "@/lib/route-loaders";
 import Link from "next/link";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
-export default function PerformancePage() {
-  const { id } = useParams();
-  const [period, setPeriod] = useState("1Y");
+export default async function PerformancePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  let error: string | null = null;
+  let nav = 0;
+  let totalDeposits = 0;
+  let totalRealizedPL = 0;
+  let totalDividends = 0;
+  let spyReturn: number | null = null;
+  let qqqReturn: number | null = null;
 
-  const periods = [
-    { id: "MTD", label: "MTD" },
-    { id: "QTD", label: "QTD" },
-    { id: "YTD", label: "YTD" },
-    { id: "1Y", label: "1 Year" },
-    { id: "SI", label: "Since Inception" },
-  ];
+  try {
+    const [holdingsResult, benchResult] = await Promise.all([
+      loadHoldings(id as string),
+      loadBenchmarkReturns(),
+    ]);
+    nav = holdingsResult.nav;
+    totalDeposits = holdingsResult.state.total_deposits;
+    totalRealizedPL = holdingsResult.state.total_realized_pl;
+    totalDividends = holdingsResult.state.total_dividends;
+    spyReturn = benchResult.spyReturn;
+    qqqReturn = benchResult.qqqReturn;
+  } catch (e: unknown) {
+    error = e instanceof Error ? e.message : "Unknown error";
+  }
 
-  const returns: Record<string, { portfolio: number; spy: number; qqq: number; model: number }> = {
-    MTD: { portfolio: 2.34, spy: 1.82, qqq: 2.15, model: 2.89 },
-    QTD: { portfolio: 5.18, spy: 3.94, qqq: 5.62, model: 6.31 },
-    YTD: { portfolio: 12.76, spy: 10.24, qqq: 14.87, model: 15.42 },
-    "1Y": { portfolio: 18.34, spy: 14.56, qqq: 19.23, model: 22.15 },
-    SI: { portfolio: 21.45, spy: 16.12, qqq: 21.98, model: 25.67 },
-  };
-
-  const current = returns[period] || returns["1Y"];
-
-  const csvContent = [
-    "Period,Portfolio,SPY,QQQ,Official Model",
-    ...Object.entries(returns).map(([k, v]) =>
-      `${k},${v.portfolio}%,${v.spy}%,${v.qqq}%,${v.model}%`
-    ),
-  ].join("\n");
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+  if (error) {
+    return (
+      <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Performance</h1>
         </div>
-        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(csvContent)}`}
-           download="performance.csv" className="btn-secondary"><Download className="w-4 h-4 mr-1" />CSV</a>
+        <div className="card border-red-500/30 bg-red-500/5">
+          <p className="text-sm text-red-400">{error}</p>
+        </div>
       </div>
+    );
+  }
 
-      <div className="flex gap-1">
-        {periods.map((p) => (
-          <button key={p.id} onClick={() => setPeriod(p.id)}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-              period === p.id ? "bg-blue-600 text-white" : "text-neutral-400 hover:text-neutral-200"
-            }`}>{p.label}</button>
-        ))}
-      </div>
+  const totalReturn = totalDeposits > 0 ? ((nav / totalDeposits) - 1) * 100 : 0;
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Portfolio", value: current.portfolio, color: "text-blue-400" },
-          { label: "SPY (Benchmark)", value: current.spy, color: "text-neutral-300" },
-          { label: "QQQ (Benchmark)", value: current.qqq, color: "text-neutral-300" },
-          { label: "Official Model", value: current.model, color: "text-green-400" },
-        ].map((item) => (
-          <div key={item.label} className="card">
-            <p className="metric-label">{item.label}</p>
-            <p className={`metric-value mt-1 ${item.value >= 0 ? "text-green-400" : "text-red-400"}`}>
-              {item.value >= 0 ? "+" : ""}{item.value.toFixed(2)}%
-            </p>
-          </div>
-        ))}
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+        <h1 className="text-xl font-semibold">Performance</h1>
       </div>
 
       <div className="card">
-        <h2 className="text-sm font-semibold mb-4">Notes</h2>
-        <ul className="text-sm text-neutral-400 space-y-1.5">
-          <li>• Time-weighted return (TWR) — accounts for deposit and withdrawal timing</li>
-          <li>• Benchmark returns use contribution-matched cash flows for fair comparison</li>
-          <li>• Model return is the official M1 B2 Quality Veto N30 backtest result</li>
-          <li>• Personal, model, and benchmark returns are calculated independently</li>
-        </ul>
+        <h2 className="text-sm font-semibold mb-3">Returns</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <p className="metric-label">Simple Return</p>
+            <p className={`text-lg font-mono font-semibold mt-0.5 ${totalReturn >= 0 ? "text-green-400" : "text-red-400"}`}>
+              {totalReturn >= 0 ? "+" : ""}{totalReturn.toFixed(2)}%
+            </p>
+          </div>
+          <div>
+            <p className="metric-label">SPY</p>
+            <p className={`text-lg font-mono font-semibold mt-0.5 ${spyReturn !== null && spyReturn >= 0 ? "text-green-400" : "text-neutral-400"}`}>
+              {spyReturn !== null ? `${spyReturn >= 0 ? "+" : ""}${spyReturn.toFixed(2)}%` : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="metric-label">QQQ</p>
+            <p className={`text-lg font-mono font-semibold mt-0.5 ${qqqReturn !== null && qqqReturn >= 0 ? "text-green-400" : "text-neutral-400"}`}>
+              {qqqReturn !== null ? `${qqqReturn >= 0 ? "+" : ""}${qqqReturn.toFixed(2)}%` : "—"}
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-neutral-600 mt-2">Simple return = (NAV / total deposits) − 1. TWR and XIRR require daily valuation history.</p>
+      </div>
+
+      <div className="card">
+        <h2 className="text-sm font-semibold mb-3">Account</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <p className="metric-label">NAV</p>
+            <p className="text-lg font-mono font-semibold mt-0.5">${nav.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="metric-label">Deposits</p>
+            <p className="text-lg font-mono font-semibold mt-0.5">${totalDeposits.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="metric-label">Realized P/L</p>
+            <p className={`text-lg font-mono font-semibold mt-0.5 ${totalRealizedPL >= 0 ? "text-green-400" : "text-red-400"}`}>
+              ${totalRealizedPL.toFixed(2)}
+            </p>
+          </div>
+          <div>
+            <p className="metric-label">Dividends</p>
+            <p className="text-lg font-mono font-semibold mt-0.5 text-blue-400">${totalDividends.toFixed(2)}</p>
+          </div>
+        </div>
       </div>
     </div>
   );
