@@ -11,7 +11,8 @@
     "test:db-migrations": "PG_TEST_URL=${PG_TEST_URL:-} bash scripts/verify-migrations.sh",
     "test:db-rls": "PG_TEST_URL=${PG_TEST_URL:-} bash scripts/verify-rls.sh",
     "test:all": "npm test && npm run test:db-migrations && npm run test:db-rls && npm run build",
-    "test:auth-rls": "tsx scripts/test-auth-rls.ts"
+    "test:auth-rls": "tsx scripts/test-auth-rls.ts",
+    "test:schema-audit": "tsx scripts/schema-policy-audit.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

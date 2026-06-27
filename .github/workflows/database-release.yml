@@ -416,3 +416,55 @@ jobs:
           else
             echo "Nothing to stop"
           fi
+
+  schema-policy-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set CI Supabase work directory
+        shell: bash
+        run: |
+          CI_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
+          echo "CI_DIR=$CI_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$CI_DIR"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize temp project with app migrations
+        shell: bash
+        run: |
+          supabase init --workdir "$CI_DIR" --force
+          test -f "$CI_DIR/supabase/config.toml"
+          mkdir -p "$CI_DIR/supabase/migrations"
+          cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_DIR/supabase/migrations/"
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Start Supabase
+        shell: bash
+        run: supabase --workdir "$CI_DIR" start
+      - name: Get database URL
+        shell: bash
+        run: |
+          eval "$(supabase --workdir "$CI_DIR" status -o env 2>/dev/null | sed 's/^export //')"
+          : "${DB_URL:?}"
+          echo "PG_TEST_URL=$DB_URL" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web
+      - name: Run schema and policy audit
+        run: npx tsx scripts/schema-policy-audit.ts
+        working-directory: web
+      - name: Stop Supabase
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$CI_DIR" ] && [ -f "$CI_DIR/supabase/config.toml" ]; then
+            supabase --workdir "$CI_DIR" stop --no-backup
+          else
+            echo "Nothing to stop"
+          fi
