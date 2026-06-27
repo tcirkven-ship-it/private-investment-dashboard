@@ -26,28 +26,29 @@ jobs:
           CI_SUPABASE_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
           echo "CI_SUPABASE_DIR=$CI_SUPABASE_DIR" >> "$GITHUB_ENV"
           mkdir -p "$CI_SUPABASE_DIR"
-          supabase --workdir "$CI_SUPABASE_DIR" init --force
-          test -f "$CI_SUPABASE_DIR/supabase/config.toml"
-          # Remove migrations dir so startup won't apply them
-          rm -rf "$CI_SUPABASE_DIR/supabase/migrations"
-          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
       - uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize temp Supabase project (no app migrations)
+        shell: bash
+        run: |
+          supabase --workdir "$CI_SUPABASE_DIR" init --force
+          test -f "$CI_SUPABASE_DIR/supabase/config.toml"
+          rm -rf "$CI_SUPABASE_DIR/supabase/migrations"
+          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
       - name: Install psql
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Print CLI version
         run: supabase --version
-      - name: Start Supabase database (no app migrations)
+      - name: Start Supabase database
         run: supabase --workdir "$CI_SUPABASE_DIR" db start
       - name: Get DB URL
         run: |
           supabase --workdir "$CI_SUPABASE_DIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
       - name: Verify empty application schema
         run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep "^0$"
-      - name: Copy application migrations for manual test
-        run: |
-          cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_SUPABASE_DIR/supabase/migrations/"
+      - name: Copy application migrations
+        run: cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_SUPABASE_DIR/supabase/migrations/"
       - name: Run migration smoke test
         run: EXPECTED_TEST_DATABASE=postgres bash scripts/test-migration.sh
         working-directory: web
@@ -72,26 +73,29 @@ jobs:
           CI_SUPABASE_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
           echo "CI_SUPABASE_DIR=$CI_SUPABASE_DIR" >> "$GITHUB_ENV"
           mkdir -p "$CI_SUPABASE_DIR"
-          supabase --workdir "$CI_SUPABASE_DIR" init --force
-          rm -rf "$CI_SUPABASE_DIR/supabase/migrations"
-          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
       - uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize temp Supabase project (no app migrations)
+        shell: bash
+        run: |
+          supabase --workdir "$CI_SUPABASE_DIR" init --force
+          test -f "$CI_SUPABASE_DIR/supabase/config.toml"
+          rm -rf "$CI_SUPABASE_DIR/supabase/migrations"
+          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
       - name: Install psql
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Print CLI version
         run: supabase --version
-      - name: Start Supabase database (no app migrations)
+      - name: Start Supabase database
         run: supabase --workdir "$CI_SUPABASE_DIR" db start
       - name: Get DB URL
         run: |
           supabase --workdir "$CI_SUPABASE_DIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
       - name: Verify empty application schema
         run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep "^0$"
-      - name: Copy application migrations for manual test
-        run: |
-          cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_SUPABASE_DIR/supabase/migrations/"
+      - name: Copy application migrations
+        run: cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_SUPABASE_DIR/supabase/migrations/"
       - name: Run rollback test
         run: EXPECTED_TEST_DATABASE=postgres bash scripts/test-rollback.sh
         working-directory: web
@@ -116,26 +120,29 @@ jobs:
           CI_SUPABASE_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
           echo "CI_SUPABASE_DIR=$CI_SUPABASE_DIR" >> "$GITHUB_ENV"
           mkdir -p "$CI_SUPABASE_DIR"
-          supabase --workdir "$CI_SUPABASE_DIR" init --force
-          rm -rf "$CI_SUPABASE_DIR/supabase/migrations"
-          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
       - uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize temp Supabase project (no app migrations)
+        shell: bash
+        run: |
+          supabase --workdir "$CI_SUPABASE_DIR" init --force
+          test -f "$CI_SUPABASE_DIR/supabase/config.toml"
+          rm -rf "$CI_SUPABASE_DIR/supabase/migrations"
+          mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
       - name: Install psql
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Print CLI version
         run: supabase --version
-      - name: Start Supabase database (no app migrations)
+      - name: Start Supabase database
         run: supabase --workdir "$CI_SUPABASE_DIR" db start
       - name: Get DB URL
         run: |
           supabase --workdir "$CI_SUPABASE_DIR" status -o env | grep SUPABASE_DB_URL >> $GITHUB_ENV
       - name: Verify empty application schema
         run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | grep "^0$"
-      - name: Copy application migrations for manual test
-        run: |
-          cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_SUPABASE_DIR/supabase/migrations/"
+      - name: Copy application migrations
+        run: cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_SUPABASE_DIR/supabase/migrations/"
       - name: Run reset test
         run: EXPECTED_TEST_DATABASE=postgres bash scripts/test-reset.sh
         working-directory: web
@@ -160,7 +167,14 @@ jobs:
           CI_SUPABASE_DIR="$RUNNER_TEMP/supabase-ci-$GITHUB_JOB"
           echo "CI_SUPABASE_DIR=$CI_SUPABASE_DIR" >> "$GITHUB_ENV"
           mkdir -p "$CI_SUPABASE_DIR"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Initialize temp Supabase project with migrations
+        shell: bash
+        run: |
           supabase --workdir "$CI_SUPABASE_DIR" init --force
+          test -f "$CI_SUPABASE_DIR/supabase/config.toml"
           mkdir -p "$CI_SUPABASE_DIR/supabase/migrations"
           cp "$GITHUB_WORKSPACE/web/supabase/migrations/"*.sql "$CI_SUPABASE_DIR/supabase/migrations/"
       - uses: actions/setup-node@v4
@@ -168,19 +182,17 @@ jobs:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: web/package-lock.json
-      - uses: supabase/setup-cli@v1
-        with:
-          version: ${{ env.SUPABASE_CLI_VERSION }}
       - name: Install psql
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Print CLI version
-        run: supabase --version
       - name: Install dependencies
         run: npm ci
         working-directory: web
+      - name: Print CLI version
+        run: supabase --version
       - name: Start Supabase (migrations apply automatically)
         run: supabase --workdir "$CI_SUPABASE_DIR" start
       - name: Export env vars
+        shell: bash
         run: |
           supabase --workdir "$CI_SUPABASE_DIR" status -o env > /tmp/supabase_env.txt
           while IFS= read -r line; do
@@ -195,6 +207,7 @@ jobs:
             esac
           done < /tmp/supabase_env.txt
       - name: Health check
+        shell: bash
         run: |
           for i in $(seq 1 30); do
             db_ok=0; auth_ok=0; cli_ok=0
@@ -210,10 +223,12 @@ jobs:
       - name: Run Auth and RLS tests
         id: test-step
         continue-on-error: true
+        shell: bash
         run: npx --no-install tsx scripts/test-auth-rls.ts
         working-directory: web
       - name: Stop Supabase
         if: always()
+        shell: bash
         run: |
           if [ -f "$CI_SUPABASE_DIR/supabase/config.toml" ]; then
             supabase --workdir "$CI_SUPABASE_DIR" stop --no-backup
@@ -222,6 +237,7 @@ jobs:
           fi
       - name: Check test result
         if: steps.test-step.outcome != 'success'
+        shell: bash
         run: exit 1
 
   web-tests:
