@@ -27,7 +27,7 @@ function assert(label: string, actual: string, expected: string) {
 }
 
 // Normalize helpers
-function normDefault(d: string): string {
+function normDefault(d: string | null): string {
   if (!d || d === "") return "";
   // Handle common patterns: 'textvalue'::text -> 'textvalue', gen_random_uuid() -> gen_random_uuid()
   let v = d.replace(/::\w+(\[\])?/g, ""); // remove ::text, ::snapshot_status, etc
@@ -50,7 +50,16 @@ function normBool(b: string): string {
   return b;
 }
 
-function colKey(c: any): string {
+interface ColumnDef {
+  column_name: string;
+  data_type: string;
+  udt_name: string;
+  is_nullable: string;
+  column_default: string | null;
+  [key: string]: unknown;
+}
+
+function colKey(c: ColumnDef): string {
   const dt = normDataType(c.column_name, c.data_type, c.udt_name);
   const nn = c.is_nullable === "NO" ? "NN" : "";
   const def = normDefault(c.column_default);

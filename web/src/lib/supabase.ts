@@ -28,8 +28,8 @@ export async function createServerSupabase() {
   });
 }
 
-export function createServiceClient() {
-  const { createClient } = require("@supabase/supabase-js");
+export async function createServiceClient() {
+  const { createClient } = await import("@supabase/supabase-js");
   return createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });

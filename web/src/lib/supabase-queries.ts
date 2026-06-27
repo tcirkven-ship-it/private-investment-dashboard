@@ -69,7 +69,7 @@ export const getPublishedModel = cache(async (): Promise<QueryResult<ModelSnapsh
   return { data: data as ModelSnapshot | null, error: null };
 });
 
-export const getModelHistory = cache(async (): Promise<QueryResult<any[]>> => {
+export const getModelHistory = cache(async (): Promise<QueryResult<Record<string, unknown>[]>> => {
   const supabase = await createServerSupabase();
   const { data, error } = await supabase
     .from("model_snapshots")
@@ -102,9 +102,9 @@ export const getTransactions = cache(async (portfolioId: string): Promise<QueryR
     .is("corrected_by", null)
     .order("event_date", { ascending: false });
   if (error) return { data: null, error: error.message };
-  const transactions = (data || []).map((t: any) => ({
-    ...t,
-    security_ticker: t.security?.ticker || null,
-  }));
+  const transactions = (data || []).map((t: Record<string, unknown>) => {
+    const sec = t.security as { ticker?: string } | null;
+    return { ...t, security_ticker: sec?.ticker || null };
+  });
   return { data: transactions as Transaction[], error: null };
 });
