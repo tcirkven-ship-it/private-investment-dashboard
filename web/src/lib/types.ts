@@ -52,7 +52,7 @@ export interface TransactionRow {
   price: number | null;
   gross_amount: number;
   commission: number | null;
-  tax_amount: number | null;
+  tax: number | null;
   notes: string | null;
   created_at: string;
   security_ticker: string | null;

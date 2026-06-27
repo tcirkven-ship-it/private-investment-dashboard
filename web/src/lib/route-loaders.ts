@@ -39,7 +39,7 @@ export interface TransactionData {
   price: number;
   gross_amount: number;
   commission: number;
-  tax_amount: number;
+  tax: number;
   ticker: string;
   notes: string | null;
   created_at: string;
@@ -49,7 +49,7 @@ export async function loadTransactions(portfolioId: string, db?: DB): Promise<Tr
   const supabase = db ?? await createServerSupabase();
   const { data, error } = await supabase
     .from("transactions")
-    .select("id, event_type, event_date, quantity, price, gross_amount, commission, tax_amount, notes, created_at, security:security_id(ticker)")
+    .select("id, event_type, event_date, quantity, price, gross_amount, commission, tax, notes, created_at, security:security_id(ticker)")
     .eq("portfolio_id", portfolioId)
     .is("corrected_by", null)
     .order("event_date", { ascending: true });
@@ -92,7 +92,7 @@ export async function loadHoldings(portfolioId: string, db?: DB): Promise<Holdin
     price: t.price,
     gross_amount: t.gross_amount,
     commission: t.commission,
-    tax_amount: t.tax_amount,
+    tax: t.tax,
     corrected_by: undefined,
   }));
 

@@ -103,8 +103,8 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rebalance_status' AND typnamespace = 'public'::regnamespace) THEN
     DROP TYPE public.rebalance_status CASCADE;
   END IF;
-  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transaction_event_type' AND typnamespace = 'public'::regnamespace) THEN
-    DROP TYPE public.transaction_event_type CASCADE;
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transaction_types' AND typnamespace = 'public'::regnamespace) THEN
+    DROP TYPE public.transaction_types CASCADE;
   END IF;
 
   -- Drop functions
