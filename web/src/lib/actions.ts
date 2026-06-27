@@ -57,3 +57,33 @@ export async function insertTransaction(formData: FormData): Promise<ActionResul
   revalidatePath(`/portfolios/${portfolioId}`);
   return { error: null };
 }
+
+export async function createPortfolio(formData: FormData): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+
+  const { data: user } = await supabase.auth.getUser();
+  if (!user?.user?.id) return { error: "Not authenticated" };
+
+  const name = formData.get("name") as string;
+  const openingDate = formData.get("opening_date") as string;
+  const startingCash = parseFloat(formData.get("starting_cash") as string) || 0;
+  const notes = formData.get("notes") as string || "";
+
+  if (!name || !openingDate) {
+    return { error: "Name and opening date are required" };
+  }
+
+  const { error } = await supabase.from("portfolios").insert({
+    owner_id: user.user.id,
+    name,
+    opening_date: openingDate,
+    starting_cash: startingCash || null,
+    notes: notes || null,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/portfolios");
+  revalidatePath("/dashboard");
+  return { error: null };
+}

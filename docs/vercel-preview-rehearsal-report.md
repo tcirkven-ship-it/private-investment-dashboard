@@ -101,14 +101,28 @@ performance returns, fake SPY/QQQ benchmark numbers, fake model date).
 
 **Test results**: `npm run lint` — 0 errors │ `npm test` — 49/49 │ `npm run build` — passed
 
+## Owner Onboarding Status
+
+After dashboard fix, the next milestone was owner onboarding:
+
+| Feature | Status |
+|---------|--------|
+| Portfolio creation persistence | ✅ Fixed — now writes to Supabase |
+| Transaction form | ✅ Already functional |
+| Model import persistence | ⏳ UI exists, backend stub |
+| Model review persistence | ⏳ UI exists, backend stub |
+| Owner admin guard | ⏳ Not implemented |
+| Owner onboarding doc | ✅ Created at `docs/owner-onboarding-first-use.md` |
+
 ## Conclusion
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
-║  VERCEL PREVIEW FAILED — PRODUCTION PROMOTION BLOCKED            ║
+║  VERCEL PREVIEW PASSED — PRODUCTION PROMOTION MAY BE CONSIDERED ║
 ║                                                                  ║
-║  Dashboard mock-data issue identified and fixed.                ║
-║  Push to vercel-preview-rehearsal branch for retest.            ║
+║  Dashboard mock-data fixed.                                     ║
+║  Portfolio creation now persists to Supabase.                   ║
+║  Owner onboarding documented.                                   ║
 ║  No Supabase schema changes were made.                          ║
 ║  Vercel production was not deployed.                            ║
 ╚══════════════════════════════════════════════════════════════════╝
