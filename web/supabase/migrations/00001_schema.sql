@@ -130,7 +130,7 @@ CREATE TABLE public.model_snapshots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   model_version_id UUID NOT NULL REFERENCES public.model_versions(id),
   snapshot_id TEXT NOT NULL UNIQUE,
-  status public.snapshot_status DEFAULT 'DRAFT',
+  status public.snapshot_status NOT NULL DEFAULT 'DRAFT',
   effective_date DATE NOT NULL,
   decision_timestamp TIMESTAMPTZ,
   execution_convention TEXT DEFAULT 'next_valid_session_close',
@@ -362,7 +362,7 @@ CREATE TABLE public.rebalance_events (
   portfolio_id UUID NOT NULL REFERENCES public.portfolios(id),
   model_snapshot_id UUID NOT NULL REFERENCES public.model_snapshots(id),
   rebalance_date DATE NOT NULL,
-  status public.rebalance_status DEFAULT 'PENDING',
+  status public.rebalance_status NOT NULL DEFAULT 'PENDING',
   estimated_cost NUMERIC(12,2),
   completed_at TIMESTAMPTZ,
   owner_id UUID NOT NULL REFERENCES auth.users(id)
