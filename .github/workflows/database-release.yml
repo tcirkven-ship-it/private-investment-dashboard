@@ -193,6 +193,16 @@ jobs:
           echo "portfolios: $PF"
           [ "$PF" -gt "0" ] || { echo "FAIL: portfolios has no data (test insert failed)"; exit 1; }
           echo "PASS: Application data exists"
+      - name: Diagnostic before reset refusal test
+        shell: bash
+        run: |
+          echo "=== Pre-reset diagnostics ==="
+          echo "reset_override setting:"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "SELECT current_setting('app.reset_override', true) AS reset_override;"
+          echo "portfolios row count:"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "SELECT count(*) AS portfolios_rows FROM public.portfolios;"
+          echo "portfolios regclass:"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "SELECT to_regclass('public.portfolios') AS portfolios_regclass;"
       - name: Reset without override (must refuse)
         shell: bash
         run: |

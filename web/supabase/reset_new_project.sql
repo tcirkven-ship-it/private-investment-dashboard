@@ -10,25 +10,26 @@
 -- Does NOT modify: auth, storage, extensions, realtime, supabase_functions
 -- ================================================================
 
-DO $$
+\set ON_ERROR_STOP on
+
+-- ================================================================
+-- SAFETY CHECK — must fail before any destructive operation
+-- This block has NO exception handler. Any RAISE EXCEPTION here
+-- will cause psql to exit with a nonzero code.
+-- ================================================================
+DO $safety$
 DECLARE
   tbl text;
-  row_count bigint;
-  has_data boolean := false;
+  has_rows boolean;
   override_enabled boolean;
 BEGIN
-  -- Check override setting
-  BEGIN
-    override_enabled := COALESCE(
-      current_setting('app.reset_override', true)::boolean,
-      false
-    );
-  EXCEPTION WHEN OTHERS THEN
-    override_enabled := false;
-  END;
+  override_enabled :=
+    lower(coalesce(current_setting('app.reset_override', true), 'false'))
+    IN ('true', 'on', '1', 'yes');
+
+  RAISE NOTICE 'reset override enabled: %', override_enabled;
 
   IF NOT override_enabled THEN
-    -- Check every application table for data
     FOR tbl IN
       SELECT unnest(ARRAY[
         'profiles',
@@ -51,21 +52,36 @@ BEGIN
       ])
     LOOP
       IF to_regclass(format('public.%I', tbl)) IS NOT NULL THEN
-        EXECUTE format('SELECT count(*) FROM public.%I', tbl) INTO row_count;
+        EXECUTE format(
+          'SELECT EXISTS (SELECT 1 FROM public.%I LIMIT 1)',
+          tbl
+        )
+        INTO has_rows;
 
-        IF row_count > 0 THEN
-          has_data := true;
-          RAISE NOTICE 'Application table public.% contains % row(s)', tbl, row_count;
+        RAISE NOTICE 'table public.% has_rows=%', tbl, has_rows;
+
+        IF has_rows THEN
+          RAISE EXCEPTION
+            'Refusing reset: application data exists in public.%. '
+            'Set app.reset_override=true only for disposable test databases.',
+            tbl;
         END IF;
       END IF;
     END LOOP;
-
-    IF has_data THEN
-      RAISE EXCEPTION 'Refusing reset: application data exists. Set app.reset_override=true only for disposable test databases.';
-    END IF;
   END IF;
+END
+$safety$;
 
-  -- Drop application tables (in dependency-safe order)
+-- ================================================================
+-- DESTRUCTIVE DROP LOGIC
+-- Runs only if the safety check passed or override was enabled.
+-- ================================================================
+
+DO $destroy$
+DECLARE
+  tbl text;
+BEGIN
+  -- Drop application tables
   FOREACH tbl IN ARRAY ARRAY[
     'owner_decisions', 'rebalance_lines', 'rebalance_events',
     'portfolio_valuations', 'model_publication_events',
@@ -96,4 +112,5 @@ BEGIN
   LOOP
     EXECUTE format('DROP FUNCTION IF EXISTS public.%I() CASCADE', tbl);
   END LOOP;
-END $$;
+END
+$destroy$;
