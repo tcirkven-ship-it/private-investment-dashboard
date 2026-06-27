@@ -1,0 +1,35 @@
+name: Inspection Safety
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - "supabase/sql/**"
+      - ".github/workflows/inspection-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "supabase/sql/**"
+      - ".github/workflows/inspection-safety.yml"
+
+jobs:
+  forbid-destructive-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check hosted-readonly-inventory.sql for destructive commands
+        run: |
+          FORBIDDEN="CREATE|ALTER|DROP|INSERT|UPDATE|DELETE|TRUNCATE|GRANT|REVOKE|RESET|MIGRATE|COMMENT ON"
+          FILE="supabase/sql/hosted-readonly-inventory.sql"
+          if [ -f "$FILE" ]; then
+            MATCHES=$(grep -nwiE "$FORBIDDEN" "$FILE" || true)
+            if [ -n "$MATCHES" ]; then
+              echo "ERROR: Found forbidden SQL commands in $FILE:"
+              echo "$MATCHES"
+              exit 1
+            fi
+            echo "OK: No forbidden destructive SQL found in $FILE"
+          else
+            echo "OK: $FILE not present in this PR"
+          fi
