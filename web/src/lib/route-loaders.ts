@@ -1,13 +1,13 @@
 /**
- * Route-level data loaders with typed I/O.
- * Extracted from page components so they can be tested independently.
+ * Route-level data loaders with injectable Supabase client.
+ * Defaults to real server Supabase when no client is provided.
  */
 
-import { createServerSupabase } from "./supabase";
+import { createServerSupabase, type SupabaseClient } from "./supabase";
 import { deriveHoldings, totalNav, type Transaction } from "./holdings";
-import { getTransaction, getModelHolding, getPriceObservation, getBenchmarkObs } from "./adapters";
+import { getTransaction, getModelHolding, getPriceObservation } from "./adapters";
 
-// ─── Model history ─────────────────────────────────────────────
+type DB = SupabaseClient;
 
 export interface ModelHistoryRecord {
   id: string;
@@ -16,8 +16,8 @@ export interface ModelHistoryRecord {
   status: string;
 }
 
-export async function loadModelHistory(): Promise<ModelHistoryRecord[]> {
-  const supabase = await createServerSupabase();
+export async function loadModelHistory(db?: DB): Promise<ModelHistoryRecord[]> {
+  const supabase = db ?? await createServerSupabase();
   const { data, error } = await supabase
     .from("model_snapshots")
     .select("id, snapshot_id, effective_date, status")
@@ -31,10 +31,22 @@ export async function loadModelHistory(): Promise<ModelHistoryRecord[]> {
   }));
 }
 
-// ─── Transactions for a portfolio ──────────────────────────────
+export interface TransactionData {
+  id: string;
+  event_type: string;
+  event_date: string;
+  quantity: number;
+  price: number;
+  gross_amount: number;
+  commission: number;
+  tax_amount: number;
+  ticker: string;
+  notes: string | null;
+  created_at: string;
+}
 
-export async function loadTransactions(portfolioId: string): Promise<TransactionData[]> {
-  const supabase = await createServerSupabase();
+export async function loadTransactions(portfolioId: string, db?: DB): Promise<TransactionData[]> {
+  const supabase = db ?? await createServerSupabase();
   const { data, error } = await supabase
     .from("transactions")
     .select("id, event_type, event_date, quantity, price, gross_amount, commission, tax_amount, notes, created_at, security:security_id(ticker)")
@@ -42,12 +54,8 @@ export async function loadTransactions(portfolioId: string): Promise<Transaction
     .is("corrected_by", null)
     .order("event_date", { ascending: true });
   if (error) throw new Error(`Failed to load transactions: ${error.message}`);
-  return (data || []).map(getTransaction).filter((t: TransactionData | null): t is TransactionData => t !== null);
+  return (data || []).map(getTransaction).filter((t): t is TransactionData => t !== null);
 }
-
-// ─── Holdings with prices ──────────────────────────────────────
-
-import type { TransactionData } from "./adapters";
 
 export interface HoldingsResult {
   transactions: Transaction[];
@@ -56,20 +64,19 @@ export interface HoldingsResult {
   priceCount: number;
 }
 
-export async function loadHoldings(portfolioId: string): Promise<HoldingsResult> {
-  const supabase = await createServerSupabase();
-  const [txData, priceData] = await Promise.all([
-    loadTransactions(portfolioId),
-    supabase
-      .from("price_observations")
-      .select("close, observation_date, security:security_id(ticker)")
-      .order("observation_date", { ascending: false })
-      .limit(2000),
-  ]);
+export async function loadHoldings(portfolioId: string, db?: DB): Promise<HoldingsResult> {
+  const supabase = db ?? await createServerSupabase();
+  const txData = await loadTransactions(portfolioId, supabase);
+
+  const { data: priceData } = await supabase
+    .from("price_observations")
+    .select("close, observation_date, security:security_id(ticker)")
+    .order("observation_date", { ascending: false })
+    .limit(2000);
 
   const priceMap = new Map<string, number>();
-  if (priceData.data) {
-    for (const row of priceData.data) {
+  if (priceData) {
+    for (const row of priceData) {
       const obs = getPriceObservation(row);
       if (obs && !priceMap.has(obs.ticker)) {
         priceMap.set(obs.ticker, obs.close);
@@ -90,44 +97,38 @@ export async function loadHoldings(portfolioId: string): Promise<HoldingsResult>
   }));
 
   const state = deriveHoldings(txs, priceMap);
-  const nav = totalNav(state);
-  return { transactions: txs, state, nav, priceCount: priceMap.size };
+  return { transactions: txs, state, nav: totalNav(state), priceCount: priceMap.size };
 }
-
-// ─── Benchmark returns ─────────────────────────────────────────
 
 export interface BenchmarkReturns {
   spyReturn: number | null;
   qqqReturn: number | null;
 }
 
-export async function loadBenchmarkReturns(): Promise<BenchmarkReturns> {
-  const supabase = await createServerSupabase();
+export async function loadBenchmarkReturns(db?: DB): Promise<BenchmarkReturns> {
+  const supabase = db ?? await createServerSupabase();
   const [spyResult, qqqResult] = await Promise.all([
-    supabase
-      .from("benchmark_observations")
+    supabase.from("benchmark_observations")
       .select("observation_date, total_return_index")
       .eq("ticker", "SPY")
       .order("observation_date", { ascending: false })
       .limit(2),
-    supabase
-      .from("benchmark_observations")
+    supabase.from("benchmark_observations")
       .select("observation_date, total_return_index")
       .eq("ticker", "QQQ")
       .order("observation_date", { ascending: false })
       .limit(2),
   ]);
 
-  const spyReturn = spyResult.data && spyResult.data.length >= 2
-    ? (Number(spyResult.data[0].total_return_index) / Number(spyResult.data[1].total_return_index) - 1) * 100
-    : null;
-  const qqqReturn = qqqResult.data && qqqResult.data.length >= 2
-    ? (Number(qqqResult.data[0].total_return_index) / Number(qqqResult.data[1].total_return_index) - 1) * 100
-    : null;
-  return { spyReturn, qqqReturn };
-}
+  if (spyResult.error) throw new Error(`Failed to load SPY benchmark: ${spyResult.error.message}`);
+  if (qqqResult.error) throw new Error(`Failed to load QQQ benchmark: ${qqqResult.error.message}`);
 
-// ─── Rebalance comparison ──────────────────────────────────────
+  const calcReturn = (data: { total_return_index: number }[] | null): number | null => {
+    if (!data || data.length < 2) return null;
+    return (Number(data[0].total_return_index) / Number(data[1].total_return_index) - 1) * 100;
+  };
+  return { spyReturn: calcReturn(spyResult.data), qqqReturn: calcReturn(qqqResult.data) };
+}
 
 export interface RebalanceLine {
   ticker: string;
@@ -136,15 +137,17 @@ export interface RebalanceLine {
   action: "Add" | "Remove" | "Reduce" | "Increase" | "Keep";
 }
 
-export async function loadRebalance(portfolioId: string): Promise<{
+export interface RebalanceResult {
   modelDate: string;
   comparisons: RebalanceLine[];
   hasPrices: boolean;
-}> {
-  const supabase = await createServerSupabase();
+}
+
+export async function loadRebalance(portfolioId: string, db?: DB): Promise<RebalanceResult> {
+  const supabase = db ?? await createServerSupabase();
   const snapResult = await supabase
     .from("model_snapshots")
-    .select("id, snapshot_id, effective_date")
+    .select("id, effective_date")
     .eq("status", "PUBLISHED")
     .order("effective_date", { ascending: false })
     .limit(1)
@@ -153,15 +156,13 @@ export async function loadRebalance(portfolioId: string): Promise<{
   if (snapResult.error) throw new Error(`Failed to load model: ${snapResult.error.message}`);
   if (!snapResult.data) return { modelDate: "", comparisons: [], hasPrices: false };
 
-  const snapshot = snapResult.data;
-  const modelId = String(snapshot.id);
+  const snapId = String(snapResult.data.id);
 
   const [modelResult, holdingsResult] = await Promise.all([
-    supabase
-      .from("model_snapshot_holdings")
+    supabase.from("model_snapshot_holdings")
       .select("rank, target_weight, security:security_id(ticker)")
-      .eq("snapshot_id", modelId),
-    loadHoldings(portfolioId),
+      .eq("snapshot_id", snapId),
+    loadHoldings(portfolioId, supabase),
   ]);
 
   const modelTargets = new Map<string, number>();
@@ -179,24 +180,13 @@ export async function loadRebalance(portfolioId: string): Promise<{
     const h = state.holdings.get(ticker);
     const targetW = modelTargets.get(ticker) || 0;
     const currentW = h?.market_value && nav > 0 ? h.market_value / nav : 0;
-    const isNew = !h || h.quantity <= 0;
-    const isRemoved = targetW === 0;
     let action: RebalanceLine["action"] = "Keep";
-    if (isNew) action = "Add";
-    else if (isRemoved) action = "Remove";
+    if (!h || h.quantity <= 0) action = "Add";
+    else if (targetW === 0) action = "Remove";
     else if (currentW > targetW * 1.05) action = "Reduce";
     else if (targetW > 0 && currentW < targetW * 0.95) action = "Increase";
-    return {
-      ticker,
-      currentWeight: (currentW * 100).toFixed(1),
-      targetWeight: (targetW * 100).toFixed(2),
-      action,
-    };
+    return { ticker, currentWeight: (currentW * 100).toFixed(1), targetWeight: (targetW * 100).toFixed(2), action };
   });
 
-  return {
-    modelDate: String(snapshot.effective_date ?? ""),
-    comparisons,
-    hasPrices: priceCount > 0,
-  };
+  return { modelDate: String(snapResult.data.effective_date ?? ""), comparisons, hasPrices: priceCount > 0 };
 }
