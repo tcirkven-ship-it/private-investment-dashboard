@@ -231,7 +231,8 @@ jobs:
           APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
           APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
           APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
-          APP_TRIGGERS="'set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
+          APP_TRIGGERS_PUBLIC="'set_profiles_updated_at','set_portfolios_updated_at','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
+          APP_TRIGGER_AUTH="on_auth_user_created"
 
           TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ($APP_TABLES);")
           echo "tables: $TC"; [ "$TC" = "0" ] || { echo "FAIL: Expected 0 app tables"; exit 1; }
@@ -242,8 +243,13 @@ jobs:
           FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ($APP_FUNCS);")
           echo "functions: $FC"; [ "$FC" = "0" ] || { echo "FAIL: Expected 0 app functions"; exit 1; }
 
-          TRC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.triggers WHERE trigger_schema = 'public' AND trigger_name IN ($APP_TRIGGERS);")
-          echo "triggers: $TRC"; [ "$TRC" = "0" ] || { echo "FAIL: Expected 0 app triggers"; exit 1; }
+          # Count triggers on public tables
+          TRC_PUB=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'public' AND tg.tgname IN ($APP_TRIGGERS_PUBLIC);")
+          echo "public triggers: $TRC_PUB"; [ "$TRC_PUB" = "0" ] || { echo "FAIL: Expected 0 app triggers on public"; exit 1; }
+
+          # Count application trigger on auth.users
+          TRC_AUTH=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'auth' AND cls.relname = 'users' AND tg.tgname = '$APP_TRIGGER_AUTH';")
+          echo "auth trigger: $TRC_AUTH"; [ "$TRC_AUTH" = "0" ] || { echo "FAIL: Expected 0 auth triggers after reset"; exit 1; }
 
           PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename IN ($APP_TABLES);")
           echo "policies: $PC"; [ "$PC" = "0" ] || { echo "FAIL: Expected 0 app policies"; exit 1; }
@@ -252,6 +258,13 @@ jobs:
         run: |
           psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/web/supabase/migrations/00001_schema.sql"
           psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/web/supabase/migrations/00002_fixes.sql"
+      - name: Diagnostic trigger inventory after reapply
+        shell: bash
+        run: |
+          echo "=== information_schema triggers ==="
+          psql "$PG_TEST_URL" -c "SELECT event_object_schema, event_object_table, trigger_name FROM information_schema.triggers WHERE trigger_name IN ('set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion') ORDER BY event_object_schema, trigger_name;"
+          echo "=== pg_trigger inventory ==="
+          psql "$PG_TEST_URL" -c "SELECT ns.nspname AS table_schema, cls.relname AS table_name, tg.tgname AS trigger_name FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND tg.tgname IN ('set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion') ORDER BY ns.nspname, tg.tgname;"
       - name: Verify inventory after reapply
         shell: bash
         run: |
@@ -269,8 +282,10 @@ jobs:
           FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ($APP_FUNCS);")
           echo "Functions: $FC"; [ "$FC" = "6" ] || { echo "FAIL: Expected 6 functions"; exit 1; }
 
-          TRC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.triggers WHERE trigger_schema = 'public' AND trigger_name IN ($APP_TRIGGERS);")
-          echo "Triggers: $TRC"; [ "$TRC" = "6" ] || { echo "FAIL: Expected 6 triggers"; exit 1; }
+          TRC_PUB=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'public' AND tg.tgname IN ('set_profiles_updated_at','set_portfolios_updated_at','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion');")
+          TRC_AUTH=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'auth' AND cls.relname = 'users' AND tg.tgname = 'on_auth_user_created';")
+          TRC=$((TRC_PUB + TRC_AUTH))
+          echo "Triggers: $TRC (public=$TRC_PUB, auth=$TRC_AUTH)"; [ "$TRC" = "6" ] || { echo "FAIL: Expected 6 triggers"; exit 1; }
 
           PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename IN ($APP_TABLES);")
           echo "Policies: $PC"; [ "$PC" = "31" ] || { echo "FAIL: Expected 31 policies"; exit 1; }
