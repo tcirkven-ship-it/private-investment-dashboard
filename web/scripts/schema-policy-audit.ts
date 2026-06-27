@@ -39,7 +39,8 @@ function assert(label: string, actual: string, expected: string) {
 }
 
 function assertTable(table: string, columns: string) {
-  const actual = sql(`SELECT string_agg(column_name || ':' || data_type || ':' || CASE WHEN is_nullable = 'NO' THEN 'NN' ELSE '' END || ':' || COALESCE(column_default, ''), '|') FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '${table}' ORDER BY ordinal_position;`);
+  // Build column definition with data_type, udt_name (for enums), nullability and default
+  const actual = sql(`SELECT string_agg(coldef, '|' ORDER BY ordinal_position) FROM (SELECT column_name || ':' || CASE WHEN udt_name IN ('snapshot_status','rebalance_status','transaction_event_type') THEN udt_name ELSE data_type END || ':' || CASE WHEN is_nullable = 'NO' THEN 'NN' ELSE '' END || ':' || COALESCE(column_default, '') AS coldef, ordinal_position FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '${table}') sub;`);
   assert(`table ${table} columns`, actual, columns);
 }
 
