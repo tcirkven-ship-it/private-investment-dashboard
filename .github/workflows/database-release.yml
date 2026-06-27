@@ -12,7 +12,7 @@ on:
     branches: [main]
 
 env:
-  SUPABASE_CLI_VERSION: "2.6.1"
+  SUPABASE_CLI_VERSION: "2.19.7"
 
 jobs:
   verify:
@@ -56,33 +56,66 @@ jobs:
       - name: Export environment
         shell: bash
         run: |
-          supabase --workdir "$CI_DIR" status -o env > /tmp/supabase_env.txt
-          while IFS= read -r line; do
-            key=$(echo "$line" | cut -d= -f1)
-            val=$(echo "$line" | cut -d= -f2- | sed 's/^"//;s/"$//')
-            [ -z "$key" ] && continue
-            case "$key" in
-              SUPABASE_URL) echo "NEXT_PUBLIC_SUPABASE_URL=$val" >> "$GITHUB_ENV" ;;
-              SUPABASE_ANON_KEY) echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$val" >> "$GITHUB_ENV" ;;
-              SUPABASE_SERVICE_ROLE_KEY) echo "SUPABASE_SERVICE_ROLE_KEY=$val" >> "$GITHUB_ENV" ;;
-              SUPABASE_DB_URL) echo "PG_TEST_URL=$val" >> "$GITHUB_ENV" ;;
-            esac
-          done < /tmp/supabase_env.txt
+          # Parse supabase status -o env output
+          eval "$(supabase --workdir "$CI_DIR" status -o env 2>/dev/null | sed 's/^export //')"
+          : "${API_URL:?}" "${DB_URL:?}" "${ANON_KEY:?}" "${SERVICE_ROLE_KEY:?}"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo "PG_TEST_URL=$DB_URL" >> "$GITHUB_ENV"
+          echo "API_URL present: yes"
+          echo "DB_URL present: yes"
+          echo "Anon key present: yes"
+          echo "Service-role key present: yes"
 
       - name: Health check
         shell: bash
         run: |
-          echo "Checking services..."
+          echo "Checking services (timeout: 60s)..."
           for i in $(seq 1 30); do
-            db_ok=0; auth_ok=0; cli_ok=0
-            psql "$PG_TEST_URL" -c "select 1;" > /dev/null 2>&1 && db_ok=1
-            curl --fail --silent --show-error "${NEXT_PUBLIC_SUPABASE_URL}/auth/v1/health" > /dev/null 2>&1 && auth_ok=1
-            supabase --workdir "$CI_DIR" status > /dev/null 2>&1 && cli_ok=1
-            [ "$db_ok" = "1" ] && [ "$auth_ok" = "1" ] && [ "$cli_ok" = "1" ] && echo "All healthy" && exit 0
+            db_result="pass"; auth_result="pass"; rest_result="pass"
+
+            # Database check
+            if ! psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "select 1;" > /dev/null 2>&1; then
+              db_result="fail"
+            fi
+
+            # Auth health check
+            if ! curl --fail --silent --show-error \
+              -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+              "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/health" > /dev/null 2>&1; then
+              auth_result="fail"
+            fi
+
+            # REST API check
+            if ! curl --fail --silent --show-error \
+              -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+              "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/" > /dev/null 2>&1; then
+              rest_result="fail"
+            fi
+
+            echo "Attempt $i/30: db=$db_result auth=$auth_result rest=$rest_result"
+
+            if [ "$db_result" = "pass" ] && [ "$auth_result" = "pass" ] && [ "$rest_result" = "pass" ]; then
+              echo "All services healthy"
+              exit 0
+            fi
             sleep 2
           done
+
           echo "FAILED: Services not healthy within 60s"
-          supabase --workdir "$CI_DIR" status || true
+          echo "--- Final diagnostics ---"
+          psql "$PG_TEST_URL" -c "select 1;" 2>&1 || echo "DB check failed"
+          curl -s -o /dev/null -w "Auth HTTP status: %{http_code}\n" \
+            -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+            "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/health" || echo "Auth check failed"
+          curl -s -o /dev/null -w "REST HTTP status: %{http_code}\n" \
+            -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+            "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/" || echo "REST check failed"
+          echo "API URL present: $([ -n \"$NEXT_PUBLIC_SUPABASE_URL\" ] && echo yes || echo no)"
+          echo "DB URL present: $([ -n \"$PG_TEST_URL\" ] && echo yes || echo no)"
+          echo "Anon key present: $([ -n \"$NEXT_PUBLIC_SUPABASE_ANON_KEY\" ] && echo yes || echo no)"
+          echo "Service-role key present: $([ -n \"$SUPABASE_SERVICE_ROLE_KEY\" ] && echo yes || echo no)"
           exit 1
 
       - name: Run Auth and RLS tests
