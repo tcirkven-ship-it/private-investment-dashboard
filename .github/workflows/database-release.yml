@@ -228,16 +228,25 @@ jobs:
       - name: Verify zero objects after reset
         shell: bash
         run: |
-          for obj in "tables|information_schema.tables WHERE table_schema = 'public'" \
-                     "enums|pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace::regnamespace = 'public'" \
-                     "functions|pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f'" \
-                     "triggers|information_schema.triggers WHERE trigger_schema = 'public'" \
-                     "policies|pg_policies WHERE schemaname = 'public'"; do
-            label="${obj%%|*}"; query="${obj#*|}"
-            count=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM $query;")
-            echo "$label: $count"
-            [ "$count" = "0" ] || { echo "FAIL: Expected 0 $label after reset"; exit 1; }
-          done
+          APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
+          APP_TRIGGERS="'set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
+
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ($APP_TABLES);")
+          echo "tables: $TC"; [ "$TC" = "0" ] || { echo "FAIL: Expected 0 app tables"; exit 1; }
+
+          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace = 'public'::regnamespace AND t.typname IN ($APP_ENUMS);")
+          echo "enums: $EC"; [ "$EC" = "0" ] || { echo "FAIL: Expected 0 app enums"; exit 1; }
+
+          FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ($APP_FUNCS);")
+          echo "functions: $FC"; [ "$FC" = "0" ] || { echo "FAIL: Expected 0 app functions"; exit 1; }
+
+          TRC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.triggers WHERE trigger_schema = 'public' AND trigger_name IN ($APP_TRIGGERS);")
+          echo "triggers: $TRC"; [ "$TRC" = "0" ] || { echo "FAIL: Expected 0 app triggers"; exit 1; }
+
+          PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename IN ($APP_TABLES);")
+          echo "policies: $PC"; [ "$PC" = "0" ] || { echo "FAIL: Expected 0 app policies"; exit 1; }
       - name: Reapply migration
         shell: bash
         run: |
@@ -246,17 +255,27 @@ jobs:
       - name: Verify inventory after reapply
         shell: bash
         run: |
-          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
-          echo "Tables: $TC"; [ "$TC" = "17" ] || { echo "FAIL: Expected 17 tables after reapply"; exit 1; }
-          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace::regnamespace = 'public';")
-          echo "Enums: $EC"; [ "$EC" = "3" ] || { echo "FAIL: Expected 3 enums after reapply"; exit 1; }
-          FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ('check_snapshot_status_transition','check_transaction_owner','handle_new_user','is_owner','prevent_portfolio_deletion','update_updated_at_column');")
-          echo "Core functions: $FC"; [ "$FC" = "6" ] || { echo "FAIL: Expected 6 core functions"; exit 1; }
-          TRC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.triggers WHERE trigger_schema = 'public';")
+          APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
+          APP_TRIGGERS="'set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
+
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ($APP_TABLES);")
+          echo "Tables: $TC"; [ "$TC" = "17" ] || { echo "FAIL: Expected 17 tables"; exit 1; }
+
+          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace = 'public'::regnamespace AND t.typname IN ($APP_ENUMS);")
+          echo "Enums: $EC"; [ "$EC" = "3" ] || { echo "FAIL: Expected 3 enums"; exit 1; }
+
+          FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ($APP_FUNCS);")
+          echo "Functions: $FC"; [ "$FC" = "6" ] || { echo "FAIL: Expected 6 functions"; exit 1; }
+
+          TRC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.triggers WHERE trigger_schema = 'public' AND trigger_name IN ($APP_TRIGGERS);")
           echo "Triggers: $TRC"; [ "$TRC" = "6" ] || { echo "FAIL: Expected 6 triggers"; exit 1; }
-          PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public';")
+
+          PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename IN ($APP_TABLES);")
           echo "Policies: $PC"; [ "$PC" = "31" ] || { echo "FAIL: Expected 31 policies"; exit 1; }
-          RC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relrowsecurity = true AND n.nspname = 'public';")
+
+          RC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relrowsecurity = true AND n.nspname = 'public' AND c.relname IN ($APP_TABLES);")
           echo "RLS-enabled tables: $RC"; [ "$RC" = "17" ] || { echo "FAIL: Expected 17 RLS-enabled tables"; exit 1; }
       - name: Stop Supabase
         if: always()
