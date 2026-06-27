@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:db-migrations": "PG_TEST_URL=${PG_TEST_URL:-} bash scripts/verify-migrations.sh",
     "test:db-rls": "PG_TEST_URL=${PG_TEST_URL:-} bash scripts/verify-rls.sh",
-    "test:all": "npm test && npm run test:db-migrations && npm run test:db-rls && npm run build"
+    "test:all": "npm test && npm run test:db-migrations && npm run test:db-rls && npm run build",
+    "test:auth-rls": "tsx scripts/test-auth-rls.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
@@ -35,6 +36,7 @@
     "eslint-config-next": "16.2.9",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5",
     "vitest": "^4.1.9"
   }
