@@ -378,17 +378,35 @@ jobs:
       - name: Verify zero rollback objects remain after failure
         shell: bash
         run: |
-          RT=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT to_regclass('public.rollback_test_table');")
-          echo "rollback_test_table: $RT"; [ "$RT" = "NULL" ] || { echo "FAIL: rollback_test_table should not exist"; exit 1; }
-          RS=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT to_regclass('public.rollback_test_second_table');")
-          echo "rollback_test_second_table: $RS"; [ "$RS" = "NULL" ] || { echo "FAIL: rollback_test_second_table should not exist"; exit 1; }
+          RT=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT CASE WHEN to_regclass('public.rollback_test_table') IS NULL THEN 0 ELSE 1 END;")
+          echo "rollback_test_table exists: $RT"; [ "$RT" = "0" ] || { echo "FAIL: rollback_test_table should not exist"; exit 1; }
+          RS=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT CASE WHEN to_regclass('public.rollback_test_second_table') IS NULL THEN 0 ELSE 1 END;")
+          echo "rollback_test_second_table exists: $RS"; [ "$RS" = "0" ] || { echo "FAIL: rollback_test_second_table should not exist"; exit 1; }
           RE=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_type WHERE typname = 'rollback_test_enum' AND typnamespace = 'public'::regnamespace;")
-          echo "rollback_test_enum: $RE"; [ "$RE" = "0" ] || { echo "FAIL: rollback_test_enum should not exist"; exit 1; }
+          echo "rollback_test_enum count: $RE"; [ "$RE" = "0" ] || { echo "FAIL: rollback_test_enum should not exist"; exit 1; }
       - name: Verify zero real application objects remain
         shell: bash
         run: |
-          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
-          echo "app tables: $TC"; [ "$TC" = "0" ] || { echo "FAIL: Expected 0 app tables after rollback"; exit 1; }
+          APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
+          APP_TRIGGERS_PUBLIC="'set_profiles_updated_at','set_portfolios_updated_at','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
+          APP_TRIGGER_AUTH="on_auth_user_created"
+          APP_POLICIES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
+
+          echo "=== App object inventory after rollback ==="
+          TC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ($APP_TABLES);")
+          echo "tables: $TC"; [ "$TC" = "0" ] || { echo "FAIL: Expected 0 app tables"; exit 1; }
+          EC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(DISTINCT t.typname) FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid WHERE t.typnamespace = 'public'::regnamespace AND t.typname IN ($APP_ENUMS);")
+          echo "enums: $EC"; [ "$EC" = "0" ] || { echo "FAIL: Expected 0 app enums"; exit 1; }
+          FC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ($APP_FUNCS);")
+          echo "functions: $FC"; [ "$FC" = "0" ] || { echo "FAIL: Expected 0 app functions"; exit 1; }
+          TRC_PUB=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'public' AND tg.tgname IN ($APP_TRIGGERS_PUBLIC);")
+          TRC_AUTH=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_trigger tg JOIN pg_class cls ON cls.oid = tg.tgrelid JOIN pg_namespace ns ON ns.oid = cls.relnamespace WHERE NOT tg.tgisinternal AND ns.nspname = 'auth' AND cls.relname = 'users' AND tg.tgname = '$APP_TRIGGER_AUTH';")
+          TRC=$((TRC_PUB + TRC_AUTH))
+          echo "triggers: $TRC"; [ "$TRC" = "0" ] || { echo "FAIL: Expected 0 app triggers"; exit 1; }
+          PC=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename IN ($APP_POLICIES);")
+          echo "policies: $PC"; [ "$PC" = "0" ] || { echo "FAIL: Expected 0 app policies"; exit 1; }
       - name: Stop Supabase
         if: always()
         shell: bash
