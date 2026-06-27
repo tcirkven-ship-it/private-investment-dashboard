@@ -183,17 +183,33 @@ jobs:
       - name: Insert test data
         shell: bash
         run: |
-          psql "$PG_TEST_URL" -c "INSERT INTO auth.users (id, email, encrypted_password) VALUES ('00000000-0000-0000-0000-000000000001', 'reset@t.com', '\$2a\$10\$x') ON CONFLICT (id) DO NOTHING;"
-          psql "$PG_TEST_URL" -c "INSERT INTO public.portfolios (owner_id, name, opening_date) VALUES ('00000000-0000-0000-0000-000000000001', 'Test', '2025-01-01');"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO auth.users (id, email, encrypted_password, created_at) VALUES ('00000000-0000-0000-0000-000000000001', 'reset@t.com', '\$2a\$10\$x', now()) ON CONFLICT (id) DO NOTHING;"
+          psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -c "INSERT INTO public.portfolios (owner_id, name, opening_date) VALUES ('00000000-0000-0000-0000-000000000001', 'Test', '2025-01-01');"
           echo "Data inserted"
+      - name: Verify test data exists
+        shell: bash
+        run: |
+          MV=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM public.model_versions;")
+          PF=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM public.portfolios;")
+          echo "model_versions: $MV, portfolios: $PF"
+          [ "$MV" -gt "0" ] || { echo "FAIL: model_versions has no data (expected rows from migration)"; exit 1; }
+          [ "$PF" -gt "0" ] || { echo "FAIL: portfolios has no data (test insert failed)"; exit 1; }
       - name: Reset without override (must refuse)
         shell: bash
         run: |
-          if psql "$PG_TEST_URL" -f "$GITHUB_WORKSPACE/web/supabase/reset_new_project.sql" 2>&1; then
-            echo "FAIL: Reset should have refused"; exit 1
+          if psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/web/supabase/reset_new_project.sql" 2>&1; then
+            echo "FAIL: Reset should have refused"
+            psql "$PG_TEST_URL" -c "SELECT count(*) FROM public.portfolios;" || true
+            exit 1
           else
-            echo "PASS: Reset correctly refused"
+            echo "PASS: Reset correctly refused with data present"
           fi
+      - name: Verify data still exists after refused reset
+        shell: bash
+        run: |
+          PF=$(psql "$PG_TEST_URL" -v ON_ERROR_STOP=1 -t -A -c "SELECT count(*) FROM public.portfolios;")
+          [ "$PF" -gt "0" ] || { echo "FAIL: Data was lost even though reset was refused"; exit 1; }
+          echo "PASS: Data preserved after refused reset ($PF rows)"
       - name: Reset with override
         shell: bash
         run: >

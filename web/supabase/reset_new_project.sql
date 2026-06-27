@@ -4,7 +4,7 @@
 -- For brand-new Supabase development projects with NO real data.
 -- WARNING: This is destructive. All application data will be lost.
 --
--- Refuses if any application table contains rows.
+-- Refuses if any application table contains rows and no override is set.
 -- Override: SET app.reset_override = true; before running.
 --
 -- Does NOT modify: auth, storage, extensions, realtime, supabase_functions
@@ -12,70 +12,88 @@
 
 DO $$
 DECLARE
-  app_tables TEXT[] := ARRAY[
-    'public.owner_decisions', 'public.rebalance_lines', 'public.rebalance_events',
-    'public.portfolio_valuations', 'public.model_publication_events',
-    'public.model_snapshot_holdings', 'public.model_snapshots', 'public.model_versions',
-    'public.data_imports', 'public.audit_events', 'public.benchmark_observations',
-    'public.price_observations', 'public.transactions', 'public.portfolios',
-    'public.securities', 'public.app_settings', 'public.profiles'
-  ];
-  t TEXT;
-  row_count INT;
-  has_data BOOLEAN := false;
-  override BOOLEAN;
+  tbl text;
+  row_count bigint;
+  has_data boolean := false;
+  override_enabled boolean;
 BEGIN
-  -- Check override
+  -- Check override setting
   BEGIN
-    override := current_setting('app.reset_override', true) = 'true';
+    override_enabled := COALESCE(
+      current_setting('app.reset_override', true)::boolean,
+      false
+    );
   EXCEPTION WHEN OTHERS THEN
-    override := false;
+    override_enabled := false;
   END;
 
-  IF NOT override THEN
-    -- Check if any application table has rows
-    FOREACH t IN ARRAY app_tables
+  IF NOT override_enabled THEN
+    -- Check every application table for data
+    FOR tbl IN
+      SELECT unnest(ARRAY[
+        'profiles',
+        'app_settings',
+        'securities',
+        'model_versions',
+        'model_snapshots',
+        'model_snapshot_holdings',
+        'model_publication_events',
+        'portfolios',
+        'transactions',
+        'price_observations',
+        'benchmark_observations',
+        'portfolio_valuations',
+        'rebalance_events',
+        'rebalance_lines',
+        'owner_decisions',
+        'data_imports',
+        'audit_events'
+      ])
     LOOP
-      BEGIN
-        EXECUTE format('SELECT count(*) FROM %s LIMIT 1', t) INTO row_count;
+      IF to_regclass(format('public.%I', tbl)) IS NOT NULL THEN
+        EXECUTE format('SELECT count(*) FROM public.%I', tbl) INTO row_count;
+
         IF row_count > 0 THEN
           has_data := true;
-          RAISE WARNING 'Table % has % row(s)', t, row_count;
+          RAISE NOTICE 'Application table public.% contains % row(s)', tbl, row_count;
         END IF;
-      EXCEPTION WHEN undefined_table THEN
-        -- Table doesn't exist yet — fine
-        NULL;
-      END;
+      END IF;
     END LOOP;
 
     IF has_data THEN
-      RAISE EXCEPTION 'Application tables contain data. Set app.reset_override = true to override.';
+      RAISE EXCEPTION 'Refusing reset: application data exists. Set app.reset_override=true only for disposable test databases.';
     END IF;
   END IF;
 
-  -- Drop application objects
-  FOREACH t IN ARRAY app_tables
+  -- Drop application tables (in dependency-safe order)
+  FOREACH tbl IN ARRAY ARRAY[
+    'owner_decisions', 'rebalance_lines', 'rebalance_events',
+    'portfolio_valuations', 'model_publication_events',
+    'model_snapshot_holdings', 'model_snapshots', 'model_versions',
+    'data_imports', 'audit_events', 'benchmark_observations',
+    'price_observations', 'transactions', 'portfolios',
+    'securities', 'app_settings', 'profiles'
+  ]
   LOOP
-    BEGIN
-      EXECUTE format('DROP TABLE IF EXISTS %s CASCADE', t);
-    EXCEPTION WHEN OTHERS THEN
-      NULL;
-    END;
+    IF to_regclass(format('public.%I', tbl)) IS NOT NULL THEN
+      EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', tbl);
+    END IF;
   END LOOP;
 
   -- Drop custom types
-  BEGIN
-    DROP TYPE IF EXISTS public.snapshot_status CASCADE;
-    DROP TYPE IF EXISTS public.rebalance_status CASCADE;
-    DROP TYPE IF EXISTS public.transaction_event_type CASCADE;
-  EXCEPTION WHEN OTHERS THEN NULL; END;
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'snapshot_status' AND typnamespace = 'public'::regnamespace) THEN
+    DROP TYPE public.snapshot_status CASCADE;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rebalance_status' AND typnamespace = 'public'::regnamespace) THEN
+    DROP TYPE public.rebalance_status CASCADE;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transaction_event_type' AND typnamespace = 'public'::regnamespace) THEN
+    DROP TYPE public.transaction_event_type CASCADE;
+  END IF;
 
   -- Drop functions
-  BEGIN
-    DROP FUNCTION IF EXISTS public.update_updated_at_column() CASCADE;
-    DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
-    DROP FUNCTION IF EXISTS public.prevent_published_mutation() CASCADE;
-    DROP FUNCTION IF EXISTS public.prevent_portfolio_deletion() CASCADE;
-    DROP FUNCTION IF EXISTS public.is_owner() CASCADE;
-  EXCEPTION WHEN OTHERS THEN NULL; END;
+  FOR tbl IN SELECT proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.proname IN ('update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner')
+  LOOP
+    EXECUTE format('DROP FUNCTION IF EXISTS public.%I() CASCADE', tbl);
+  END LOOP;
 END $$;
