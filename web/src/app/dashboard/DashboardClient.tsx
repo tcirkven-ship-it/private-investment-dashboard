@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase";
-import { TrendingUp, TrendingDown, DollarSign, PiggyBank, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 interface DashboardData {
   totalValue: number;
@@ -22,35 +20,10 @@ interface DashboardData {
   lastUpdated: string;
 }
 
-export default function DashboardClient() {
-  const [data, setData] = useState<DashboardData | null>(null);
-
-  useEffect(() => {
-    // Load from Supabase or initialize with empty state
-    setData({
-      totalValue: 100000,
-      cash: 5000,
-      dailyChange: 1250.45,
-      dailyChangePct: 1.27,
-      mtdReturn: 3.42,
-      qtdReturn: 5.18,
-      ytdReturn: 12.76,
-      oneYearReturn: 18.34,
-      sinceInceptionReturn: 24.51,
-      modelAlignment: 73.3,
-      modelDate: "2026-06-23",
-      nextReview: "2026-09-30",
-      spyYtd: 10.24,
-      qqqYtd: 14.87,
-      lastUpdated: "2026-06-24 14:30 UTC",
-    });
-  }, []);
-
-  if (!data) return <div className="text-neutral-500 text-sm p-8">Loading dashboard...</div>;
-
-  const MetricCard = ({ label, value, change, isCurrency }: {
-    label: string; value: string; change?: string; isCurrency?: boolean;
-  }) => (
+function MetricCard({ label, value, change }: {
+  label: string; value: string; change?: string;
+}) {
+  return (
     <div className="card">
       <p className="metric-label">{label}</p>
       <p className="metric-value mt-1">{value}</p>
@@ -61,6 +34,29 @@ export default function DashboardClient() {
       )}
     </div>
   );
+}
+
+const MOCK_DATA: DashboardData = {
+  totalValue: 100000,
+  cash: 5000,
+  dailyChange: 1250.45,
+  dailyChangePct: 1.27,
+  mtdReturn: 3.42,
+  qtdReturn: 5.18,
+  ytdReturn: 12.76,
+  oneYearReturn: 18.34,
+  sinceInceptionReturn: 24.51,
+  modelAlignment: 73.3,
+  modelDate: "2026-06-23",
+  nextReview: "2026-09-30",
+  spyYtd: 10.24,
+  qqqYtd: 14.87,
+  lastUpdated: "2026-06-24 14:30 UTC",
+};
+
+export default function DashboardClient() {
+  // Load from Supabase or initialize with mock data
+  const data = MOCK_DATA;
 
   return (
     <div className="space-y-6">

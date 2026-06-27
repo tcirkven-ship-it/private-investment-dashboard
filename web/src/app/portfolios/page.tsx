@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase";
-import { Plus, ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
 
 interface Portfolio {
   id: string;
@@ -13,17 +11,14 @@ interface Portfolio {
   is_archived: boolean;
 }
 
-export default function PortfoliosPage() {
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+const MOCK_PORTFOLIOS: Portfolio[] = [
+  { id: "1", name: "Main Brokerage", opening_date: "2025-01-01", starting_cash: 100000, is_archived: false },
+  { id: "2", name: "Retirement", opening_date: "2025-06-01", starting_cash: 50000, is_archived: false },
+  { id: "3", name: "Paper Account", opening_date: "2026-03-01", starting_cash: 25000, is_archived: false },
+];
 
-  useEffect(() => {
-    // In production, load from Supabase
-    setPortfolios([
-      { id: "1", name: "Main Brokerage", opening_date: "2025-01-01", starting_cash: 100000, is_archived: false },
-      { id: "2", name: "Retirement", opening_date: "2025-06-01", starting_cash: 50000, is_archived: false },
-      { id: "3", name: "Paper Account", opening_date: "2026-03-01", starting_cash: 25000, is_archived: false },
-    ]);
-  }, []);
+export default function PortfoliosPage() {
+  const portfolios = MOCK_PORTFOLIOS;
 
   return (
     <div className="space-y-6">
