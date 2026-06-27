@@ -229,7 +229,7 @@ jobs:
         shell: bash
         run: |
           APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
-          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_types'"
           APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
           APP_TRIGGERS_PUBLIC="'set_profiles_updated_at','set_portfolios_updated_at','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
           APP_TRIGGER_AUTH="on_auth_user_created"
@@ -269,7 +269,7 @@ jobs:
         shell: bash
         run: |
           APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
-          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_types'"
           APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
           APP_TRIGGERS="'set_profiles_updated_at','set_portfolios_updated_at','on_auth_user_created','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
 
@@ -388,7 +388,7 @@ jobs:
         shell: bash
         run: |
           APP_TABLES="'profiles','app_settings','securities','model_versions','model_snapshots','model_snapshot_holdings','model_publication_events','portfolios','transactions','price_observations','benchmark_observations','portfolio_valuations','rebalance_events','rebalance_lines','owner_decisions','data_imports','audit_events'"
-          APP_ENUMS="'snapshot_status','rebalance_status','transaction_event_type'"
+          APP_ENUMS="'snapshot_status','rebalance_status','transaction_types'"
           APP_FUNCS="'update_updated_at_column','handle_new_user','prevent_published_mutation','check_snapshot_status_transition','prevent_portfolio_deletion','check_transaction_owner','is_owner'"
           APP_TRIGGERS_PUBLIC="'set_profiles_updated_at','set_portfolios_updated_at','check_snapshot_status_transition','check_transaction_owner','prevent_portfolio_deletion'"
           APP_TRIGGER_AUTH="on_auth_user_created"
