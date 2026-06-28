@@ -44,22 +44,46 @@ function parseM1B2CSV(): { rows: M1Row[]; error?: string } {
 }
 
 export async function importM1B2Model(): Promise<ActionResult & { message?: string }> {
+  const ownerEmail = process.env.OWNER_EMAIL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // Diagnostic: env present without values
+  console.log("OWNER_EMAIL present:", ownerEmail ? "yes" : "no");
+  console.log("SUPABASE_SERVICE_ROLE_KEY present:", serviceKey ? "yes" : "no");
+
+  if (!ownerEmail) return { error: "OWNER_EMAIL env var not configured." };
+  if (!serviceKey) return { error: "SUPABASE_SERVICE_ROLE_KEY env var not configured." };
+
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.id) return { error: "Not authenticated" };
+  if (!user) return { error: "Not authenticated. Please sign in again." };
+
+  console.log("current user present:", "yes");
+  console.log("current user email matches owner:", user.email?.toLowerCase() === ownerEmail.toLowerCase() ? "yes" : "no");
+
+  if (user.email?.toLowerCase() !== ownerEmail.toLowerCase()) {
+    return { error: "Owner access required." };
+  }
 
   const parsed = parseM1B2CSV();
   if (parsed.error) return { error: parsed.error };
 
-  const rows = parsed.rows;
+  // Service client for model writes (RLS bypass)
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
 
+  const rows = parsed.rows;
   const ts = Date.now().toString(36);
   const targetWeight = 1 / 30;
 
   // Upsert securities
   const secIds: Record<string, string> = {};
   for (const r of rows) {
-    const { data: created } = await supabase.from("securities").upsert({
+    const { data: created } = await db.from("securities").upsert({
       ticker: r.ticker,
       sector: r.sector,
       industry: r.industry,
@@ -67,25 +91,25 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     }, { onConflict: "ticker" }).select("id").single();
     if (created) secIds[r.ticker] = created.id;
     else {
-      const { data: existing } = await supabase.from("securities").select("id").eq("ticker", r.ticker).single();
+      const { data: existing } = await db.from("securities").select("id").eq("ticker", r.ticker).single();
       if (existing) secIds[r.ticker] = existing.id;
     }
   }
 
   // Supersede old DRAFT snapshots
-  const { data: oldDrafts } = await supabase.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
+  const { data: oldDrafts } = await db.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
   if (oldDrafts) {
     for (const d of oldDrafts) {
-      await supabase.from("model_snapshots").update({ status: "SUPERSEDED" }).eq("id", d.id);
+      await db.from("model_snapshots").update({ status: "SUPERSEDED" }).eq("id", d.id);
     }
   }
 
   // Ensure model version exists
-  let { data: mv } = await supabase.from("model_versions").select("id").eq("model_id", "M1_B2_QUALITY_VETO_N30").maybeSingle();
+  let { data: mv } = await db.from("model_versions").select("id").eq("model_id", "M1_B2_QUALITY_VETO_N30").maybeSingle();
   if (!mv) {
     const d = new Date();
     const v = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-    const { data: newMv, error: mvErr } = await supabase.from("model_versions").insert({
+    const { data: newMv, error: mvErr } = await db.from("model_versions").insert({
       model_id: "M1_B2_QUALITY_VETO_N30",
       version: v,
       description: "Decision support only. Not investment advice. Source: m1_b2_quality_veto_targets.csv",
@@ -96,7 +120,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   }
 
   // Create DRAFT snapshot
-  const { data: snapshot, error: snapErr } = await supabase.from("model_snapshots").insert({
+  const { data: snapshot, error: snapErr } = await db.from("model_snapshots").insert({
     model_version_id: mv.id,
     snapshot_id: `m1b2-${ts}`,
     status: "DRAFT",
@@ -115,7 +139,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     const r = rows[i];
     const secId = secIds[r.ticker];
     if (!secId) continue;
-    await supabase.from("model_snapshot_holdings").upsert({
+    await db.from("model_snapshot_holdings").upsert({
       snapshot_id: sid,
       security_id: secId,
       rank: i + 1,
