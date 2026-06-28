@@ -175,11 +175,14 @@ export async function insertTransaction(formData: FormData): Promise<ActionResul
   const price = parseFloat(formData.get("price") as string) || 0;
   const commission = parseFloat(formData.get("commission") as string) || 0;
 
+  // Recalculate gross for BUY/SELL from quantity × price (do not trust client)
+  const calcGross = ["BUY", "SELL"].includes(eventType) ? quantity * price : grossAmount;
+
   const payload: Record<string, unknown> = {
     portfolio_id: portfolioId,
     event_type: eventType,
     event_date: eventDate,
-    gross_amount: grossAmount,
+    gross_amount: calcGross,
     quantity: quantity || null,
     price: price || null,
     commission: commission || 0,

@@ -29,6 +29,8 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
   const needsTicker = ["BUY", "SELL", "DIVIDEND", "SPLIT", "SYMBOL_CHANGE"].includes(eventType);
   const needsQuantity = ["BUY", "SELL", "SPLIT", "CORRECTION"].includes(eventType);
   const needsPrice = ["BUY", "SELL", "CORRECTION"].includes(eventType);
+  const needsGrossCalc = ["BUY", "SELL"].includes(eventType);
+  const calcAmount = (parseFloat(quantity) || 0) * (parseFloat(price) || 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,7 +106,11 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
         )}
         <div>
           <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Gross Amount ($)</label>
-          <input type="number" value={grossAmount} onChange={(e) => setGrossAmount(e.target.value)} className="input" step="0.01" required />
+          {needsGrossCalc ? (
+            <div className="input bg-neutral-900 text-neutral-400">${calcAmount.toFixed(2)}</div>
+          ) : (
+            <input type="number" value={grossAmount} onChange={(e) => setGrossAmount(e.target.value)} className="input" step="0.01" required />
+          )}
         </div>
         <div>
           <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Commission ($)</label>

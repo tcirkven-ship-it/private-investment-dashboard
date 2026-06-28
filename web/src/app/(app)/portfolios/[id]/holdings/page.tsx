@@ -27,7 +27,10 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const { state, nav, priceCount } = data;
+  const { state, nav, priceCount, transactions } = data;
+  const holdings = [...state.holdings.values()];
+  const totalCostBasis = holdings.reduce((s, h) => s + h.total_cost, 0);
+  const hasMissingPrices = holdings.some((h) => h.market_value === undefined || h.market_value === null);
 
   return (
     <div className="space-y-6">
@@ -37,8 +40,7 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
           <div>
             <h1 className="text-xl font-semibold">Holdings</h1>
             <p className="text-sm text-neutral-500">
-              NAV: ${nav.toLocaleString()}
-              {priceCount === 0 ? " · prices unavailable" : ""}
+              {hasMissingPrices ? "NAV: unavailable — prices missing" : `NAV: $${nav.toLocaleString()}`}
             </p>
           </div>
         </div>
@@ -46,7 +48,7 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card"><p className="metric-label">Cash</p><p className="metric-value mt-1">${state.cash.toLocaleString()}</p></div>
-        <div className="card"><p className="metric-label">Invested</p><p className="metric-value mt-1">${(nav - state.cash).toLocaleString()}</p></div>
+        <div className="card"><p className="metric-label">Cost Basis</p><p className="metric-value mt-1">${totalCostBasis.toLocaleString()}</p></div>
         <div className="card"><p className="metric-label">Realized P/L</p><p className={`metric-value mt-1 ${state.total_realized_pl >= 0 ? "text-green-400" : "text-red-400"}`}>${state.total_realized_pl.toFixed(2)}</p></div>
         <div className="card"><p className="metric-label">Dividends</p><p className="metric-value mt-1 text-blue-400">${state.total_dividends.toFixed(2)}</p></div>
       </div>

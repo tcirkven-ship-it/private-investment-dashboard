@@ -3,17 +3,25 @@ import type { TransactionData } from "@/lib/adapters";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import TransactionForm from "@/components/portfolios/TransactionForm";
+import DeleteTransactionButton from "./DeleteTransactionButton";
+
+function netCash(tx: TransactionData): number {
+  switch (tx.event_type) {
+    case "BUY": return -(tx.gross_amount + tx.commission);
+    case "SELL": return tx.gross_amount - tx.commission;
+    case "DEPOSIT": case "DIVIDEND": case "INTEREST": return tx.gross_amount;
+    case "WITHDRAWAL": case "FEE": case "TAX": return -tx.gross_amount;
+    default: return tx.gross_amount;
+  }
+}
 
 export default async function TransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let transactions: TransactionData[] = [];
   let error: string | null = null;
 
-  try {
-    transactions = await loadTransactions(id as string);
-  } catch (e: unknown) {
-    error = e instanceof Error ? e.message : "Unknown error";
-  }
+  try { transactions = await loadTransactions(id as string); }
+  catch (e: unknown) { error = e instanceof Error ? e.message : "Unknown error"; }
 
   if (error) {
     return (
@@ -22,9 +30,7 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
           <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Transactions</h1>
         </div>
-        <div className="card border-red-500/30 bg-red-500/5">
-          <p className="text-sm text-red-400">{error}</p>
-        </div>
+        <div className="card border-red-500/30 bg-red-500/5"><p className="text-sm text-red-400">{error}</p></div>
       </div>
     );
   }
@@ -34,10 +40,7 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
-          <div>
-            <h1 className="text-xl font-semibold">Transactions</h1>
-            <p className="text-sm text-neutral-500">{transactions.length} records</p>
-          </div>
+          <div><h1 className="text-xl font-semibold">Transactions</h1><p className="text-sm text-neutral-500">{transactions.length} records</p></div>
         </div>
       </div>
 
@@ -56,8 +59,10 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
                   <th className="table-header">Type</th>
                   <th className="table-header">Ticker</th>
                   <th className="table-header text-right">Qty</th>
-                  <th className="table-header text-right">Amount</th>
-                  <th className="table-header text-right">Fee</th>
+                  <th className="table-header text-right">Price</th>
+                  <th className="table-header text-right">Gross</th>
+                  <th className="table-header text-right">Net Cash</th>
+                  <th className="table-header">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -69,13 +74,18 @@ export default async function TransactionsPage({ params }: { params: Promise<{ i
                         tx.event_type === "BUY" ? "bg-green-500/10 text-green-400" :
                         tx.event_type === "SELL" ? "bg-red-500/10 text-red-400" :
                         tx.event_type === "DIVIDEND" ? "bg-blue-500/10 text-blue-400" :
-                        "bg-neutral-800 text-neutral-300"
-                      }`}>{tx.event_type}</span>
+                        "bg-neutral-800 text-neutral-300"}`}>{tx.event_type}</span>
                     </td>
                     <td className="table-cell-text font-semibold">{tx.ticker || "—"}</td>
                     <td className="table-cell text-right">{tx.quantity || "—"}</td>
+                    <td className="table-cell text-right">{tx.price ? `$${tx.price.toFixed(2)}` : "—"}</td>
                     <td className="table-cell text-right">${tx.gross_amount.toLocaleString()}</td>
-                    <td className="table-cell text-right">{tx.commission ? `$${tx.commission}` : "—"}</td>
+                    <td className={`table-cell text-right font-mono ${netCash(tx) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                      {netCash(tx) >= 0 ? "+" : ""}${netCash(tx).toLocaleString()}
+                    </td>
+                    <td className="table-cell">
+                      <DeleteTransactionButton txId={tx.id} portfolioId={id as string} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
