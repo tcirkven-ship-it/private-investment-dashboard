@@ -3,12 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { seedAcceptanceData } from "@/lib/actions";
-import { Briefcase, TrendingUp, PlusCircle, Database } from "lucide-react";
+import { seedAcceptanceData, importM1B2Model } from "@/lib/actions";
+import { Briefcase, TrendingUp, PlusCircle, Database, Download } from "lucide-react";
 
 export interface DashboardData {
   portfolioCount: number;
   modelPublished: boolean;
+  modelStatus: string | null;
+  modelName: string | null;
+  modelDate: string | null;
+  holdingsCount: number;
   isOwner: boolean;
 }
 
@@ -16,6 +20,8 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
   const router = useRouter();
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [importingModel, setImportingModel] = useState(false);
+  const [modelResult, setModelResult] = useState<string | null>(null);
 
   async function handleSeed() {
     setSeeding(true);
@@ -28,6 +34,19 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
       router.refresh();
     }
     setSeeding(false);
+  }
+
+  async function handleImportModel() {
+    setImportingModel(true);
+    setModelResult(null);
+    const result = await importM1B2Model();
+    if (result.error) {
+      setModelResult(`Error: ${result.error}`);
+    } else {
+      setModelResult(result.message || "Imported");
+      router.refresh();
+    }
+    setImportingModel(false);
   }
 
   return (
@@ -52,6 +71,15 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
             </div>
           </Link>
           {isOwner && (
+            <button onClick={handleImportModel} disabled={importingModel} className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-green-500/50 transition-colors text-left">
+              <Download className="w-5 h-5 text-green-400" />
+              <div>
+                <p className="text-sm font-medium">{importingModel ? "Importing..." : "Import Official Model"}</p>
+                <p className="text-xs text-neutral-500">M1_B2_QUALITY_VETO_N30</p>
+              </div>
+            </button>
+          )}
+          {isOwner && (
             <button onClick={handleSeed} disabled={seeding} className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-neutral-600 hover:border-yellow-500/50 transition-colors text-left">
               <Database className="w-5 h-5 text-yellow-400" />
               <div>
@@ -64,6 +92,11 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
         {seedResult && (
           <p className={`text-xs mt-3 ${seedResult.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
             {seedResult}
+          </p>
+        )}
+        {modelResult && (
+          <p className={`text-xs mt-3 ${modelResult.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
+            {modelResult}
           </p>
         )}
       </div>
@@ -135,6 +168,26 @@ export default function DashboardClient({ data, error, portfolios }: {
         </div>
       </div>
 
+      {data.modelName && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="metric-label">Official Model</p>
+              <p className="font-semibold mt-0.5">{data.modelName}</p>
+              {data.modelDate && <p className="text-xs text-neutral-500 mt-0.5">Effective {data.modelDate}</p>}
+            </div>
+            <div className="text-right">
+              <p className="metric-label">Holdings</p>
+              <p className="font-semibold mt-0.5">{data.holdingsCount}</p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <Link href="/model" className="nav-link text-xs">View Model →</Link>
+            <Link href="/model/history" className="nav-link text-xs">History →</Link>
+          </div>
+        </div>
+      )}
+
       {portfolios.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold mb-3">Your Portfolios</h2>
@@ -151,6 +204,7 @@ export default function DashboardClient({ data, error, portfolios }: {
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <Link href={`/portfolios/${p.id}`} className="nav-link text-xs">Detail</Link>
                     <Link href={`/portfolios/${p.id}/holdings`} className="nav-link text-xs">Holdings</Link>
                     <Link href={`/portfolios/${p.id}/transactions`} className="nav-link text-xs">Transactions</Link>
                     <Link href={`/portfolios/${p.id}/rebalance`} className="nav-link text-xs">Rebalance</Link>
@@ -168,9 +222,9 @@ export default function DashboardClient({ data, error, portfolios }: {
           <PlusCircle className="w-5 h-5 text-blue-400" />
           <span className="text-sm font-medium">New Portfolio</span>
         </Link>
-        <Link href="/model/history" className="card p-4 flex items-center gap-3 hover:bg-neutral-900/50 transition-colors">
+        <Link href="/model" className="card p-4 flex items-center gap-3 hover:bg-neutral-900/50 transition-colors">
           <TrendingUp className="w-5 h-5 text-green-400" />
-          <span className="text-sm font-medium">Model History</span>
+          <span className="text-sm font-medium">Official Model</span>
         </Link>
       </div>
     </div>
