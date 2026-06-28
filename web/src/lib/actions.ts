@@ -84,6 +84,29 @@ export async function createPortfolio(formData: FormData): Promise<ActionResult>
   return { error: null };
 }
 
+export async function deletePortfolio(portfolioId: string): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+  const { error } = await supabase.from("portfolios").delete().eq("id", portfolioId).eq("owner_id", user.id);
+  if (error) return { error: error.message };
+  revalidatePath("/portfolios");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function correctTransaction(transactionId: string, portfolioId: string): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+  const { error } = await supabase.from("transactions").update({
+    corrected_by: transactionId,
+  }).eq("id", transactionId).eq("owner_id", user.id);
+  if (error) return { error: error.message };
+  revalidatePath(`/portfolios/${portfolioId}`);
+  return { error: null };
+}
+
 export async function importM1B2Model(): Promise<ActionResult & { message?: string }> {
   const supabase = await createServerSupabase();
 
