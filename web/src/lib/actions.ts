@@ -40,7 +40,6 @@ export async function insertTransaction(formData: FormData): Promise<ActionResul
 
   const ticker = formData.get("ticker") as string;
   if (ticker) {
-    // Find or create security
     const { data: sec } = await supabase
       .from("securities")
       .select("id")
@@ -73,19 +72,144 @@ export async function createPortfolio(formData: FormData): Promise<ActionResult>
     return { error: "Name and opening date are required" };
   }
 
-  const { error } = await supabase.from("portfolios").insert({
+  const { error: portErr, data: portfolio } = await supabase.from("portfolios").insert({
     owner_id: user.user.id,
     name,
     opening_date: openingDate,
     starting_cash: startingCash || null,
     notes: notes || null,
-  });
+  }).select("id").single();
 
-  if (error) return { error: error.message };
+  if (portErr) return { error: portErr.message };
+
+  // Auto-create deposit transaction for starting cash
+  if (startingCash > 0) {
+    const { error: txErr } = await supabase.from("transactions").insert({
+      portfolio_id: portfolio.id,
+      event_type: "DEPOSIT",
+      event_date: openingDate,
+      gross_amount: startingCash,
+      idempotency_key: `portfolio-${portfolio.id}-initial-deposit`,
+      owner_id: user.user.id,
+    });
+    if (txErr) return { error: `Portfolio created but deposit failed: ${txErr.message}` };
+  }
 
   revalidatePath("/portfolios");
   revalidatePath("/dashboard");
   return { error: null };
+}
+
+export async function importM1B2Model(): Promise<ActionResult & { message?: string }> {
+  const supabase = await createServerSupabase();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_owner")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.is_owner) return { error: "Only the owner can import the official model" };
+
+  // Check if model already imported
+  const { data: existing } = await supabase
+    .from("model_versions")
+    .select("id")
+    .eq("model_id", "M1_B2_QUALITY_VETO_N30")
+    .limit(1);
+  if (existing && existing.length > 0) {
+    return { error: "M1_B2_QUALITY_VETO_N30 model already exists. Skip or delete first." };
+  }
+
+  const M1_TICKERS: Array<{ ticker: string; sector: string; industry: string; b2_score: number; quality_percentile: number }> = [
+    { ticker: "MU", sector: "Technology", industry: "Semiconductors", b2_score: 0.9879, quality_percentile: 0.6988 },
+    { ticker: "DOCN", sector: "Technology", industry: "Software - Infrastructure", b2_score: 0.9879, quality_percentile: 0.3376 },
+    { ticker: "BE", sector: "Industrials", industry: "Electrical Equipment & Parts", b2_score: 0.9879, quality_percentile: 0.2551 },
+    { ticker: "VICR", sector: "Technology", industry: "Electronic Components", b2_score: 0.9879, quality_percentile: 0.7532 },
+    { ticker: "TTMI", sector: "Technology", industry: "Electronic Components", b2_score: 0.9879, quality_percentile: 0.2789 },
+    { ticker: "MXL", sector: "Technology", industry: "Semiconductors", b2_score: 0.9879, quality_percentile: 0.3268 },
+    { ticker: "WDC", sector: "Technology", industry: "Computer Hardware", b2_score: 0.9879, quality_percentile: 0.7498 },
+    { ticker: "SYRE", sector: "Healthcare", industry: "Biotechnology", b2_score: 0.9832, quality_percentile: 0.2908 },
+    { ticker: "POWL", sector: "Industrials", industry: "Electrical Equipment & Parts", b2_score: 0.9788, quality_percentile: 0.8923 },
+    { ticker: "STRL", sector: "Industrials", industry: "Engineering & Construction", b2_score: 0.9782, quality_percentile: 0.7891 },
+    { ticker: "AMD", sector: "Technology", industry: "Semiconductors", b2_score: 0.9757, quality_percentile: 0.5869 },
+    { ticker: "AGX", sector: "Industrials", industry: "Engineering & Construction", b2_score: 0.9579, quality_percentile: 0.7991 },
+    { ticker: "GTX", sector: "Consumer Cyclical", industry: "Auto Parts", b2_score: 0.9570, quality_percentile: 0.5789 },
+    { ticker: "MYRG", sector: "Industrials", industry: "Engineering & Construction", b2_score: 0.9480, quality_percentile: 0.6905 },
+    { ticker: "FIX", sector: "Industrials", industry: "Engineering & Construction", b2_score: 0.9458, quality_percentile: 0.8797 },
+    { ticker: "MTRN", sector: "Basic Materials", industry: "Other Industrial Metals & Mining", b2_score: 0.9393, quality_percentile: 0.4153 },
+    { ticker: "ELVN", sector: "Healthcare", industry: "Biotechnology", b2_score: 0.9380, quality_percentile: 0.2972 },
+    { ticker: "VRT", sector: "Industrials", industry: "Electrical Equipment & Parts", b2_score: 0.9287, quality_percentile: 0.8084 },
+    { ticker: "BTSG", sector: "Healthcare", industry: "Health Information Services", b2_score: 0.9227, quality_percentile: 0.3984 },
+    { ticker: "KGS", sector: "Energy", industry: "Oil & Gas Equipment & Services", b2_score: 0.9227, quality_percentile: 0.4196 },
+    { ticker: "MOD", sector: "Consumer Cyclical", industry: "Auto Parts", b2_score: 0.9209, quality_percentile: 0.5017 },
+    { ticker: "INSW", sector: "Energy", industry: "Oil & Gas Midstream", b2_score: 0.9209, quality_percentile: 0.7768 },
+    { ticker: "SPHR", sector: "Communication Services", industry: "Entertainment", b2_score: 0.9100, quality_percentile: 0.5579 },
+    { ticker: "IRDM", sector: "Communication Services", industry: "Telecom Services", b2_score: 0.9090, quality_percentile: 0.5305 },
+    { ticker: "TXG", sector: "Healthcare", industry: "Health Information Services", b2_score: 0.9087, quality_percentile: 0.6542 },
+    { ticker: "TWST", sector: "Healthcare", industry: "Diagnostics & Research", b2_score: 0.9078, quality_percentile: 0.4071 },
+    { ticker: "WTTR", sector: "Energy", industry: "Oil & Gas Equipment & Services", b2_score: 0.9056, quality_percentile: 0.4607 },
+    { ticker: "EWTX", sector: "Healthcare", industry: "Biotechnology", b2_score: 0.8953, quality_percentile: 0.2642 },
+    { ticker: "COCO", sector: "Consumer Defensive", industry: "Beverages - Non-Alcoholic", b2_score: 0.8922, quality_percentile: 0.8192 },
+    { ticker: "KALU", sector: "Basic Materials", industry: "Aluminum", b2_score: 0.8900, quality_percentile: 0.4110 },
+  ];
+
+  const ts = Date.now().toString(36);
+  const targetWeight = 1 / 30;
+
+  // Create securities
+  const secIds: Record<string, string> = {};
+  for (const h of M1_TICKERS) {
+    const { data: sec } = await supabase.from("securities").insert({
+      ticker: h.ticker,
+      sector: h.sector,
+      industry: h.industry,
+      is_active: true,
+    }).select("id").single();
+    if (sec) secIds[h.ticker] = sec.id;
+  }
+
+  // Create model version
+  const { data: mv } = await supabase.from("model_versions").insert({
+    model_id: "M1_B2_QUALITY_VETO_N30",
+    version: "2026.06.24",
+    description: "M1 B2 QUALITY VETO N30 — Decision support, not investment advice. Source: outputs/final/m1_b2_quality_veto_targets.csv",
+  }).select("id").single();
+  const mvid = mv!.id;
+
+  // Create snapshot as DRAFT
+  const { data: snapshot } = await supabase.from("model_snapshots").insert({
+    model_version_id: mvid,
+    snapshot_id: `m1-b2-${ts}`,
+    status: "DRAFT",
+    effective_date: "2026-06-23",
+    universe_screened: 1070,
+    eligible_count: 1070,
+    valid_score_count: 1070,
+    warnings: JSON.stringify({ notice: "Decision support only — not investment advice" }),
+  }).select("id").single();
+  const sid = snapshot!.id;
+
+  // Create 30 holdings
+  for (let i = 0; i < M1_TICKERS.length; i++) {
+    const h = M1_TICKERS[i];
+    if (!secIds[h.ticker]) continue;
+    await supabase.from("model_snapshot_holdings").insert({
+      snapshot_id: sid,
+      security_id: secIds[h.ticker],
+      rank: i + 1,
+      target_weight: targetWeight,
+      b2_score: h.b2_score,
+      quality_percentile: h.quality_percentile,
+      quality_components_ok: 4,
+      inclusion_reason: "M1 B2 Quality Veto — unconstrained top 30",
+    });
+  }
+
+  revalidatePath("/model");
+  return { error: null, message: "M1_B2_QUALITY_VETO_N30 imported as DRAFT. Review and publish via admin." };
 }
 
 export async function seedAcceptanceData(): Promise<ActionResult & { message?: string }> {
@@ -102,35 +226,34 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
     .single();
   if (!profile?.is_owner) return { error: "Only the owner can seed test data" };
 
-  // Check if test data already exists
   const { data: existing } = await supabase
     .from("portfolios")
     .select("id")
     .eq("name", "[TEST] Acceptance Portfolio")
     .limit(1);
   if (existing && existing.length > 0) {
-    return { error: "Test data already exists. Delete it first or use a different name." };
+    return { error: "Test data already exists. Delete it first." };
   }
 
   const ts = Date.now().toString(36);
   const idemp = (key: string) => `seed-${ts}-${key}`;
 
-  // 1. Create securities
-  const tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "WMT",
-    "JNJ", "PG", "MA", "UNH", "HD", "DIS", "BAC", "PFE", "CSCO", "XOM",
-    "ABNB", "ADBE", "NFLX", "CRM", "INTC", "AMD", "BA", "GE", "CAT", "IBM"];
+  // Use the official M1_B2 model tickers
+  const M1_TICKERS = ["MU", "DOCN", "BE", "VICR", "TTMI", "MXL", "WDC", "SYRE", "POWL", "STRL",
+    "AMD", "AGX", "GTX", "MYRG", "FIX", "MTRN", "ELVN", "VRT", "BTSG", "KGS",
+    "MOD", "INSW", "SPHR", "IRDM", "TXG", "TWST", "WTTR", "EWTX", "COCO", "KALU"];
+
   const secIds: Record<string, string> = {};
-  for (const t of tickers) {
+  for (const t of M1_TICKERS) {
     const { data: sec } = await supabase.from("securities").insert({
       ticker: t,
-      company_name: `${t} Inc.`,
-      sector: "Technology",
+      sector: "Acceptance Test",
       is_active: true,
     }).select("id").single();
     if (sec) secIds[t] = sec.id;
   }
 
-  // 2. Create benchmark observations
+  // Benchmark observations
   const benchStart = new Date("2025-01-01");
   for (let d = 0; d < 60; d++) {
     const date = new Date(benchStart.getTime() + d * 7 * 86400000).toISOString().split("T")[0];
@@ -140,32 +263,39 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
     ]);
   }
 
-  // 3. Create portfolio
+  // Create portfolio
   const { data: portfolio } = await supabase.from("portfolios").insert({
     owner_id: userId,
     name: "[TEST] Acceptance Portfolio",
     currency: "USD",
     opening_date: "2025-01-01",
     starting_cash: 100000,
-    notes: "Acceptance test portfolio — not real investment data",
+    notes: "[TEST] Acceptance test portfolio — not real investment data",
   }).select("id").single();
   if (!portfolio) return { error: "Failed to create portfolio" };
   const pid = portfolio.id;
 
-  // 4. Create transactions
-  const buys = [
-    { ticker: "AAPL", qty: 50, price: 185, gross: 9250, comm: 5, date: "2025-01-05" },
-    { ticker: "MSFT", qty: 30, price: 420, gross: 12600, comm: 5, date: "2025-01-05" },
-    { ticker: "GOOGL", qty: 20, price: 140, gross: 2800, comm: 3, date: "2025-01-10" },
-    { ticker: "NVDA", qty: 15, price: 680, gross: 10200, comm: 4, date: "2025-01-15" },
-    { ticker: "META", qty: 25, price: 350, gross: 8750, comm: 4, date: "2025-01-20" },
-    { ticker: "AMZN", qty: 10, price: 150, gross: 1500, comm: 2, date: "2025-01-25" },
-    { ticker: "JPM", qty: 40, price: 170, gross: 6800, comm: 3, date: "2025-02-01" },
-    { ticker: "V", qty: 35, price: 260, gross: 9100, comm: 4, date: "2025-02-05" },
-    { ticker: "WMT", qty: 60, price: 165, gross: 9900, comm: 4, date: "2025-02-10" },
-    { ticker: "JNJ", qty: 25, price: 155, gross: 3875, comm: 3, date: "2025-02-15" },
-  ];
+  // Deposit
+  await supabase.from("transactions").insert({
+    portfolio_id: pid,
+    event_type: "DEPOSIT",
+    event_date: "2025-01-01",
+    gross_amount: 100000,
+    idempotency_key: idemp("deposit"),
+    owner_id: userId,
+  });
+
+  // Buy transactions using real M1_B2 tickers
+  const buys = M1_TICKERS.slice(0, 10).map((t, i) => ({
+    ticker: t,
+    qty: 10 + i * 5,
+    price: 50 + Math.random() * 200,
+    gross: 0,
+    comm: 3,
+    date: "2025-01-05",
+  }));
   for (const b of buys) {
+    b.gross = Math.round(b.qty * b.price * 100) / 100;
     await supabase.from("transactions").insert({
       portfolio_id: pid,
       security_id: secIds[b.ticker],
@@ -180,33 +310,22 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
     });
   }
 
-  // Deposit
-  await supabase.from("transactions").insert({
-    portfolio_id: pid,
-    event_type: "DEPOSIT",
-    event_date: "2025-01-01",
-    gross_amount: 100000,
-    idempotency_key: idemp("deposit"),
-    owner_id: userId,
-  });
-
-  // 5. Create price observations
-  for (const t of tickers) {
+  // Price observations
+  for (const t of M1_TICKERS) {
     if (!secIds[t]) continue;
-    const price = buys.find(b => b.ticker === t)?.price ?? (100 + Math.random() * 500);
     await supabase.from("price_observations").insert({
       security_id: secIds[t],
       observation_date: "2025-03-01",
-      close: price * (0.95 + Math.random() * 0.15),
+      close: 50 + Math.random() * 300,
       source: "acceptance-test",
     });
   }
 
-  // 6. Create model version + snapshot
+  // Create model version + snapshot
   const { data: mv } = await supabase.from("model_versions").insert({
     model_id: "M1_B2_QUALITY_VETO_N30",
-    version: "2026.06.24",
-    description: "[TEST] Acceptance test model — not an investment recommendation",
+    version: `test-${ts}`,
+    description: "[TEST] Acceptance test — not an investment recommendation",
   }).select("id").single();
   const mvid = mv!.id;
 
@@ -215,26 +334,26 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
     snapshot_id: `acceptance-test-${ts}`,
     status: "PUBLISHED",
     effective_date: "2026-06-01",
-    universe_screened: 2205,
+    universe_screened: 1070,
     eligible_count: 1070,
-    valid_score_count: 1034,
+    valid_score_count: 1070,
     integrity_hash: `test-hash-${ts}`,
-    warnings: JSON.stringify({ notice: "Acceptance test data — not a real investment recommendation" }),
+    warnings: JSON.stringify({ notice: "[TEST] Acceptance test only — not investment advice" }),
     published_at: new Date().toISOString(),
   }).select("id").single();
   const sid = snapshot!.id;
 
-  // 7. Create model snapshot holdings (30 stocks)
-  for (let i = 0; i < tickers.length; i++) {
-    const t = tickers[i];
+  // Model holdings using official Top 30
+  for (let i = 0; i < M1_TICKERS.length; i++) {
+    const t = M1_TICKERS[i];
     if (!secIds[t]) continue;
     await supabase.from("model_snapshot_holdings").insert({
       snapshot_id: sid,
       security_id: secIds[t],
       rank: i + 1,
-      target_weight: 1 / tickers.length,
-      b2_score: 0.8 - (i * 0.01),
-      quality_percentile: 90 - (i * 1.5),
+      target_weight: 1 / M1_TICKERS.length,
+      b2_score: 0.9 - (i * 0.005),
+      quality_percentile: 85 - (i * 1.5),
       quality_components_ok: 4,
       inclusion_reason: "[TEST] Acceptance test",
     });
@@ -243,5 +362,5 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
   revalidatePath("/dashboard");
   revalidatePath("/portfolios");
   revalidatePath("/model");
-  return { error: null, message: "Acceptance test data created successfully." };
+  return { error: null, message: "[TEST] Acceptance data created using M1_B2 model tickers." };
 }
