@@ -7,7 +7,7 @@ export default async function ModelPage() {
   if (result.error) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Official Model</h1>
+        <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
         <div className="card border-red-500/30 bg-red-500/5">
           <p className="text-sm text-red-400">Error: {result.error}</p>
           <p className="text-sm text-neutral-500 mt-2">Ensure the database migration has been applied and a model snapshot has been published.</p>
@@ -21,8 +21,8 @@ export default async function ModelPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Official Model</h1>
-        <p className="text-sm text-neutral-500 mt-1">M1 B2 Quality Veto N30</p>
+        <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
+        <p className="text-sm text-neutral-500 mt-1">M1_B2_QUALITY_VETO_N30</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -48,10 +48,8 @@ export default async function ModelPage() {
 
       {!model ? (
         <div className="card text-center py-12">
-          <p className="text-neutral-500">No published model snapshot.</p>
-          <p className="text-sm text-neutral-600 mt-2">
-            Import via <Link href="/admin/model-import" className="text-blue-400 hover:underline">Model Import</Link>.
-          </p>
+          <p className="text-neutral-500">No Quarterly Top 30 generated yet.</p>
+          <p className="text-sm text-neutral-600 mt-2">Use the Generate button on the Dashboard to create this quarter's Top 30.</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
