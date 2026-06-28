@@ -3,16 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, TrendingUp, Briefcase, Shield, LogOut, ChevronLeft,
+  LayoutDashboard, TrendingUp, Briefcase, LogOut, ChevronLeft,
 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useState } from "react";
 
-interface SidebarProps {
-  isOwner: boolean;
-}
-
-export default function Sidebar({ isOwner }: SidebarProps) {
+export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -20,7 +16,6 @@ export default function Sidebar({ isOwner }: SidebarProps) {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/model", label: "Quarterly Top 30", icon: TrendingUp },
     { href: "/portfolios", label: "My Portfolio", icon: Briefcase },
-    ...(isOwner ? [{ href: "/admin/model-review", label: "Model Review", icon: Shield }] : []),
   ];
 
   return (

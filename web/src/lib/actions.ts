@@ -239,12 +239,11 @@ export async function deletePortfolio(id: string): Promise<ActionResult> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { error: "Not authenticated" };
 
-  const { error } = await supabase
-    .from("portfolios")
-    .delete()
-    .eq("id", id)
-    .eq("owner_id", user.id);
+  // Delete transactions first, then portfolio
+  const { error: txErr } = await supabase.from("transactions").delete().eq("portfolio_id", id);
+  if (txErr) return { error: `Failed to delete transactions: ${txErr.message}` };
 
+  const { error } = await supabase.from("portfolios").delete().eq("id", id).eq("owner_id", user.id);
   if (error) return { error: error.message };
 
   revalidatePath("/portfolios");

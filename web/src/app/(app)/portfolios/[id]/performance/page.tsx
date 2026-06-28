@@ -12,6 +12,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
   let spyReturn: number | null = null;
   let qqqReturn: number | null = null;
   let hasTransactions = false;
+  let hasMissingPrices = false;
 
   try {
     const [holdingsResult, benchResult] = await Promise.all([
@@ -25,6 +26,8 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     spyReturn = benchResult.spyReturn;
     qqqReturn = benchResult.qqqReturn;
     hasTransactions = holdingsResult.transactions.length > 0;
+    const distinctTickers = holdingsResult.state.holdings.size;
+    hasMissingPrices = holdingsResult.priceCount < distinctTickers;
   } catch (e: unknown) {
     error = e instanceof Error ? e.message : "Unknown error";
   }
@@ -53,6 +56,20 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
         <div className="card text-center py-12">
           <p className="text-neutral-500">Performance unavailable until enough transaction and price data exists.</p>
           <p className="text-sm text-neutral-600 mt-2">Add transactions (deposits, buys) and price observations to see performance metrics.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasMissingPrices && nav > 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <h1 className="text-xl font-semibold">Performance</h1>
+        </div>
+        <div className="card text-center py-12">
+          <p className="text-neutral-500">Performance unavailable until current prices are available for all open holdings.</p>
         </div>
       </div>
     );

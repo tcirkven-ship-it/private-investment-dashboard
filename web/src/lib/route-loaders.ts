@@ -148,7 +148,6 @@ export async function loadRebalance(portfolioId: string, db?: DB): Promise<Rebal
   const snapResult = await supabase
     .from("model_snapshots")
     .select("id, effective_date")
-    .eq("status", "PUBLISHED")
     .order("effective_date", { ascending: false })
     .limit(1)
     .maybeSingle();

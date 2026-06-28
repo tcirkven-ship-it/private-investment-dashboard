@@ -40,7 +40,10 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
     formData.set("portfolio_id", portfolioId);
     formData.set("event_type", eventType);
     formData.set("event_date", eventDate);
-    formData.set("gross_amount", grossAmount);
+    const calcGross = ["BUY", "SELL"].includes(eventType)
+      ? String((parseFloat(quantity) || 0) * (parseFloat(price) || 0))
+      : grossAmount;
+    formData.set("gross_amount", calcGross);
     formData.set("commission", commission);
     if (ticker) formData.set("ticker", ticker);
     if (quantity) formData.set("quantity", quantity);
