@@ -49,7 +49,7 @@ export default async function ModelPage() {
       {!model ? (
         <div className="card text-center py-12">
           <p className="text-neutral-500">No Quarterly Top 30 generated yet.</p>
-          <p className="text-sm text-neutral-600 mt-2">Use the Generate button on the Dashboard to create this quarter's Top 30.</p>
+          <p className="text-sm text-neutral-600 mt-2">Use the Generate button on the Dashboard to create this quarter&apos;s Top 30.</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
