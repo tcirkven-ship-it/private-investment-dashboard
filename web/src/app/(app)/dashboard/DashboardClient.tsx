@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { seedAcceptanceData, importM1B2Model } from "@/lib/actions";
-import { Briefcase, TrendingUp, PlusCircle, Database, Download } from "lucide-react";
+import { importM1B2Model } from "@/lib/actions";
+import { Briefcase, TrendingUp, PlusCircle, Download } from "lucide-react";
 
 export interface DashboardData {
   portfolioCount: number;
@@ -18,25 +18,10 @@ export interface DashboardData {
 
 function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
   const router = useRouter();
-  const [seeding, setSeeding] = useState(false);
-  const [seedResult, setSeedResult] = useState<string | null>(null);
   const [importingModel, setImportingModel] = useState(false);
   const [modelResult, setModelResult] = useState<string | null>(null);
 
-  async function handleSeed() {
-    setSeeding(true);
-    setSeedResult(null);
-    const result = await seedAcceptanceData();
-    if (result.error) {
-      setSeedResult(`Error: ${result.error}`);
-    } else {
-      setSeedResult(result.message || "Done");
-      router.refresh();
-    }
-    setSeeding(false);
-  }
-
-  async function handleImportModel() {
+  async function handleGenerateModel() {
     setImportingModel(true);
     setModelResult(null);
     const result = await importM1B2Model();
@@ -71,29 +56,15 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
             </div>
           </Link>
           {isOwner && (
-            <button onClick={handleImportModel} disabled={importingModel} className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-green-500/50 transition-colors text-left">
+            <button onClick={handleGenerateModel} disabled={importingModel} className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-green-500/50 transition-colors text-left">
               <Download className="w-5 h-5 text-green-400" />
               <div>
-                <p className="text-sm font-medium">{importingModel ? "Importing..." : "Import Official Model"}</p>
+                <p className="text-sm font-medium">{importingModel ? "Generating..." : "Generate / Refresh Quarterly Top 30"}</p>
                 <p className="text-xs text-neutral-500">M1_B2_QUALITY_VETO_N30</p>
               </div>
             </button>
           )}
-          {isOwner && (
-            <button onClick={handleSeed} disabled={seeding} className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-neutral-600 hover:border-yellow-500/50 transition-colors text-left">
-              <Database className="w-5 h-5 text-yellow-400" />
-              <div>
-                <p className="text-sm font-medium">{seeding ? "Creating..." : "Seed Test Data"}</p>
-                <p className="text-xs text-neutral-500">Populate app for testing</p>
-              </div>
-            </button>
-          )}
         </div>
-        {seedResult && (
-          <p className={`text-xs mt-3 ${seedResult.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
-            {seedResult}
-          </p>
-        )}
         {modelResult && (
           <p className={`text-xs mt-3 ${modelResult.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
             {modelResult}
