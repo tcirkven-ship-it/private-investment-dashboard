@@ -2,9 +2,45 @@
 
 import { createServerSupabase } from "./supabase";
 import { revalidatePath } from "next/cache";
+import { parse } from "csv-parse/sync";
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
 
 export interface ActionResult {
   error: string | null;
+}
+
+const M1_CSV_PATH = resolve(process.cwd(), "data", "m1_b2_quality_veto_targets.csv");
+
+type M1Row = { ticker: string; sector: string; industry: string; b2_score: number; quality_percentile: number };
+
+function parseM1B2CSV(): { rows: M1Row[]; error?: string } {
+  if (!existsSync(M1_CSV_PATH)) {
+    return { rows: [], error: `File not found: ${M1_CSV_PATH}. Ensure the research output exists.` };
+  }
+  try {
+    const raw = readFileSync(M1_CSV_PATH, "utf-8");
+    const records = parse(raw, { columns: true, skip_empty_lines: true }) as Record<string, string>[];
+    if (records.length !== 30) return { rows: [], error: `Expected 30 rows in CSV, found ${records.length}` };
+    const rows: M1Row[] = [];
+    const seen = new Set<string>();
+    for (const r of records) {
+      const t = (r.ticker || "").trim().toUpperCase();
+      if (!t) return { rows: [], error: "Missing ticker in CSV row" };
+      if (seen.has(t)) return { rows: [], error: `Duplicate ticker: ${t}` };
+      seen.add(t);
+      rows.push({
+        ticker: t,
+        sector: (r.sector || "").trim(),
+        industry: (r.industry || "").trim(),
+        b2_score: parseFloat(r.B2_score || "0"),
+        quality_percentile: parseFloat(r.Q_percentile || "0"),
+      });
+    }
+    return { rows };
+  } catch (e) {
+    return { rows: [], error: `CSV parse error: ${e instanceof Error ? e.message : "Unknown"}` };
+  }
 }
 
 export async function importM1B2Model(): Promise<ActionResult & { message?: string }> {
@@ -13,50 +49,52 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { error: "Not authenticated" };
 
+  const parsed = parseM1B2CSV();
+  if (parsed.error) return { error: parsed.error };
+  const rows = parsed.rows;
+
   const ts = Date.now().toString(36);
+  const targetWeight = 1 / 30;
 
-  const tickers = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "WMT",
-    "JNJ", "PG", "MA", "UNH", "HD", "DIS", "BAC", "PFE", "CSCO", "XOM",
-    "ABNB", "ADBE", "NFLX", "CRM", "INTC", "AMD", "BA", "GE", "CAT", "IBM",
-  ];
-
+  // Upsert securities
   const secIds: Record<string, string> = {};
-  for (const t of tickers) {
-    const { data: existing } = await supabase
-      .from("securities")
-      .select("id")
-      .eq("ticker", t)
-      .maybeSingle();
-    if (existing) {
-      secIds[t] = existing.id;
-    } else {
-      const { data: created } = await supabase.from("securities").insert({
-        ticker: t,
-        company_name: `${t} Inc.`,
-        sector: "Technology",
-        is_active: true,
-      }).select("id").single();
-      if (created) secIds[t] = created.id;
+  for (const r of rows) {
+    const { data: created } = await supabase.from("securities").upsert({
+      ticker: r.ticker,
+      sector: r.sector,
+      industry: r.industry,
+      is_active: true,
+    }, { onConflict: "ticker" }).select("id").single();
+    if (created) secIds[r.ticker] = created.id;
+    else {
+      const { data: existing } = await supabase.from("securities").select("id").eq("ticker", r.ticker).single();
+      if (existing) secIds[r.ticker] = existing.id;
     }
   }
 
-  let { data: mv } = await supabase
-    .from("model_versions")
-    .select("id")
-    .eq("model_id", "M1_B2_QUALITY_VETO_N30")
-    .maybeSingle();
+  // Supersede old DRAFT snapshots
+  const { data: oldDrafts } = await supabase.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
+  if (oldDrafts) {
+    for (const d of oldDrafts) {
+      await supabase.from("model_snapshots").update({ status: "SUPERSEDED" }).eq("id", d.id);
+    }
+  }
 
+  // Ensure model version exists
+  let { data: mv } = await supabase.from("model_versions").select("id").eq("model_id", "M1_B2_QUALITY_VETO_N30").maybeSingle();
   if (!mv) {
+    const d = new Date();
+    const v = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
     const { data: newMv } = await supabase.from("model_versions").insert({
       model_id: "M1_B2_QUALITY_VETO_N30",
-      version: `2026-${String(new Date().getMonth() + 1).padStart(2, "0")}.${String(new Date().getDate()).padStart(2, "0")}`,
-      description: "M1 B2 Quality Veto N30 – Quarterly Top 30",
+      version: v,
+      description: "Decision support only. Not investment advice. Source: outputs/final/m1_b2_quality_veto_targets.csv",
     }).select("id").single();
     if (!newMv) return { error: "Failed to create model version" };
     mv = newMv;
   }
 
+  // Create DRAFT snapshot
   const { data: snapshot } = await supabase.from("model_snapshots").insert({
     model_version_id: mv.id,
     snapshot_id: `m1b2-${ts}`,
@@ -65,31 +103,31 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     universe_screened: 2205,
     eligible_count: 1070,
     valid_score_count: 1034,
-    integrity_hash: `m1b2-${ts}`,
+    warnings: JSON.stringify({ source_file: M1_CSV_PATH, ticker_count: rows.length }),
   }).select("id").single();
-
   if (!snapshot) return { error: "Failed to create snapshot" };
   const sid = snapshot.id;
 
-  for (let i = 0; i < tickers.length; i++) {
-    const t = tickers[i];
-    if (!secIds[t]) continue;
-    const { error } = await supabase.from("model_snapshot_holdings").insert({
+  // Insert 30 holdings
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const secId = secIds[r.ticker];
+    if (!secId) continue;
+    await supabase.from("model_snapshot_holdings").upsert({
       snapshot_id: sid,
-      security_id: secIds[t],
+      security_id: secId,
       rank: i + 1,
-      target_weight: 1 / tickers.length,
-      b2_score: 0.8 - i * 0.01,
-      quality_percentile: 90 - i * 1.5,
+      target_weight: targetWeight,
+      b2_score: r.b2_score,
+      quality_percentile: r.quality_percentile,
       quality_components_ok: 4,
-      inclusion_reason: "Generated via Quarterly Top 30",
-    });
-    if (error) return { error: `Failed to insert holding ${t}: ${error.message}` };
+      inclusion_reason: "M1 B2 Quality Veto — unconstrained top 30. Source: outputs/final/m1_b2_quality_veto_targets.csv",
+    }, { onConflict: "snapshot_id,security_id" });
   }
 
   revalidatePath("/dashboard");
   revalidatePath("/model");
-  return { error: null, message: "M1_B2_QUALITY_VETO_N30 model generated successfully." };
+  return { error: null, message: `M1_B2_QUALITY_VETO_N30 generated with ${rows.length} stocks from research output.` };
 }
 
 export async function insertTransaction(formData: FormData): Promise<ActionResult> {

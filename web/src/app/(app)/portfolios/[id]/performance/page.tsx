@@ -11,6 +11,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
   let totalDividends = 0;
   let spyReturn: number | null = null;
   let qqqReturn: number | null = null;
+  let hasTransactions = false;
 
   try {
     const [holdingsResult, benchResult] = await Promise.all([
@@ -23,6 +24,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     totalDividends = holdingsResult.state.total_dividends;
     spyReturn = benchResult.spyReturn;
     qqqReturn = benchResult.qqqReturn;
+    hasTransactions = holdingsResult.transactions.length > 0;
   } catch (e: unknown) {
     error = e instanceof Error ? e.message : "Unknown error";
   }
@@ -41,7 +43,22 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     );
   }
 
-  const totalReturn = totalDeposits > 0 ? ((nav / totalDeposits) - 1) * 100 : 0;
+  if (!hasTransactions) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <h1 className="text-xl font-semibold">Performance</h1>
+        </div>
+        <div className="card text-center py-12">
+          <p className="text-neutral-500">Performance unavailable until enough transaction and price data exists.</p>
+          <p className="text-sm text-neutral-600 mt-2">Add transactions (deposits, buys) and price observations to see performance metrics.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const totalReturn = totalDeposits > 0 ? ((nav / totalDeposits) - 1) * 100 : null;
 
   return (
     <div className="space-y-6">
@@ -55,8 +72,8 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <p className="metric-label">Simple Return</p>
-            <p className={`text-lg font-mono font-semibold mt-0.5 ${totalReturn >= 0 ? "text-green-400" : "text-red-400"}`}>
-              {totalReturn >= 0 ? "+" : ""}{totalReturn.toFixed(2)}%
+            <p className={`text-lg font-mono font-semibold mt-0.5 ${totalReturn !== null && totalReturn >= 0 ? "text-green-400" : totalReturn !== null ? "text-red-400" : "text-neutral-400"}`}>
+              {totalReturn !== null ? `${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%` : "—"}
             </p>
           </div>
           <div>
@@ -72,30 +89,16 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
             </p>
           </div>
         </div>
-        <p className="text-xs text-neutral-600 mt-2">Simple return = (NAV / total deposits) − 1. TWR and XIRR require daily valuation history.</p>
+        <p className="text-xs text-neutral-600 mt-2">Simple return = (NAV / total deposits) - 1. Weekly, monthly, QTD, YTD, and since-inception returns require daily valuation history.</p>
       </div>
 
       <div className="card">
         <h2 className="text-sm font-semibold mb-3">Account</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="metric-label">NAV</p>
-            <p className="text-lg font-mono font-semibold mt-0.5">${nav.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="metric-label">Deposits</p>
-            <p className="text-lg font-mono font-semibold mt-0.5">${totalDeposits.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="metric-label">Realized P/L</p>
-            <p className={`text-lg font-mono font-semibold mt-0.5 ${totalRealizedPL >= 0 ? "text-green-400" : "text-red-400"}`}>
-              ${totalRealizedPL.toFixed(2)}
-            </p>
-          </div>
-          <div>
-            <p className="metric-label">Dividends</p>
-            <p className="text-lg font-mono font-semibold mt-0.5 text-blue-400">${totalDividends.toFixed(2)}</p>
-          </div>
+          <div><p className="metric-label">NAV</p><p className="text-lg font-mono font-semibold mt-0.5">${nav.toLocaleString()}</p></div>
+          <div><p className="metric-label">Deposits</p><p className="text-lg font-mono font-semibold mt-0.5">${totalDeposits.toLocaleString()}</p></div>
+          <div><p className="metric-label">Realized P/L</p><p className={`text-lg font-mono font-semibold mt-0.5 ${totalRealizedPL >= 0 ? "text-green-400" : "text-red-400"}`}>${totalRealizedPL.toFixed(2)}</p></div>
+          <div><p className="metric-label">Dividends</p><p className="text-lg font-mono font-semibold mt-0.5 text-blue-400">${totalDividends.toFixed(2)}</p></div>
         </div>
       </div>
     </div>
