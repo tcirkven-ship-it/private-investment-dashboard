@@ -7,6 +7,7 @@ export const metadata = { title: "Dashboard — Investment Dashboard" };
 export default async function DashboardPage() {
   let data: DashboardData | null = null;
   let error: string | null = null;
+  let portfolios: Array<{ id: string; name: string; opening_date: string; starting_cash: number | null; notes: string | null }> = [];
 
   try {
     const supabase = await createServerSupabase();
@@ -14,10 +15,11 @@ export default async function DashboardPage() {
     if (authError || !user) {
       error = "Not authenticated";
     } else {
-      const [portfolioRes, modelRes, profileRes] = await Promise.all([
+      const [portfolioRes, modelRes, profileRes, portListRes] = await Promise.all([
         supabase.from("portfolios").select("*", { count: "exact", head: true }).eq("owner_id", user.id),
         supabase.from("model_snapshots").select("*", { count: "exact", head: true }).eq("status", "PUBLISHED"),
         supabase.from("profiles").select("is_owner").eq("id", user.id).single(),
+        supabase.from("portfolios").select("id, name, opening_date, starting_cash, notes").eq("owner_id", user.id).order("created_at", { ascending: false }),
       ]);
 
       if (portfolioRes.error) {
@@ -30,11 +32,12 @@ export default async function DashboardPage() {
           modelPublished: (modelRes.count ?? 0) > 0,
           isOwner: profileRes.data?.is_owner === true,
         };
+        portfolios = (portListRes.data || []) as typeof portfolios;
       }
     }
   } catch (e) {
     error = e instanceof Error ? e.message : "Unknown error";
   }
 
-  return <DashboardClient data={data} error={error} />;
+  return <DashboardClient data={data} error={error} portfolios={portfolios} />;
 }
