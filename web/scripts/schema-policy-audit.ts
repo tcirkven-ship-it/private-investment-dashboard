@@ -155,7 +155,7 @@ const policyTables = sql(`SELECT count(*) FROM (SELECT DISTINCT tablename FROM p
 assert("Tables with at least 1 policy", policyTables, "17");
 
 const pCount = sql(`SELECT count(*) FROM pg_policies WHERE schemaname = 'public';`);
-assert("Total policies = 31", pCount, "31");
+assert("Total policies = 37", pCount, "37");
 
 // ─── Indexes ──────────────────────────────────────────────────
 console.log("--- Indexes ---");
