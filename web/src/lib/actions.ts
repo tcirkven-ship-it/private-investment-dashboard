@@ -1,6 +1,6 @@
 "use server";
 
-import { createServerSupabase } from "./supabase";
+import { createServerSupabase, createServiceClient } from "./supabase";
 import { revalidatePath } from "next/cache";
 import { parse } from "csv-parse/sync";
 import { readFileSync, existsSync } from "fs";
@@ -45,12 +45,14 @@ function parseM1B2CSV(): { rows: M1Row[]; error?: string } {
 
 export async function importM1B2Model(): Promise<ActionResult & { message?: string }> {
   const supabase = await createServerSupabase();
-
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { error: "Not authenticated" };
 
   const parsed = parseM1B2CSV();
   if (parsed.error) return { error: parsed.error };
+
+  // Use service client for model writes (RLS requires it)
+  const db = await createServiceClient();
   const rows = parsed.rows;
 
   const ts = Date.now().toString(36);
@@ -59,7 +61,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   // Upsert securities
   const secIds: Record<string, string> = {};
   for (const r of rows) {
-    const { data: created } = await supabase.from("securities").upsert({
+    const { data: created } = await db.from("securities").upsert({
       ticker: r.ticker,
       sector: r.sector,
       industry: r.industry,
@@ -67,35 +69,35 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     }, { onConflict: "ticker" }).select("id").single();
     if (created) secIds[r.ticker] = created.id;
     else {
-      const { data: existing } = await supabase.from("securities").select("id").eq("ticker", r.ticker).single();
+      const { data: existing } = await db.from("securities").select("id").eq("ticker", r.ticker).single();
       if (existing) secIds[r.ticker] = existing.id;
     }
   }
 
   // Supersede old DRAFT snapshots
-  const { data: oldDrafts } = await supabase.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
+  const { data: oldDrafts } = await db.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
   if (oldDrafts) {
     for (const d of oldDrafts) {
-      await supabase.from("model_snapshots").update({ status: "SUPERSEDED" }).eq("id", d.id);
+      await db.from("model_snapshots").update({ status: "SUPERSEDED" }).eq("id", d.id);
     }
   }
 
   // Ensure model version exists
-  let { data: mv } = await supabase.from("model_versions").select("id").eq("model_id", "M1_B2_QUALITY_VETO_N30").maybeSingle();
+  let { data: mv } = await db.from("model_versions").select("id").eq("model_id", "M1_B2_QUALITY_VETO_N30").maybeSingle();
   if (!mv) {
     const d = new Date();
     const v = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-    const { data: newMv } = await supabase.from("model_versions").insert({
+    const { data: newMv } = await db.from("model_versions").insert({
       model_id: "M1_B2_QUALITY_VETO_N30",
       version: v,
-      description: "Decision support only. Not investment advice. Source: outputs/final/m1_b2_quality_veto_targets.csv",
+      description: "Decision support only. Not investment advice. Source: m1_b2_quality_veto_targets.csv",
     }).select("id").single();
     if (!newMv) return { error: "Failed to create model version" };
     mv = newMv;
   }
 
   // Create DRAFT snapshot
-  const { data: snapshot } = await supabase.from("model_snapshots").insert({
+  const { data: snapshot } = await db.from("model_snapshots").insert({
     model_version_id: mv.id,
     snapshot_id: `m1b2-${ts}`,
     status: "DRAFT",
@@ -103,7 +105,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     universe_screened: 2205,
     eligible_count: 1070,
     valid_score_count: 1034,
-    warnings: JSON.stringify({ source_file: M1_CSV_PATH, ticker_count: rows.length }),
+    warnings: JSON.stringify({ source_file: "m1_b2_quality_veto_targets.csv", ticker_count: rows.length }),
   }).select("id").single();
   if (!snapshot) return { error: "Failed to create snapshot" };
   const sid = snapshot.id;
@@ -113,7 +115,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     const r = rows[i];
     const secId = secIds[r.ticker];
     if (!secId) continue;
-    await supabase.from("model_snapshot_holdings").upsert({
+    await db.from("model_snapshot_holdings").upsert({
       snapshot_id: sid,
       security_id: secId,
       rank: i + 1,
@@ -121,7 +123,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
       b2_score: r.b2_score,
       quality_percentile: r.quality_percentile,
       quality_components_ok: 4,
-      inclusion_reason: "M1 B2 Quality Veto — unconstrained top 30. Source: outputs/final/m1_b2_quality_veto_targets.csv",
+      inclusion_reason: "M1 B2 Quality Veto. Source: m1_b2_quality_veto_targets.csv",
     }, { onConflict: "snapshot_id,security_id" });
   }
 
