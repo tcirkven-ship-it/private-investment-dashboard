@@ -85,17 +85,18 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   if (!mv) {
     const d = new Date();
     const v = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-    const { data: newMv } = await supabase.from("model_versions").insert({
+    const { data: newMv, error: mvErr } = await supabase.from("model_versions").insert({
       model_id: "M1_B2_QUALITY_VETO_N30",
       version: v,
       description: "Decision support only. Not investment advice. Source: m1_b2_quality_veto_targets.csv",
     }).select("id").single();
+    if (mvErr) return { error: `Failed to create model version: ${mvErr.message}` };
     if (!newMv) return { error: "Failed to create model version" };
     mv = newMv;
   }
 
   // Create DRAFT snapshot
-  const { data: snapshot } = await supabase.from("model_snapshots").insert({
+  const { data: snapshot, error: snapErr } = await supabase.from("model_snapshots").insert({
     model_version_id: mv.id,
     snapshot_id: `m1b2-${ts}`,
     status: "DRAFT",
@@ -105,6 +106,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     valid_score_count: 1034,
     warnings: JSON.stringify({ source_file: "m1_b2_quality_veto_targets.csv", ticker_count: rows.length }),
   }).select("id").single();
+  if (snapErr) return { error: `Failed to create snapshot: ${snapErr.message}` };
   if (!snapshot) return { error: "Failed to create snapshot" };
   const sid = snapshot.id;
 
