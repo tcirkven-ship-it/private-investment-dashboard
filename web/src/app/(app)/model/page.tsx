@@ -1,28 +1,73 @@
-import { getPublishedModel } from "@/lib/supabase-queries";
-import Link from "next/link";
+import { createServerSupabase } from "@/lib/supabase";
+import GenerateModelButton from "./GenerateModelButton";
 
 export default async function ModelPage() {
-  const result = await getPublishedModel();
+  const supabase = await createServerSupabase();
 
-  if (result.error) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Official Model</h1>
+  const { data: snapshot, error: snapError } = await supabase
+    .from("model_snapshots")
+    .select(`
+      id, snapshot_id, effective_date, status, published_at,
+      model_version:model_version_id(model_id, version, description),
+      holdings:model_snapshot_holdings(
+        rank, target_weight, b2_score, quality_percentile,
+        quality_components_ok, inclusion_reason,
+        security:security_id(ticker, company_name, sector, industry)
+      )
+    `)
+    .order("effective_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (snapError) {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
+          <p className="text-sm text-neutral-500 mt-1">M1_B2_QUALITY_VETO_N30</p>
+        </div>
+        <GenerateModelButton />
+      </div>
         <div className="card border-red-500/30 bg-red-500/5">
-          <p className="text-sm text-red-400">Error: {result.error}</p>
+          <p className="text-sm text-red-400">Error: {snapError.message}</p>
           <p className="text-sm text-neutral-500 mt-2">Ensure the database migration has been applied and a model snapshot has been published.</p>
         </div>
       </div>
     );
   }
 
-  const model = result.data;
+  const model = snapshot as {
+    id: string;
+    snapshot_id: string;
+    effective_date: string;
+    status: string;
+    published_at: string | null;
+    model_version: { model_id: string; version: string; description: string | null } | null;
+    holdings: Array<{
+      rank: number;
+      target_weight: number;
+      b2_score: number | null;
+      quality_percentile: number | null;
+      quality_components_ok: number;
+      inclusion_reason: string | null;
+      security: { ticker: string; company_name: string | null; sector: string | null; industry: string | null } | null;
+    }>;
+  } | null;
+
+  const isUnpublished = model && model.status !== "PUBLISHED";
 
   return (
     <div className="space-y-6">
+      {isUnpublished && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-2 text-sm text-yellow-400">
+          Not yet published — currently in {model.status} status
+        </div>
+      )}
+
       <div>
-        <h1 className="text-2xl font-semibold">Official Model</h1>
-        <p className="text-sm text-neutral-500 mt-1">M1 B2 Quality Veto N30</p>
+        <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
+        <p className="text-sm text-neutral-500 mt-1">M1_B2_QUALITY_VETO_N30</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -48,10 +93,8 @@ export default async function ModelPage() {
 
       {!model ? (
         <div className="card text-center py-12">
-          <p className="text-neutral-500">No published model snapshot.</p>
-          <p className="text-sm text-neutral-600 mt-2">
-            Import via <Link href="/admin/model-import" className="text-blue-400 hover:underline">Model Import</Link>.
-          </p>
+          <p className="text-neutral-500">No Quarterly Top 30 generated yet.</p>
+          <p className="text-sm text-neutral-600 mt-2">Use the Generate button on the Dashboard to create this quarter&apos;s Top 30.</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
