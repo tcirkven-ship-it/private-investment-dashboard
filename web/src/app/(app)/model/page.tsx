@@ -1,4 +1,5 @@
 import { createServerSupabase } from "@/lib/supabase";
+import GenerateModelButton from "./GenerateModelButton";
 
 export default async function ModelPage() {
   const supabase = await createServerSupabase();
@@ -19,9 +20,15 @@ export default async function ModelPage() {
     .maybeSingle();
 
   if (snapError) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
+          <p className="text-sm text-neutral-500 mt-1">M1_B2_QUALITY_VETO_N30</p>
+        </div>
+        <GenerateModelButton />
+      </div>
         <div className="card border-red-500/30 bg-red-500/5">
           <p className="text-sm text-red-400">Error: {snapError.message}</p>
           <p className="text-sm text-neutral-500 mt-2">Ensure the database migration has been applied and a model snapshot has been published.</p>
