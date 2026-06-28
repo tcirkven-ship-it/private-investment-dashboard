@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { insertTransaction } from "@/lib/actions";
 
 const TX_TYPES = [
@@ -13,6 +14,7 @@ interface TransactionFormProps {
 }
 
 export default function TransactionForm({ portfolioId }: TransactionFormProps) {
+  const router = useRouter();
   const [eventType, setEventType] = useState("BUY");
   const [ticker, setTicker] = useState("");
   const [eventDate, setEventDate] = useState(new Date().toISOString().split("T")[0]);
@@ -52,6 +54,7 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
     } else {
       setSaving(false);
       setSuccess(true);
+      router.refresh();
       // Reset form
       setTicker("");
       setQuantity("");
@@ -81,7 +84,7 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
         {needsTicker && (
           <div>
             <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Ticker</label>
-            <input type="text" value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} className="input" placeholder="AAPL" />
+            <input type="text" value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} className="input" placeholder="Ticker" />
           </div>
         )}
         {needsQuantity && (

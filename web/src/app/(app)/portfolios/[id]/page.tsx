@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase";
 import { ArrowLeft } from "lucide-react";
+import DeletePortfolioButton from "@/components/portfolios/DeletePortfolioButton";
 
 export default async function PortfolioDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,10 +27,11 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/portfolios" className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-semibold">{portfolio.name}</h1>
           <p className="text-sm text-neutral-500 mt-0.5">Opened {portfolio.opening_date}</p>
         </div>
+        <DeletePortfolioButton portfolioId={portfolio.id} portfolioName={portfolio.name} />
       </div>
 
       <div className="flex gap-1 border-b border-neutral-800 pb-0.5 overflow-x-auto">

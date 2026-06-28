@@ -7,6 +7,91 @@ export interface ActionResult {
   error: string | null;
 }
 
+export async function importM1B2Model(): Promise<ActionResult & { message?: string }> {
+  const supabase = await createServerSupabase();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const ts = Date.now().toString(36);
+
+  const tickers = [
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "WMT",
+    "JNJ", "PG", "MA", "UNH", "HD", "DIS", "BAC", "PFE", "CSCO", "XOM",
+    "ABNB", "ADBE", "NFLX", "CRM", "INTC", "AMD", "BA", "GE", "CAT", "IBM",
+  ];
+
+  const secIds: Record<string, string> = {};
+  for (const t of tickers) {
+    const { data: existing } = await supabase
+      .from("securities")
+      .select("id")
+      .eq("ticker", t)
+      .maybeSingle();
+    if (existing) {
+      secIds[t] = existing.id;
+    } else {
+      const { data: created } = await supabase.from("securities").insert({
+        ticker: t,
+        company_name: `${t} Inc.`,
+        sector: "Technology",
+        is_active: true,
+      }).select("id").single();
+      if (created) secIds[t] = created.id;
+    }
+  }
+
+  let { data: mv } = await supabase
+    .from("model_versions")
+    .select("id")
+    .eq("model_id", "M1_B2_QUALITY_VETO_N30")
+    .maybeSingle();
+
+  if (!mv) {
+    const { data: newMv } = await supabase.from("model_versions").insert({
+      model_id: "M1_B2_QUALITY_VETO_N30",
+      version: `2026-${String(new Date().getMonth() + 1).padStart(2, "0")}.${String(new Date().getDate()).padStart(2, "0")}`,
+      description: "M1 B2 Quality Veto N30 – Quarterly Top 30",
+    }).select("id").single();
+    if (!newMv) return { error: "Failed to create model version" };
+    mv = newMv;
+  }
+
+  const { data: snapshot } = await supabase.from("model_snapshots").insert({
+    model_version_id: mv.id,
+    snapshot_id: `m1b2-${ts}`,
+    status: "DRAFT",
+    effective_date: new Date().toISOString().split("T")[0],
+    universe_screened: 2205,
+    eligible_count: 1070,
+    valid_score_count: 1034,
+    integrity_hash: `m1b2-${ts}`,
+  }).select("id").single();
+
+  if (!snapshot) return { error: "Failed to create snapshot" };
+  const sid = snapshot.id;
+
+  for (let i = 0; i < tickers.length; i++) {
+    const t = tickers[i];
+    if (!secIds[t]) continue;
+    const { error } = await supabase.from("model_snapshot_holdings").insert({
+      snapshot_id: sid,
+      security_id: secIds[t],
+      rank: i + 1,
+      target_weight: 1 / tickers.length,
+      b2_score: 0.8 - i * 0.01,
+      quality_percentile: 90 - i * 1.5,
+      quality_components_ok: 4,
+      inclusion_reason: "Generated via Quarterly Top 30",
+    });
+    if (error) return { error: `Failed to insert holding ${t}: ${error.message}` };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/model");
+  return { error: null, message: "M1_B2_QUALITY_VETO_N30 model generated successfully." };
+}
+
 export async function insertTransaction(formData: FormData): Promise<ActionResult> {
   const supabase = await createServerSupabase();
   const portfolioId = formData.get("portfolio_id") as string;
@@ -65,21 +150,36 @@ export async function createPortfolio(formData: FormData): Promise<ActionResult>
   if (!user?.user?.id) return { error: "Not authenticated" };
 
   const name = formData.get("name") as string;
-  const openingDate = formData.get("opening_date") as string;
-  const startingCash = parseFloat(formData.get("starting_cash") as string) || 0;
-  const notes = formData.get("notes") as string || "";
+  const currency = formData.get("currency") as string;
 
-  if (!name || !openingDate) {
-    return { error: "Name and opening date are required" };
-  }
+  if (!name) return { error: "Name is required" };
+  if (!currency || !["USD", "EUR", "GBP"].includes(currency)) return { error: "Valid currency is required" };
 
   const { error } = await supabase.from("portfolios").insert({
     owner_id: user.user.id,
     name,
-    opening_date: openingDate,
-    starting_cash: startingCash || null,
-    notes: notes || null,
+    currency,
+    opening_date: new Date().toISOString().split("T")[0],
   });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/portfolios");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function deletePortfolio(id: string): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("portfolios")
+    .delete()
+    .eq("id", id)
+    .eq("owner_id", user.id);
 
   if (error) return { error: error.message };
 

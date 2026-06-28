@@ -1,16 +1,19 @@
-import { getPublishedModel } from "@/lib/supabase-queries";
-import Link from "next/link";
+import { getLatestModelSnapshot } from "@/lib/supabase-queries";
+import GenerateModelButton from "@/components/model/GenerateModelButton";
 
 export default async function ModelPage() {
-  const result = await getPublishedModel();
+  const result = await getLatestModelSnapshot();
 
   if (result.error) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Official Model</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
+          <GenerateModelButton />
+        </div>
         <div className="card border-red-500/30 bg-red-500/5">
           <p className="text-sm text-red-400">Error: {result.error}</p>
-          <p className="text-sm text-neutral-500 mt-2">Ensure the database migration has been applied and a model snapshot has been published.</p>
+          <p className="text-sm text-neutral-500 mt-2">Ensure the database migration has been applied and a model snapshot has been imported.</p>
         </div>
       </div>
     );
@@ -20,10 +23,21 @@ export default async function ModelPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Official Model</h1>
-        <p className="text-sm text-neutral-500 mt-1">M1 B2 Quality Veto N30</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
+          <p className="text-sm text-neutral-500 mt-1">M1_B2_QUALITY_VETO_N30</p>
+        </div>
+        <GenerateModelButton />
       </div>
+
+      {model?.status === "DRAFT" && (
+        <div className="card border-yellow-500/30 bg-yellow-500/5">
+          <p className="text-sm text-yellow-400">
+            Not yet published &mdash; currently in DRAFT status
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card">
@@ -40,7 +54,7 @@ export default async function ModelPage() {
         </div>
         <div className="card">
           <p className="metric-label">Status</p>
-          <p className={`text-sm font-semibold mt-1 ${model?.status === "PUBLISHED" ? "text-green-400" : "text-yellow-400"}`}>
+          <p className={`text-sm font-semibold mt-1 ${model?.status === "PUBLISHED" ? "text-green-400" : model?.status === "DRAFT" ? "text-yellow-400" : "text-neutral-400"}`}>
             {model?.status || "None"}
           </p>
         </div>
@@ -48,9 +62,9 @@ export default async function ModelPage() {
 
       {!model ? (
         <div className="card text-center py-12">
-          <p className="text-neutral-500">No published model snapshot.</p>
+          <p className="text-neutral-500">No model snapshot imported yet.</p>
           <p className="text-sm text-neutral-600 mt-2">
-            Import via <Link href="/admin/model-import" className="text-blue-400 hover:underline">Model Import</Link>.
+            Click <strong>Generate / Refresh</strong> to create the M1_B2_QUALITY_VETO_N30 model.
           </p>
         </div>
       ) : (
@@ -61,12 +75,12 @@ export default async function ModelPage() {
                 <tr className="border-b border-neutral-800">
                   <th className="table-header">#</th>
                   <th className="table-header">Ticker</th>
-                  <th className="table-header">Name</th>
-                  <th className="table-header text-right">Weight</th>
-                  <th className="table-header text-right">B2</th>
-                  <th className="table-header text-right">Q %ile</th>
+                  <th className="table-header">Company</th>
                   <th className="table-header">Sector</th>
-                  <th className="table-header">Reason</th>
+                  <th className="table-header">Industry</th>
+                  <th className="table-header text-right">Target Weight</th>
+                  <th className="table-header text-right">B2 Score</th>
+                  <th className="table-header text-right">Quality %ile</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,12 +90,12 @@ export default async function ModelPage() {
                     <tr key={h.rank} className="border-b border-neutral-800/50">
                       <td className="table-cell text-neutral-500">{h.rank}</td>
                       <td className="table-cell-text font-semibold">{h.security?.ticker ?? "—"}</td>
-                      <td className="table-cell-text text-sm text-neutral-400">{h.security?.company_name ?? ""}</td>
+                      <td className="table-cell-text text-sm text-neutral-400">{h.security?.company_name ?? "—"}</td>
+                      <td className="table-cell-text text-sm">{h.security?.sector ?? "—"}</td>
+                      <td className="table-cell-text text-sm text-neutral-400">{h.security?.industry ?? "—"}</td>
                       <td className="table-cell text-right">{(h.target_weight * 100).toFixed(1)}%</td>
                       <td className="table-cell text-right">{h.b2_score?.toFixed(3) ?? "—"}</td>
                       <td className="table-cell text-right">{h.quality_percentile?.toFixed(3) ?? "—"}</td>
-                      <td className="table-cell-text text-sm">{h.security?.sector ?? "—"}</td>
-                      <td className="table-cell-text text-sm text-neutral-400 max-w-xs truncate">{h.inclusion_reason ?? ""}</td>
                     </tr>
                   ))}
               </tbody>

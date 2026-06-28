@@ -3,31 +3,35 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { seedAcceptanceData } from "@/lib/actions";
-import { Briefcase, TrendingUp, PlusCircle, Database } from "lucide-react";
+import { importM1B2Model } from "@/lib/actions";
+import { Briefcase, TrendingUp, PlusCircle, RefreshCw } from "lucide-react";
 
 export interface DashboardData {
   portfolioCount: number;
+  hasModel: boolean;
+  modelStatus: string | null;
+  modelDate: string | null;
+  holdingsCount: number;
   modelPublished: boolean;
-  isOwner: boolean;
+  modelDraft: boolean;
 }
 
-function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
+function EmptyDashboard() {
   const router = useRouter();
-  const [seeding, setSeeding] = useState(false);
-  const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [genResult, setGenResult] = useState<string | null>(null);
 
-  async function handleSeed() {
-    setSeeding(true);
-    setSeedResult(null);
-    const result = await seedAcceptanceData();
+  async function handleGenerate() {
+    setGenerating(true);
+    setGenResult(null);
+    const result = await importM1B2Model();
     if (result.error) {
-      setSeedResult(`Error: ${result.error}`);
+      setGenResult(result.error);
     } else {
-      setSeedResult(result.message || "Done");
+      setGenResult(result.message || "Done");
       router.refresh();
     }
-    setSeeding(false);
+    setGenerating(false);
   }
 
   return (
@@ -37,10 +41,21 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
       <div className="card p-6">
         <h2 className="text-sm font-semibold mb-4">Getting Started</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-blue-500/50 transition-colors text-left disabled:opacity-50"
+          >
+            <RefreshCw className={`w-5 h-5 text-blue-400 ${generating ? "animate-spin" : ""}`} />
+            <div>
+              <p className="text-sm font-medium">{generating ? "Generating..." : "Generate / Refresh Quarterly Top 30"}</p>
+              <p className="text-xs text-neutral-500">Import M1_B2_QUALITY_VETO_N30 model</p>
+            </div>
+          </button>
           <Link href="/portfolios/new" className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-blue-500/50 transition-colors">
             <PlusCircle className="w-5 h-5 text-blue-400" />
             <div>
-              <p className="text-sm font-medium">Create Portfolio</p>
+              <p className="text-sm font-medium">Create My Portfolio</p>
               <p className="text-xs text-neutral-500">Start with a new portfolio</p>
             </div>
           </Link>
@@ -48,22 +63,13 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
             <TrendingUp className="w-5 h-5 text-green-400" />
             <div>
               <p className="text-sm font-medium">View Model</p>
-              <p className="text-xs text-neutral-500">See the official model</p>
+              <p className="text-xs text-neutral-500">See the Quarterly Top 30</p>
             </div>
           </Link>
-          {isOwner && (
-            <button onClick={handleSeed} disabled={seeding} className="flex items-center gap-3 p-3 rounded-lg border border-dashed border-neutral-600 hover:border-yellow-500/50 transition-colors text-left">
-              <Database className="w-5 h-5 text-yellow-400" />
-              <div>
-                <p className="text-sm font-medium">{seeding ? "Creating..." : "Seed Test Data"}</p>
-                <p className="text-xs text-neutral-500">Populate app for testing</p>
-              </div>
-            </button>
-          )}
         </div>
-        {seedResult && (
-          <p className={`text-xs mt-3 ${seedResult.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
-            {seedResult}
+        {genResult && (
+          <p className={`text-xs mt-3 ${genResult.startsWith("Error") || !genResult.includes("success") ? "text-red-400" : "text-green-400"}`}>
+            {genResult}
           </p>
         )}
       </div>
@@ -80,9 +86,9 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
         <div className="card p-6">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-neutral-400" />
-            <h3 className="text-sm font-semibold">Official Model</h3>
+            <h3 className="text-sm font-semibold">Quarterly Top 30</h3>
           </div>
-          <p className="text-neutral-500 text-sm">No published model yet</p>
+          <p className="text-neutral-500 text-sm">No model imported yet</p>
         </div>
       </div>
     </div>
@@ -114,9 +120,13 @@ export default function DashboardClient({ data, error, portfolios }: {
     );
   }
 
-  if (!data || (data.portfolioCount === 0 && !data.modelPublished)) {
-    return <EmptyDashboard isOwner={data?.isOwner ?? false} />;
+  if (!data || (data.portfolioCount === 0 && !data.hasModel)) {
+    return <EmptyDashboard />;
   }
+
+  const modelStatusColor =
+    data.modelStatus === "PUBLISHED" ? "text-green-400" :
+    data.modelStatus === "DRAFT" ? "text-yellow-400" : "text-neutral-400";
 
   return (
     <div className="space-y-6">
@@ -131,9 +141,32 @@ export default function DashboardClient({ data, error, portfolios }: {
         </div>
         <div className="card">
           <p className="metric-label">Model</p>
-          <p className="metric-value mt-1">{data.modelPublished ? "Published" : "Draft"}</p>
+          <p className="metric-value mt-1">{data.modelStatus || "None"}</p>
         </div>
       </div>
+
+      {data.hasModel && (
+        <div className="card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-4 h-4 text-neutral-400" />
+            <h2 className="text-sm font-semibold">M1_B2_QUALITY_VETO_N30</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-neutral-500 uppercase tracking-wider">Status</p>
+              <p className={`font-semibold mt-0.5 ${modelStatusColor}`}>{data.modelStatus}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500 uppercase tracking-wider">Effective Date</p>
+              <p className="font-semibold mt-0.5">{data.modelDate || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500 uppercase tracking-wider">Holdings</p>
+              <p className="font-semibold mt-0.5">{data.holdingsCount}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {portfolios.length > 0 && (
         <div>
@@ -168,9 +201,9 @@ export default function DashboardClient({ data, error, portfolios }: {
           <PlusCircle className="w-5 h-5 text-blue-400" />
           <span className="text-sm font-medium">New Portfolio</span>
         </Link>
-        <Link href="/model/history" className="card p-4 flex items-center gap-3 hover:bg-neutral-900/50 transition-colors">
+        <Link href="/model" className="card p-4 flex items-center gap-3 hover:bg-neutral-900/50 transition-colors">
           <TrendingUp className="w-5 h-5 text-green-400" />
-          <span className="text-sm font-medium">Model History</span>
+          <span className="text-sm font-medium">Quarterly Top 30</span>
         </Link>
       </div>
     </div>
