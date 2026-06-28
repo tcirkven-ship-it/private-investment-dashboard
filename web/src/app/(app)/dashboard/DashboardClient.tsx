@@ -9,6 +9,10 @@ import { Briefcase, TrendingUp, PlusCircle, Database, Download } from "lucide-re
 export interface DashboardData {
   portfolioCount: number;
   modelPublished: boolean;
+  modelStatus: string | null;
+  modelName: string | null;
+  modelDate: string | null;
+  holdingsCount: number;
   isOwner: boolean;
 }
 
@@ -164,6 +168,26 @@ export default function DashboardClient({ data, error, portfolios }: {
         </div>
       </div>
 
+      {data.modelName && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="metric-label">Official Model</p>
+              <p className="font-semibold mt-0.5">{data.modelName}</p>
+              {data.modelDate && <p className="text-xs text-neutral-500 mt-0.5">Effective {data.modelDate}</p>}
+            </div>
+            <div className="text-right">
+              <p className="metric-label">Holdings</p>
+              <p className="font-semibold mt-0.5">{data.holdingsCount}</p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <Link href="/model" className="nav-link text-xs">View Model →</Link>
+            <Link href="/model/history" className="nav-link text-xs">History →</Link>
+          </div>
+        </div>
+      )}
+
       {portfolios.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold mb-3">Your Portfolios</h2>
@@ -180,6 +204,7 @@ export default function DashboardClient({ data, error, portfolios }: {
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <Link href={`/portfolios/${p.id}`} className="nav-link text-xs">Detail</Link>
                     <Link href={`/portfolios/${p.id}/holdings`} className="nav-link text-xs">Holdings</Link>
                     <Link href={`/portfolios/${p.id}/transactions`} className="nav-link text-xs">Transactions</Link>
                     <Link href={`/portfolios/${p.id}/rebalance`} className="nav-link text-xs">Rebalance</Link>
@@ -197,9 +222,9 @@ export default function DashboardClient({ data, error, portfolios }: {
           <PlusCircle className="w-5 h-5 text-blue-400" />
           <span className="text-sm font-medium">New Portfolio</span>
         </Link>
-        <Link href="/model/history" className="card p-4 flex items-center gap-3 hover:bg-neutral-900/50 transition-colors">
+        <Link href="/model" className="card p-4 flex items-center gap-3 hover:bg-neutral-900/50 transition-colors">
           <TrendingUp className="w-5 h-5 text-green-400" />
-          <span className="text-sm font-medium">Model History</span>
+          <span className="text-sm font-medium">Official Model</span>
         </Link>
       </div>
     </div>
