@@ -9,9 +9,7 @@ import { createPortfolio } from "@/lib/actions";
 export default function NewPortfolioPage() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [openingDate, setOpeningDate] = useState(new Date().toISOString().split("T")[0]);
-  const [startingCash, setStartingCash] = useState("100000");
-  const [notes, setNotes] = useState("");
+  const [currency, setCurrency] = useState("USD");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,9 +20,7 @@ export default function NewPortfolioPage() {
 
     const formData = new FormData();
     formData.set("name", name);
-    formData.set("opening_date", openingDate);
-    formData.set("starting_cash", startingCash);
-    formData.set("notes", notes);
+    formData.set("currency", currency);
 
     const result = await createPortfolio(formData);
     if (result.error) {
@@ -41,27 +37,23 @@ export default function NewPortfolioPage() {
         <Link href="/portfolios" className="btn-ghost p-1">
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <h1 className="text-xl font-semibold">New Portfolio</h1>
+        <h1 className="text-xl font-semibold">Create Portfolio</h1>
       </div>
 
       {error && <div className="text-sm text-red-400 bg-red-500/10 rounded px-3 py-2">{error}</div>}
 
       <form onSubmit={handleSubmit} className="card space-y-4">
         <div>
-          <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Name</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Main Brokerage" required />
+          <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Portfolio Name</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input" placeholder="Main Portfolio" required />
         </div>
         <div>
-          <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Opening Date</label>
-          <input type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} className="input" required />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Starting Cash ($)</label>
-          <input type="number" value={startingCash} onChange={(e) => setStartingCash(e.target.value)} className="input" min="0" step="0.01" required />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Notes</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input" rows={3} placeholder="Optional notes..." />
+          <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Base Currency</label>
+          <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="input">
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+          </select>
         </div>
         <button type="submit" disabled={saving} className="btn-primary w-full">{saving ? "Creating..." : "Create Portfolio"}</button>
       </form>

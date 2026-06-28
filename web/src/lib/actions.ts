@@ -64,36 +64,20 @@ export async function createPortfolio(formData: FormData): Promise<ActionResult>
   if (!user?.user?.id) return { error: "Not authenticated" };
 
   const name = formData.get("name") as string;
-  const openingDate = formData.get("opening_date") as string;
-  const startingCash = parseFloat(formData.get("starting_cash") as string) || 0;
-  const notes = formData.get("notes") as string || "";
+  const currency = formData.get("currency") as string || "USD";
 
-  if (!name || !openingDate) {
-    return { error: "Name and opening date are required" };
+  if (!name) {
+    return { error: "Portfolio name is required" };
   }
 
   const { error: portErr, data: portfolio } = await supabase.from("portfolios").insert({
     owner_id: user.user.id,
     name,
-    opening_date: openingDate,
-    starting_cash: startingCash || null,
-    notes: notes || null,
+    currency,
+    opening_date: new Date().toISOString().split("T")[0],
   }).select("id").single();
 
   if (portErr) return { error: portErr.message };
-
-  // Auto-create deposit transaction for starting cash
-  if (startingCash > 0) {
-    const { error: txErr } = await supabase.from("transactions").insert({
-      portfolio_id: portfolio.id,
-      event_type: "DEPOSIT",
-      event_date: openingDate,
-      gross_amount: startingCash,
-      idempotency_key: `portfolio-${portfolio.id}-initial-deposit`,
-      owner_id: user.user.id,
-    });
-    if (txErr) return { error: `Portfolio created but deposit failed: ${txErr.message}` };
-  }
 
   revalidatePath("/portfolios");
   revalidatePath("/dashboard");
