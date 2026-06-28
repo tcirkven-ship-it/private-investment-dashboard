@@ -13,10 +13,9 @@ export interface DashboardData {
   modelName: string | null;
   modelDate: string | null;
   holdingsCount: number;
-  isOwner: boolean;
 }
 
-function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
+function EmptyDashboard() {
   const router = useRouter();
   const [importingModel, setImportingModel] = useState(false);
   const [modelResult, setModelResult] = useState<string | null>(null);
@@ -55,15 +54,13 @@ function EmptyDashboard({ isOwner }: { isOwner: boolean }) {
               <p className="text-xs text-neutral-500">See the official model</p>
             </div>
           </Link>
-          {isOwner && (
-            <button onClick={handleGenerateModel} disabled={importingModel} className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-green-500/50 transition-colors text-left">
-              <Download className="w-5 h-5 text-green-400" />
-              <div>
-                <p className="text-sm font-medium">{importingModel ? "Generating..." : "Generate / Refresh Quarterly Top 30"}</p>
-                <p className="text-xs text-neutral-500">M1_B2_QUALITY_VETO_N30</p>
-              </div>
-            </button>
-          )}
+          <button onClick={handleGenerateModel} disabled={importingModel} className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-green-500/50 transition-colors text-left">
+            <Download className="w-5 h-5 text-green-400" />
+            <div>
+              <p className="text-sm font-medium">{importingModel ? "Generating..." : "Generate / Refresh Quarterly Top 30"}</p>
+              <p className="text-xs text-neutral-500">M1_B2_QUALITY_VETO_N30</p>
+            </div>
+          </button>
         </div>
         {modelResult && (
           <p className={`text-xs mt-3 ${modelResult.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
@@ -119,7 +116,7 @@ export default function DashboardClient({ data, error, portfolios }: {
   }
 
   if (!data || (data.portfolioCount === 0 && !data.modelPublished)) {
-    return <EmptyDashboard isOwner={data?.isOwner ?? false} />;
+    return <EmptyDashboard />;
   }
 
   return (

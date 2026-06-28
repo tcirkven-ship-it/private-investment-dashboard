@@ -88,8 +88,13 @@ export async function deletePortfolio(portfolioId: string): Promise<ActionResult
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { error: "Not authenticated" };
+
+  const { error: txErr } = await supabase.from("transactions").delete().eq("portfolio_id", portfolioId);
+  if (txErr) return { error: txErr.message };
+
   const { error } = await supabase.from("portfolios").delete().eq("id", portfolioId).eq("owner_id", user.id);
   if (error) return { error: error.message };
+
   revalidatePath("/portfolios");
   revalidatePath("/dashboard");
   return { error: null };

@@ -7,10 +7,15 @@ export const metadata = { title: "Model Review" };
 
 export default async function ModelReviewPage() {
   const supabase = await createServerSupabase();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return <div className="text-sm text-red-400">Not authenticated</div>;
+  }
+
   const { data: snapshots, error } = await supabase
     .from("model_snapshots")
     .select("id, snapshot_id, status, effective_date")
-    .in("status", ["DRAFT", "VALIDATED", "APPROVED"])
+    .or("status.eq.DRAFT,status.eq.VALIDATED,status.eq.APPROVED")
     .order("effective_date", { ascending: false });
 
   return (
