@@ -3,22 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, TrendingUp, Briefcase, BarChart3, RefreshCw, Settings, LogOut, ChevronLeft,
+  LayoutDashboard, TrendingUp, Briefcase, LogOut, ChevronLeft,
 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useState } from "react";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/model", label: "Official Model", icon: TrendingUp },
-  { href: "/model/history", label: "Model History", icon: BarChart3 },
-  { href: "/portfolios", label: "Portfolios", icon: Briefcase },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
-
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/model", label: "Quarterly Top 30", icon: TrendingUp },
+    { href: "/portfolios", label: "My Portfolio", icon: Briefcase },
+  ];
 
   return (
     <aside className={`${collapsed ? "w-16" : "w-56"} transition-all duration-200 flex flex-col border-r border-neutral-800 bg-neutral-950/50 backdrop-blur-sm`}>

@@ -134,7 +134,7 @@ export interface RebalanceLine {
   ticker: string;
   currentWeight: string;
   targetWeight: string;
-  action: "Add" | "Remove" | "Reduce" | "Increase" | "Keep";
+  action: "Buy" | "Sell" | "Add" | "Reduce" | "Hold";
 }
 
 export interface RebalanceResult {
@@ -148,7 +148,6 @@ export async function loadRebalance(portfolioId: string, db?: DB): Promise<Rebal
   const snapResult = await supabase
     .from("model_snapshots")
     .select("id, effective_date")
-    .eq("status", "PUBLISHED")
     .order("effective_date", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -180,11 +179,11 @@ export async function loadRebalance(portfolioId: string, db?: DB): Promise<Rebal
     const h = state.holdings.get(ticker);
     const targetW = modelTargets.get(ticker) || 0;
     const currentW = h?.market_value && nav > 0 ? h.market_value / nav : 0;
-    let action: RebalanceLine["action"] = "Keep";
-    if (!h || h.quantity <= 0) action = "Add";
-    else if (targetW === 0) action = "Remove";
+    let action: RebalanceLine["action"] = "Hold";
+    if (!h || h.quantity <= 0) action = "Buy";
+    else if (targetW === 0) action = "Sell";
     else if (currentW > targetW * 1.05) action = "Reduce";
-    else if (targetW > 0 && currentW < targetW * 0.95) action = "Increase";
+    else if (targetW > 0 && currentW < targetW * 0.95) action = "Add";
     return { ticker, currentWeight: (currentW * 100).toFixed(1), targetWeight: (targetW * 100).toFixed(2), action };
   });
 

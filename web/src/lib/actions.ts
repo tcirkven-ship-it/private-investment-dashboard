@@ -2,9 +2,158 @@
 
 import { createServerSupabase } from "./supabase";
 import { revalidatePath } from "next/cache";
+import { parse } from "csv-parse/sync";
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
 
 export interface ActionResult {
   error: string | null;
+}
+
+const M1_CSV_PATH = resolve(process.cwd(), "data", "m1_b2_quality_veto_targets.csv");
+
+type M1Row = { ticker: string; sector: string; industry: string; b2_score: number; quality_percentile: number };
+
+function parseM1B2CSV(): { rows: M1Row[]; error?: string } {
+  if (!existsSync(M1_CSV_PATH)) {
+    return { rows: [], error: `File not found: ${M1_CSV_PATH}. Ensure the research output exists.` };
+  }
+  try {
+    const raw = readFileSync(M1_CSV_PATH, "utf-8");
+    const records = parse(raw, { columns: true, skip_empty_lines: true }) as Record<string, string>[];
+    if (records.length !== 30) return { rows: [], error: `Expected 30 rows in CSV, found ${records.length}` };
+    const rows: M1Row[] = [];
+    const seen = new Set<string>();
+    for (const r of records) {
+      const t = (r.ticker || "").trim().toUpperCase();
+      if (!t) return { rows: [], error: "Missing ticker in CSV row" };
+      if (seen.has(t)) return { rows: [], error: `Duplicate ticker: ${t}` };
+      seen.add(t);
+      rows.push({
+        ticker: t,
+        sector: (r.sector || "").trim(),
+        industry: (r.industry || "").trim(),
+        b2_score: parseFloat(r.B2_score || "0"),
+        quality_percentile: parseFloat(r.Q_percentile || "0"),
+      });
+    }
+    return { rows };
+  } catch (e) {
+    return { rows: [], error: `CSV parse error: ${e instanceof Error ? e.message : "Unknown"}` };
+  }
+}
+
+export async function importM1B2Model(): Promise<ActionResult & { message?: string }> {
+  const ownerEmail = process.env.OWNER_EMAIL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // Diagnostic: env present without values
+  console.log("OWNER_EMAIL present:", ownerEmail ? "yes" : "no");
+  console.log("SUPABASE_SERVICE_ROLE_KEY present:", serviceKey ? "yes" : "no");
+
+  if (!ownerEmail) return { error: "OWNER_EMAIL env var not configured." };
+  if (!serviceKey) return { error: "SUPABASE_SERVICE_ROLE_KEY env var not configured." };
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated. Please sign in again." };
+
+  console.log("current user present:", "yes");
+  console.log("current user email matches owner:", user.email?.toLowerCase() === ownerEmail.toLowerCase() ? "yes" : "no");
+
+  if (user.email?.toLowerCase() !== ownerEmail.toLowerCase()) {
+    return { error: "Owner access required." };
+  }
+
+  const parsed = parseM1B2CSV();
+  if (parsed.error) return { error: parsed.error };
+
+  // Service client for model writes (RLS bypass)
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const rows = parsed.rows;
+  const ts = Date.now().toString(36);
+  const targetWeight = 1 / 30;
+
+  // Upsert securities
+  const secIds: Record<string, string> = {};
+  for (const r of rows) {
+    const { data: created } = await db.from("securities").upsert({
+      ticker: r.ticker,
+      sector: r.sector,
+      industry: r.industry,
+      is_active: true,
+    }, { onConflict: "ticker" }).select("id").single();
+    if (created) secIds[r.ticker] = created.id;
+    else {
+      const { data: existing } = await db.from("securities").select("id").eq("ticker", r.ticker).single();
+      if (existing) secIds[r.ticker] = existing.id;
+    }
+  }
+
+  // Supersede old DRAFT snapshots
+  const { data: oldDrafts } = await db.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
+  if (oldDrafts) {
+    for (const d of oldDrafts) {
+      await db.from("model_snapshots").update({ status: "SUPERSEDED" }).eq("id", d.id);
+    }
+  }
+
+  // Ensure model version exists
+  let { data: mv } = await db.from("model_versions").select("id").eq("model_id", "M1_B2_QUALITY_VETO_N30").maybeSingle();
+  if (!mv) {
+    const d = new Date();
+    const v = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+    const { data: newMv, error: mvErr } = await db.from("model_versions").insert({
+      model_id: "M1_B2_QUALITY_VETO_N30",
+      version: v,
+      description: "Decision support only. Not investment advice. Source: m1_b2_quality_veto_targets.csv",
+    }).select("id").single();
+    if (mvErr) return { error: `Failed to create model version: ${mvErr.message}` };
+    if (!newMv) return { error: "Failed to create model version" };
+    mv = newMv;
+  }
+
+  // Create DRAFT snapshot
+  const { data: snapshot, error: snapErr } = await db.from("model_snapshots").insert({
+    model_version_id: mv.id,
+    snapshot_id: `m1b2-${ts}`,
+    status: "DRAFT",
+    effective_date: new Date().toISOString().split("T")[0],
+    universe_screened: 2205,
+    eligible_count: 1070,
+    valid_score_count: 1034,
+    warnings: JSON.stringify({ source_file: "m1_b2_quality_veto_targets.csv", ticker_count: rows.length }),
+  }).select("id").single();
+  if (snapErr) return { error: `Failed to create snapshot: ${snapErr.message}` };
+  if (!snapshot) return { error: "Failed to create snapshot" };
+  const sid = snapshot.id;
+
+  // Insert 30 holdings
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const secId = secIds[r.ticker];
+    if (!secId) continue;
+    await db.from("model_snapshot_holdings").upsert({
+      snapshot_id: sid,
+      security_id: secId,
+      rank: i + 1,
+      target_weight: targetWeight,
+      b2_score: r.b2_score,
+      quality_percentile: r.quality_percentile,
+      quality_components_ok: 4,
+      inclusion_reason: "M1 B2 Quality Veto. Source: m1_b2_quality_veto_targets.csv",
+    }, { onConflict: "snapshot_id,security_id" });
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/model");
+  return { error: null, message: `M1_B2_QUALITY_VETO_N30 generated with ${rows.length} stocks from research output.` };
 }
 
 export async function insertTransaction(formData: FormData): Promise<ActionResult> {
@@ -26,11 +175,14 @@ export async function insertTransaction(formData: FormData): Promise<ActionResul
   const price = parseFloat(formData.get("price") as string) || 0;
   const commission = parseFloat(formData.get("commission") as string) || 0;
 
+  // Recalculate gross for BUY/SELL from quantity × price (do not trust client)
+  const calcGross = ["BUY", "SELL"].includes(eventType) ? quantity * price : grossAmount;
+
   const payload: Record<string, unknown> = {
     portfolio_id: portfolioId,
     event_type: eventType,
     event_date: eventDate,
-    gross_amount: grossAmount,
+    gross_amount: calcGross,
     quantity: quantity || null,
     price: price || null,
     commission: commission || 0,
@@ -65,22 +217,36 @@ export async function createPortfolio(formData: FormData): Promise<ActionResult>
   if (!user?.user?.id) return { error: "Not authenticated" };
 
   const name = formData.get("name") as string;
-  const openingDate = formData.get("opening_date") as string;
-  const startingCash = parseFloat(formData.get("starting_cash") as string) || 0;
-  const notes = formData.get("notes") as string || "";
+  const currency = formData.get("currency") as string;
 
-  if (!name || !openingDate) {
-    return { error: "Name and opening date are required" };
-  }
+  if (!name) return { error: "Name is required" };
+  if (!currency || !["USD", "EUR", "GBP"].includes(currency)) return { error: "Valid currency is required" };
 
   const { error } = await supabase.from("portfolios").insert({
     owner_id: user.user.id,
     name,
-    opening_date: openingDate,
-    starting_cash: startingCash || null,
-    notes: notes || null,
+    currency,
+    opening_date: new Date().toISOString().split("T")[0],
   });
 
+  if (error) return { error: error.message };
+
+  revalidatePath("/portfolios");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function deletePortfolio(id: string): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  // Delete transactions first, then portfolio
+  const { error: txErr } = await supabase.from("transactions").delete().eq("portfolio_id", id);
+  if (txErr) return { error: `Failed to delete transactions: ${txErr.message}` };
+
+  const { error } = await supabase.from("portfolios").delete().eq("id", id).eq("owner_id", user.id);
   if (error) return { error: error.message };
 
   revalidatePath("/portfolios");

@@ -69,6 +69,39 @@ export const getPublishedModel = cache(async (): Promise<QueryResult<ModelSnapsh
   return { data: data as ModelSnapshot | null, error: null };
 });
 
+export const getLatestModelSnapshot = cache(async (): Promise<QueryResult<ModelSnapshot>> => {
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("model_snapshots")
+    .select(`
+      id, snapshot_id, effective_date, status, published_at,
+      model_version:model_version_id(model_id, version, description),
+      holdings:model_snapshot_holdings(
+        rank, target_weight, b2_score, quality_percentile,
+        quality_components_ok, inclusion_reason,
+        security:security_id(ticker, company_name, sector, industry)
+      )
+    `)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) return { data: null, error: `Failed to load model: ${error.message}` };
+  return { data: data as ModelSnapshot | null, error: null };
+});
+
+export const getModelCounts = cache(async (): Promise<{ published: number; draft: number }> => {
+  const supabase = await createServerSupabase();
+  const [pubRes, draftRes] = await Promise.all([
+    supabase.from("model_snapshots").select("*", { count: "exact", head: true }).eq("status", "PUBLISHED"),
+    supabase.from("model_snapshots").select("*", { count: "exact", head: true }).eq("status", "DRAFT"),
+  ]);
+  return {
+    published: pubRes.count ?? 0,
+    draft: draftRes.count ?? 0,
+  };
+});
+
 export const getModelHistory = cache(async (): Promise<QueryResult<Record<string, unknown>[]>> => {
   const supabase = await createServerSupabase();
   const { data, error } = await supabase

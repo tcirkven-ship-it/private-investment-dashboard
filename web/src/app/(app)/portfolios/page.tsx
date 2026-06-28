@@ -1,24 +1,16 @@
-"use client";
-
 import Link from "next/link";
+import { createServerSupabase } from "@/lib/supabase";
 import { Plus, ArrowRight } from "lucide-react";
 
-interface Portfolio {
-  id: string;
-  name: string;
-  opening_date: string;
-  starting_cash: number;
-  is_archived: boolean;
-}
+export default async function PortfoliosPage() {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
 
-const MOCK_PORTFOLIOS: Portfolio[] = [
-  { id: "1", name: "Main Brokerage", opening_date: "2025-01-01", starting_cash: 100000, is_archived: false },
-  { id: "2", name: "Retirement", opening_date: "2025-06-01", starting_cash: 50000, is_archived: false },
-  { id: "3", name: "Paper Account", opening_date: "2026-03-01", starting_cash: 25000, is_archived: false },
-];
-
-export default function PortfoliosPage() {
-  const portfolios = MOCK_PORTFOLIOS;
+  const { data: portfolios } = await supabase
+    .from("portfolios")
+    .select("id, name, opening_date, is_archived")
+    .eq("owner_id", user?.id)
+    .order("opening_date", { ascending: false });
 
   return (
     <div className="space-y-6">
@@ -32,9 +24,11 @@ export default function PortfoliosPage() {
         </Link>
       </div>
 
-      {portfolios.length === 0 ? (
+      {(!portfolios || portfolios.length === 0) ? (
         <div className="card text-center py-12">
-          <p className="text-neutral-500">No portfolios yet. Create your first one.</p>
+          <p className="text-neutral-500">
+            No portfolios yet. <Link href="/portfolios/new" className="text-blue-400 hover:text-blue-300 underline">Create your first one.</Link>
+          </p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -44,7 +38,7 @@ export default function PortfoliosPage() {
                 <div>
                   <h3 className="font-semibold">{p.name}</h3>
                   <p className="text-sm text-neutral-500 mt-0.5">
-                    Opened {p.opening_date} · ${p.starting_cash.toLocaleString()} initial
+                    Opened {p.opening_date}
                     {p.is_archived && <span className="ml-2 text-yellow-500">Archived</span>}
                   </p>
                 </div>

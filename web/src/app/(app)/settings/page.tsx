@@ -17,7 +17,7 @@ export default function SettingsPage() {
       <div className="card space-y-4">
         <h2 className="text-sm font-semibold flex items-center gap-2"><Shield className="w-4 h-4" /> Account</h2>
         <div className="text-sm text-neutral-400">
-          <p>Email: owner@example.com</p>
+          <p>Settings</p>
           <p className="mt-1">MFA: Not enabled</p>
         </div>
       </div>

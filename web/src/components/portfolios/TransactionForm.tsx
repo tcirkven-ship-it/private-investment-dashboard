@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { insertTransaction } from "@/lib/actions";
 
 const TX_TYPES = [
@@ -13,6 +14,7 @@ interface TransactionFormProps {
 }
 
 export default function TransactionForm({ portfolioId }: TransactionFormProps) {
+  const router = useRouter();
   const [eventType, setEventType] = useState("BUY");
   const [ticker, setTicker] = useState("");
   const [eventDate, setEventDate] = useState(new Date().toISOString().split("T")[0]);
@@ -27,6 +29,8 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
   const needsTicker = ["BUY", "SELL", "DIVIDEND", "SPLIT", "SYMBOL_CHANGE"].includes(eventType);
   const needsQuantity = ["BUY", "SELL", "SPLIT", "CORRECTION"].includes(eventType);
   const needsPrice = ["BUY", "SELL", "CORRECTION"].includes(eventType);
+  const needsGrossCalc = ["BUY", "SELL"].includes(eventType);
+  const calcAmount = (parseFloat(quantity) || 0) * (parseFloat(price) || 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +42,10 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
     formData.set("portfolio_id", portfolioId);
     formData.set("event_type", eventType);
     formData.set("event_date", eventDate);
-    formData.set("gross_amount", grossAmount);
+    const calcGross = ["BUY", "SELL"].includes(eventType)
+      ? String((parseFloat(quantity) || 0) * (parseFloat(price) || 0))
+      : grossAmount;
+    formData.set("gross_amount", calcGross);
     formData.set("commission", commission);
     if (ticker) formData.set("ticker", ticker);
     if (quantity) formData.set("quantity", quantity);
@@ -52,6 +59,7 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
     } else {
       setSaving(false);
       setSuccess(true);
+      router.refresh();
       // Reset form
       setTicker("");
       setQuantity("");
@@ -81,7 +89,7 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
         {needsTicker && (
           <div>
             <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Ticker</label>
-            <input type="text" value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} className="input" placeholder="AAPL" />
+            <input type="text" value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} className="input" placeholder="Ticker" />
           </div>
         )}
         {needsQuantity && (
@@ -98,7 +106,11 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
         )}
         <div>
           <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Gross Amount ($)</label>
-          <input type="number" value={grossAmount} onChange={(e) => setGrossAmount(e.target.value)} className="input" step="0.01" required />
+          {needsGrossCalc ? (
+            <div className="input bg-neutral-900 text-neutral-400">${calcAmount.toFixed(2)}</div>
+          ) : (
+            <input type="number" value={grossAmount} onChange={(e) => setGrossAmount(e.target.value)} className="input" step="0.01" required />
+          )}
         </div>
         <div>
           <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider block mb-1">Commission ($)</label>
