@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { createPortfolio } from "@/lib/actions";
 
 export default function NewPortfolioPage() {
   const router = useRouter();
@@ -11,11 +12,27 @@ export default function NewPortfolioPage() {
   const [openingDate, setOpeningDate] = useState(new Date().toISOString().split("T")[0]);
   const [startingCash, setStartingCash] = useState("100000");
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // In production, save to Supabase
-    router.push("/portfolios");
+    setSaving(true);
+    setError("");
+
+    const formData = new FormData();
+    formData.set("name", name);
+    formData.set("opening_date", openingDate);
+    formData.set("starting_cash", startingCash);
+    formData.set("notes", notes);
+
+    const result = await createPortfolio(formData);
+    if (result.error) {
+      setError(result.error);
+      setSaving(false);
+    } else {
+      router.push("/portfolios");
+    }
   }
 
   return (
@@ -26,6 +43,8 @@ export default function NewPortfolioPage() {
         </Link>
         <h1 className="text-xl font-semibold">New Portfolio</h1>
       </div>
+
+      {error && <div className="text-sm text-red-400 bg-red-500/10 rounded px-3 py-2">{error}</div>}
 
       <form onSubmit={handleSubmit} className="card space-y-4">
         <div>
@@ -44,7 +63,7 @@ export default function NewPortfolioPage() {
           <label className="block text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Notes</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input" rows={3} placeholder="Optional notes..." />
         </div>
-        <button type="submit" className="btn-primary w-full">Create Portfolio</button>
+        <button type="submit" disabled={saving} className="btn-primary w-full">{saving ? "Creating..." : "Create Portfolio"}</button>
       </form>
     </div>
   );
