@@ -97,14 +97,25 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     .single();
   if (!profile?.is_owner) return { error: "Only the owner can import the official model" };
 
-  // Check if model already imported
-  const { data: existing } = await supabase
+  // Clean up existing DRAFT snapshots to allow re-import via Refresh
+  const { data: existingMVs } = await supabase
     .from("model_versions")
     .select("id")
-    .eq("model_id", "M1_B2_QUALITY_VETO_N30")
-    .limit(1);
-  if (existing && existing.length > 0) {
-    return { error: "M1_B2_QUALITY_VETO_N30 model already exists. Skip or delete first." };
+    .eq("model_id", "M1_B2_QUALITY_VETO_N30");
+  if (existingMVs && existingMVs.length > 0) {
+    const mvIds = existingMVs.map(mv => mv.id);
+    const { data: draftSnapshots } = await supabase
+      .from("model_snapshots")
+      .select("id")
+      .in("model_version_id", mvIds)
+      .eq("status", "DRAFT");
+    if (draftSnapshots && draftSnapshots.length > 0) {
+      const snapIds = draftSnapshots.map(s => s.id);
+      await supabase.from("model_snapshot_holdings").delete().in("snapshot_id", snapIds);
+      await supabase.from("model_snapshots").delete().in("id", snapIds);
+    }
+    await supabase.from("model_snapshots").update({ model_version_id: null }).in("model_version_id", mvIds);
+    await supabase.from("model_versions").delete().in("id", mvIds);
   }
 
   const M1_TICKERS: Array<{ ticker: string; sector: string; industry: string; b2_score: number; quality_percentile: number }> = [
@@ -146,12 +157,12 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   // Create securities
   const secIds: Record<string, string> = {};
   for (const h of M1_TICKERS) {
-    const { data: sec } = await supabase.from("securities").insert({
+    const { data: sec } = await supabase.from("securities").upsert({
       ticker: h.ticker,
       sector: h.sector,
       industry: h.industry,
       is_active: true,
-    }).select("id").single();
+    }, { onConflict: "ticker" }).select("id").single();
     if (sec) secIds[h.ticker] = sec.id;
   }
 
@@ -193,7 +204,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   }
 
   revalidatePath("/model");
-  return { error: null, message: "M1_B2_QUALITY_VETO_N30 imported as DRAFT. Review and publish via admin." };
+  return { error: null, message: "M1_B2_QUALITY_VETO_N30 generated as DRAFT." };
 }
 
 export async function seedAcceptanceData(): Promise<ActionResult & { message?: string }> {

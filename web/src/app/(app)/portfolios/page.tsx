@@ -1,24 +1,26 @@
-"use client";
-
 import Link from "next/link";
 import { Plus, ArrowRight } from "lucide-react";
+import { createServerSupabase } from "@/lib/supabase";
 
-interface Portfolio {
-  id: string;
-  name: string;
-  opening_date: string;
-  starting_cash: number;
-  is_archived: boolean;
-}
+export const metadata = { title: "Portfolios" };
 
-const MOCK_PORTFOLIOS: Portfolio[] = [
-  { id: "1", name: "Main Brokerage", opening_date: "2025-01-01", starting_cash: 100000, is_archived: false },
-  { id: "2", name: "Retirement", opening_date: "2025-06-01", starting_cash: 50000, is_archived: false },
-  { id: "3", name: "Paper Account", opening_date: "2026-03-01", starting_cash: 25000, is_archived: false },
-];
+export default async function PortfoliosPage() {
+  const supabase = await createServerSupabase();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-export default function PortfoliosPage() {
-  const portfolios = MOCK_PORTFOLIOS;
+  if (authError || !user) {
+    return null;
+  }
+
+  const { data: portfolios, error } = await supabase
+    .from("portfolios")
+    .select("id, name, opening_date, starting_cash, is_archived")
+    .eq("owner_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

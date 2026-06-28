@@ -3,18 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, TrendingUp, Briefcase, LogOut, ChevronLeft,
+  LayoutDashboard, TrendingUp, Briefcase, Settings, LogOut, ChevronLeft,
 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useState } from "react";
 
-const navItems = [
+const mainNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/model", label: "Quarterly Top 30", icon: TrendingUp },
   { href: "/portfolios", label: "My Portfolio", icon: Briefcase },
 ];
 
-export default function Sidebar() {
+const adminNavItems = [
+  { href: "/admin/model-review", label: "Admin / Model Review", icon: Settings },
+];
+
+export default function Sidebar({ isOwner }: { isOwner?: boolean }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -27,7 +31,7 @@ export default function Sidebar() {
         </button>
       </div>
       <nav className="flex-1 p-2 space-y-1">
-        {navItems.map((item) => {
+        {mainNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
@@ -42,6 +46,25 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        {isOwner && (
+          <div className="pt-2 mt-2 border-t border-neutral-800">
+            {adminNavItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={isActive ? "nav-link-active" : "nav-link"}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </nav>
       <div className="p-2 border-t border-neutral-800">
         <button onClick={() => signOut()} className="nav-link w-full">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { insertTransaction } from "@/lib/actions";
 
 const TX_TYPES = [
@@ -23,6 +24,7 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const router = useRouter();
 
   const needsTicker = ["BUY", "SELL", "DIVIDEND", "SPLIT", "SYMBOL_CHANGE"].includes(eventType);
   const needsQuantity = ["BUY", "SELL", "SPLIT", "CORRECTION"].includes(eventType);
@@ -52,6 +54,7 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
     } else {
       setSaving(false);
       setSuccess(true);
+      router.refresh();
       // Reset form
       setTicker("");
       setQuantity("");

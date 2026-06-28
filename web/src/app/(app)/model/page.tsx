@@ -1,25 +1,63 @@
-import { getPublishedModel } from "@/lib/supabase-queries";
-import Link from "next/link";
+import { createServerSupabase } from "@/lib/supabase";
 
 export default async function ModelPage() {
-  const result = await getPublishedModel();
+  const supabase = await createServerSupabase();
 
-  if (result.error) {
+  const { data: snapshot, error: snapError } = await supabase
+    .from("model_snapshots")
+    .select(`
+      id, snapshot_id, effective_date, status, published_at,
+      model_version:model_version_id(model_id, version, description),
+      holdings:model_snapshot_holdings(
+        rank, target_weight, b2_score, quality_percentile,
+        quality_components_ok, inclusion_reason,
+        security:security_id(ticker, company_name, sector, industry)
+      )
+    `)
+    .order("effective_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (snapError) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
         <div className="card border-red-500/30 bg-red-500/5">
-          <p className="text-sm text-red-400">Error: {result.error}</p>
+          <p className="text-sm text-red-400">Error: {snapError.message}</p>
           <p className="text-sm text-neutral-500 mt-2">Ensure the database migration has been applied and a model snapshot has been published.</p>
         </div>
       </div>
     );
   }
 
-  const model = result.data;
+  const model = snapshot as {
+    id: string;
+    snapshot_id: string;
+    effective_date: string;
+    status: string;
+    published_at: string | null;
+    model_version: { model_id: string; version: string; description: string | null } | null;
+    holdings: Array<{
+      rank: number;
+      target_weight: number;
+      b2_score: number | null;
+      quality_percentile: number | null;
+      quality_components_ok: number;
+      inclusion_reason: string | null;
+      security: { ticker: string; company_name: string | null; sector: string | null; industry: string | null } | null;
+    }>;
+  } | null;
+
+  const isUnpublished = model && model.status !== "PUBLISHED";
 
   return (
     <div className="space-y-6">
+      {isUnpublished && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-2 text-sm text-yellow-400">
+          Not yet published — currently in {model.status} status
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
         <p className="text-sm text-neutral-500 mt-1">M1_B2_QUALITY_VETO_N30</p>
