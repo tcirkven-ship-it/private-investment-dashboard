@@ -7,6 +7,10 @@ import { parse } from "csv-parse/sync";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
+const YH_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/";
+
+type RefreshResult = { ok: number; failed: string[]; errors: string[] };
+
 export interface ActionResult {
   error: string | null;
 }
@@ -97,15 +101,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     }
   }
 
-  // Supersede old DRAFT snapshots
-  const { data: oldDrafts } = await db.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
-  if (oldDrafts) {
-    for (const d of oldDrafts) {
-      await db.from("model_snapshots").update({ status: "SUPERSEDED" }).eq("id", d.id);
-    }
-  }
-
-  // Ensure model version exists
+  // Create new DRAFT snapshot (preserve history)
   let { data: mv } = await db.from("model_versions").select("id").eq("model_id", "M1_B2_QUALITY_VETO_N30").maybeSingle();
   if (!mv) {
     const d = new Date();
@@ -321,6 +317,59 @@ export async function recordValuationSnapshot(portfolioId: string): Promise<Acti
   if (error) return { error: error.message };
   revalidatePath(`/portfolios/${portfolioId}/performance`);
   return { error: null, nav: result.nav, date: today };
+}
+
+export async function refreshClosingPrices(): Promise<ActionResult & { message?: string; ok?: number; failed?: number }> {
+  const ownerEmail = process.env.OWNER_EMAIL;
+  if (!ownerEmail) return { error: "OWNER_EMAIL not configured." };
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.email?.toLowerCase() !== ownerEmail.toLowerCase()) return { error: "Owner access required." };
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return { error: "SUPABASE_SERVICE_ROLE_KEY not configured." };
+
+  // Collect tickers: Top 30 model holdings + portfolio holdings
+  const [{ data: modelHoldings }, { data: securities }] = await Promise.all([
+    supabase.from("model_snapshots").select("id").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("securities").select("ticker, id"),
+  ]);
+  const tickers: string[] = [];
+  const secMap = new Map<string, string>();
+  if (securities) for (const s of securities) { secMap.set(s.ticker, s.id); tickers.push(s.ticker); }
+
+  // Also add SPY, QQQ for benchmarks
+  if (!tickers.includes("SPY")) tickers.push("SPY");
+  if (!tickers.includes("QQQ")) tickers.push("QQQ");
+  const uniqueTickers = [...new Set(tickers)];
+
+  const today = new Date().toISOString().split("T")[0];
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } });
+
+  let ok = 0;
+  const failed: string[] = [];
+  const errors: string[] = [];
+
+  for (const t of uniqueTickers) {
+    try {
+      const resp = await fetch(`${YH_CHART_URL}${encodeURIComponent(t)}?range=5d&interval=1d`);
+      if (!resp.ok) { failed.push(t); errors.push(`HTTP ${resp.status}`); continue; }
+      const json = await resp.json();
+      const result = json?.chart?.result?.[0];
+      const close = result?.indicators?.quote?.[0]?.close?.slice(-1)[0];
+      if (!close) { failed.push(t); errors.push("No close price"); continue; }
+      const secId = secMap.get(t);
+      if (!secId) { failed.push(t); errors.push("No security_id"); continue; }
+      const { error } = await db.from("price_observations").upsert({
+        security_id: secId, observation_date: today, close, source: "yahoo-auto",
+      }, { onConflict: "security_id,observation_date" });
+      if (error) { failed.push(t); errors.push(error.message); }
+      else ok++;
+    } catch (e) { failed.push(t); errors.push(e instanceof Error ? e.message : "Unknown"); }
+  }
+
+  revalidatePath("/dashboard"); revalidatePath("/portfolios"); revalidatePath("/model");
+  return { error: null, message: `Prices refreshed: ${ok}. Failed: ${failed.length}`, ok, failed: failed.length };
 }
 
 export async function seedAcceptanceData(): Promise<ActionResult & { message?: string }> {

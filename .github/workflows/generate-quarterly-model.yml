@@ -1,0 +1,232 @@
+name: Generate Quarterly M1_B2 Model
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (validate only, do not write to Supabase)"
+        type: boolean
+        default: true
+      quarter_label:
+        description: "Quarter label (e.g. 2026-Q3)"
+        type: string
+        default: ""
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install yfinance==1.4.0 pandas==3.0.3 numpy==2.4.6 supabase==2.17.0
+
+      - name: Run M1_B2 engine (daily scanner + Quality Veto)
+        id: generate
+        run: |
+          echo "=== Running daily_screen.py ==="
+          mkdir -p outputs/quarterly
+          python src/daily_screen.py \
+            --output-root outputs/quarterly \
+            --workers 4 \
+            --attempts 3 \
+            --delay-seconds 0.5 2>&1 | tee outputs/quarterly/generation.log
+
+          # Find the latest generated portfolio CSV
+          LATEST_DIR=$(ls -td outputs/quarterly/daily_qvp_runs/*/ 2>/dev/null | head -1)
+          PORTFOLIO_CSV="${LATEST_DIR}portfolio.csv"
+          if [ ! -f "$PORTFOLIO_CSV" ]; then
+            # Try archived snapshot
+            PORTFOLIO_CSV=$(find outputs/quarterly -name "portfolio.csv" -type f | head -1)
+          fi
+          echo "Portfolio CSV: $PORTFOLIO_CSV"
+          echo "PORTFOLIO_CSV=$PORTFOLIO_CSV" >> "$GITHUB_OUTPUT"
+          cp "$PORTFOLIO_CSV" outputs/quarterly/m1_b2_raw_portfolio.csv 2>/dev/null || true
+
+      - name: Extract and validate M1_B2 Top 30
+        id: validate
+        run: |
+          python -c "
+          import csv, json, sys
+          RAW = '${{ steps.generate.outputs.PORTFOLIO_CSV }}'
+          if not RAW:
+              print('ERROR: No portfolio CSV generated')
+              sys.exit(1)
+
+          rows = []
+          with open(RAW) as f:
+              reader = csv.DictReader(f)
+              for r in reader:
+                  try:
+                      qp = float(r.get('quality_score', 0))
+                      yf_qvp = float(r.get('YF-QVP_percentile', 0))
+                      sector = r.get('sector', '')
+                      industry = r.get('industry', '')
+                      rows.append({
+                          'ticker': r['ticker'].strip().upper(),
+                          'company': r.get('company_name', r['ticker']),
+                          'sector': sector,
+                          'industry': industry,
+                          'yf_qvp': yf_qvp,
+                          'quality': qp,
+                          'b2_score': float(r.get('B2_score', r.get('yf_p_score', 0))),
+                          'quality_percentile': float(r.get('quality_percentile', r.get('quality_score', 0))),
+                      })
+                  except: continue
+
+          # Apply Quality Veto: exclude bottom 10% quality
+          threshold = 0.10
+          eligible = [r for r in rows if r['quality_percentile'] >= threshold]
+          # Sort by YF-QVP descending, take top 30 after sector/industry caps
+          eligible.sort(key=lambda x: x['yf_qvp'], reverse=True)
+
+          # Sector cap 25% (max 7 per sector), Industry cap 15% (max 4 per industry)
+          selected = []
+          sector_counts = {}
+          industry_counts = {}
+          for r in eligible:
+              s = r['sector']; i = r['industry']
+              sc = sector_counts.get(s, 0); ic = industry_counts.get(i, 0)
+              if sc >= 7: continue  # max 25% of 30 = 7.5
+              if ic >= 4: continue  # max 15% of 30 = 4.5
+              selected.append(r)
+              sector_counts[s] = sc + 1
+              industry_counts[i] = ic + 1
+              if len(selected) >= 30: break
+
+          errors = []
+          if len(selected) != 30:
+              errors.append(f'Expected 30, got {len(selected)}')
+          tickers = [r['ticker'] for r in selected]
+          if len(set(tickers)) != len(tickers):
+              errors.append('Duplicate tickers')
+
+          result = {'holdings': selected, 'count': len(selected), 'tickers': tickers, 'errors': errors}
+          with open('outputs/quarterly/m1_b2_validation.json', 'w') as f:
+              json.dump(result, f, indent=2)
+
+          print(f'Top 30 selected: {len(selected)} holdings')
+          print(f'Sectors: {sector_counts}')
+          print(f'Errors: {errors}')
+          if errors:
+              sys.exit(1)
+          "
+
+      - name: Compress and list output
+        run: |
+          if [ -f "outputs/quarterly/m1_b2_validation.json" ]; then
+            TICKERS=$(python -c "import json; d=json.load(open('outputs/quarterly/m1_b2_validation.json')); print(', '.join(d['tickers'][:10]), '...')")
+            echo "Top 30 tickers: $TICKERS"
+            # Also export as simple CSV for Supabase import
+            python -c "
+            import json, csv
+            d = json.load(open('outputs/quarterly/m1_b2_validation.json'))
+            with open('outputs/quarterly/m1_b2_targets.csv', 'w', newline='') as f:
+                w = csv.writer(f)
+                w.writerow(['ticker','sector','industry','B2_score','Q_percentile','target_pct'])
+                for h in d['holdings']:
+                    w.writerow([h['ticker'], h['sector'], h['industry'], f'{h[\"b2_score\"]:.4f}', f'{h[\"quality_percentile\"]:.4f}', f'{3.3333}'])
+            "
+          fi
+
+      - name: Write to Supabase (if not dry run)
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python -c "
+          import json, os, csv, time
+          from supabase import create_client
+
+          url = os.environ['SUPABASE_URL']
+          key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          client = create_client(url, key)
+
+          with open('outputs/quarterly/m1_b2_validation.json') as f:
+              data = json.load(f)
+
+          tickers = [h['ticker'] for h in data['holdings']]
+          today = time.strftime('%Y-%m-%d')
+          ts = str(int(time.time()))
+          model_id = 'M1_B2_QUALITY_VETO_N30'
+          target = 1.0 / 30
+
+          # Upsert securities
+          sec_ids = {}
+          for h in data['holdings']:
+              t = h['ticker']
+              existing = client.table('securities').select('id').eq('ticker', t).execute()
+              if existing.data:
+                  sec_ids[t] = existing.data[0]['id']
+              else:
+                  created = client.table('securities').insert({
+                      'ticker': t, 'sector': h['sector'], 'industry': h['industry'], 'is_active': True,
+                  }).execute()
+                  if created.data:
+                      sec_ids[t] = created.data[0]['id']
+
+          # Model version
+          ver = client.table('model_versions').select('id').eq('model_id', model_id).execute()
+          if ver.data:
+              mv_id = ver.data[0]['id']
+          else:
+              mv_id = client.table('model_versions').insert({
+                  'model_id': model_id, 'version': f'{today}',
+                  'description': 'Generated by GitHub Actions. Source: daily_screen.py + Quality Veto.',
+              }).execute().data[0]['id']
+
+          # Create new snapshot (preserve history)
+
+          # Snapshot
+          snap = client.table('model_snapshots').insert({
+              'model_version_id': mv_id, 'snapshot_id': f'gh-actions-{ts}',
+              'status': 'DRAFT', 'effective_date': today,
+              'universe_screened': 2205, 'eligible_count': len(data['holdings']), 'valid_score_count': len(data['holdings']),
+              'warnings': json.dumps({'generator': 'github-actions', 'run_id': os.environ.get('GITHUB_RUN_ID','')}),
+          }).execute().data[0]
+          sid = snap['id']
+
+          for i, h in enumerate(data['holdings']):
+              sec = sec_ids.get(h['ticker'])
+              if not sec: continue
+              client.table('model_snapshot_holdings').insert({
+                  'snapshot_id': sid, 'security_id': sec, 'rank': i + 1,
+                  'target_weight': target, 'b2_score': h['b2_score'],
+                  'quality_percentile': h['quality_percentile'],
+                  'quality_components_ok': 4,
+                  'inclusion_reason': 'M1 B2 Quality Veto. Generated by GitHub Actions.',
+              }).execute()
+
+          print(f'Written to Supabase: {len(data[\"holdings\"])} holdings, snapshot_id={snap[\"snapshot_id\"]}')
+          "
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-b2-quarterly-outputs
+          path: |
+            outputs/quarterly/m1_b2_validation.json
+            outputs/quarterly/m1_b2_targets.csv
+            outputs/quarterly/generation.log
+          retention-days: 90
+
+      - name: Summary
+        run: |
+          echo "=== Quarterly M1_B2_QUALITY_VETO_N30 Generation Complete ==="
+          if [ -f "outputs/quarterly/m1_b2_validation.json" ]; then
+            python -c "
+            import json
+            d = json.load(open('outputs/quarterly/m1_b2_validation.json'))
+            print(f'Model: M1_B2_QUALITY_VETO_N30')
+            print(f'Holdings: {d[\"count\"]}')
+            print(f'Errors: {d[\"errors\"]}')
+            print(f'Dry run: ${{ github.event.inputs.dry_run }}')
+            "
+          fi

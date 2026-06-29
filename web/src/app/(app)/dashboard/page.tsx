@@ -25,11 +25,12 @@ export default async function DashboardPage() {
     if (authError || !user) {
       error = "Not authenticated";
     } else {
-      const [portCountRes, modelResult, modelCounts, portListRes] = await Promise.all([
+      const [portCountRes, modelResult, modelCounts, portListRes, latestPriceRes] = await Promise.all([
         supabase.from("portfolios").select("*", { count: "exact", head: true }).eq("owner_id", user.id),
         getLatestModelSnapshot(),
         getModelCounts(),
         supabase.from("portfolios").select("id, name, opening_date, starting_cash, notes").eq("owner_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("price_observations").select("observation_date").order("observation_date", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       if (portCountRes.error) {
@@ -72,6 +73,7 @@ export default async function DashboardPage() {
           modelDraft: modelCounts.draft > 0,
           nextAction,
           nextReviewWindow: computeNextReviewWindow(),
+          lastPriceDate: latestPriceRes.data?.observation_date ?? null,
         };
         portfolios = (portListRes.data || []) as typeof portfolios;
       }
