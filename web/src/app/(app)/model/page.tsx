@@ -1,5 +1,6 @@
 import { getLatestModelSnapshot } from "@/lib/supabase-queries";
 import GenerateModelButton from "@/components/model/GenerateModelButton";
+import Link from "next/link";
 
 export default async function ModelPage() {
   const result = await getLatestModelSnapshot();
@@ -103,6 +104,11 @@ export default async function ModelPage() {
           </div>
         </div>
       )}
+
+      <div className="flex gap-4 mt-4">
+        <Link href="/model/history" className="btn-ghost text-sm">View Model History →</Link>
+        <Link href="/portfolios" className="btn-ghost text-sm">View My Portfolio & Rebalance →</Link>
+      </div>
     </div>
   );
 }
