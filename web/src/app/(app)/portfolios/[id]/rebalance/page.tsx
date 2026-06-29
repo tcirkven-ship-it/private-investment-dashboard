@@ -77,7 +77,7 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
         <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
         <div>
           <h1 className="text-xl font-semibold">Rebalance Instructions</h1>
-          <p className="text-sm text-neutral-500">Model date: {data.modelDate}</p>
+          <p className="text-sm text-neutral-500">Model date: {data.modelDate}{data.hasPrices ? ` · NAV: $${data.nav.toLocaleString()}` : ""}</p>
         </div>
       </div>
 
@@ -94,8 +94,14 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
             <thead>
               <tr className="border-b border-neutral-800">
                 <th className="table-header">Ticker</th>
-                <th className="table-header text-right">Current</th>
-                <th className="table-header text-right">Target</th>
+                <th className="table-header text-right">Current %</th>
+                <th className="table-header text-right">Target %</th>
+                {data.hasPrices && (
+                  <>
+                    <th className="table-header text-right">Current $</th>
+                    <th className="table-header text-right">Target $</th>
+                  </>
+                )}
                 <th className="table-header">Status</th>
               </tr>
             </thead>
@@ -105,6 +111,12 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
                   <td className="table-cell-text font-semibold">{c.ticker}</td>
                   <td className="table-cell text-right">{c.currentWeight}%</td>
                   <td className="table-cell text-right">{c.targetWeight}%</td>
+                  {data.hasPrices && (
+                    <>
+                      <td className="table-cell text-right">{c.currentValue ? `$${c.currentValue.toLocaleString()}` : "—"}</td>
+                      <td className="table-cell text-right">{c.targetValue ? `$${c.targetValue.toLocaleString()}` : "—"}</td>
+                    </>
+                  )}
                   <td className="table-cell-text">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLE[c.action] || "bg-neutral-800 text-neutral-300"}`}>
                       {STATUS_LABEL[c.action] || c.action}

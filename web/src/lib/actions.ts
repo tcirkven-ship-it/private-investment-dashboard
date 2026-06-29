@@ -156,6 +156,40 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   return { error: null, message: `M1_B2_QUALITY_VETO_N30 generated with ${rows.length} stocks from research output.` };
 }
 
+export async function upsertPrice(formData: FormData): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const ticker = (formData.get("ticker") as string)?.toUpperCase().trim();
+  const date = formData.get("date") as string;
+  const close = parseFloat(formData.get("close") as string);
+  if (!ticker || !date || isNaN(close)) return { error: "Ticker, date, and price are required" };
+
+  // Use service client for price writes (RLS may not allow owner insert yet)
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const { data: sec } = await db.from("securities").select("id").eq("ticker", ticker).maybeSingle();
+  if (!sec) return { error: `Security ${ticker} not found. Generate the Quarterly Top 30 first or add the security.` };
+
+  const { error } = await db.from("price_observations").upsert({
+    security_id: sec.id,
+    observation_date: date,
+    close,
+    source: "manual",
+  }, { onConflict: "security_id,observation_date" });
+
+  if (error) return { error: error.message };
+  revalidatePath("/portfolios");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
 export async function insertTransaction(formData: FormData): Promise<ActionResult> {
   const supabase = await createServerSupabase();
   const portfolioId = formData.get("portfolio_id") as string;

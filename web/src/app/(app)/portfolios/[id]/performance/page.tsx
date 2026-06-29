@@ -13,6 +13,8 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
   let qqqReturn: number | null = null;
   let hasTransactions = false;
   let hasMissingPrices = false;
+  let totalUnrealized = 0;
+  let somePrices = false;
 
   try {
     const [holdingsResult, benchResult] = await Promise.all([
@@ -28,6 +30,9 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     hasTransactions = holdingsResult.transactions.length > 0;
     const distinctTickers = holdingsResult.state.holdings.size;
     hasMissingPrices = holdingsResult.priceCount < distinctTickers;
+    const h = [...holdingsResult.state.holdings.values()];
+    totalUnrealized = h.reduce((s, x) => s + (x.unrealized_pl || 0), 0);
+    somePrices = h.some((x) => x.market_value !== undefined && x.market_value !== null);
   } catch (e: unknown) {
     error = e instanceof Error ? e.message : "Unknown error";
   }
@@ -114,8 +119,8 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div><p className="metric-label">NAV</p><p className="text-lg font-mono font-semibold mt-0.5">${nav.toLocaleString()}</p></div>
           <div><p className="metric-label">Deposits</p><p className="text-lg font-mono font-semibold mt-0.5">${totalDeposits.toLocaleString()}</p></div>
+          <div><p className="metric-label">Unrealized P/L</p><p className={`text-lg font-mono font-semibold mt-0.5 ${totalUnrealized >= 0 ? "text-green-400" : "text-red-400"}`}>{somePrices ? `$${totalUnrealized.toFixed(2)}` : "—"}</p></div>
           <div><p className="metric-label">Realized P/L</p><p className={`text-lg font-mono font-semibold mt-0.5 ${totalRealizedPL >= 0 ? "text-green-400" : "text-red-400"}`}>${totalRealizedPL.toFixed(2)}</p></div>
-          <div><p className="metric-label">Dividends</p><p className="text-lg font-mono font-semibold mt-0.5 text-blue-400">${totalDividends.toFixed(2)}</p></div>
         </div>
       </div>
     </div>
