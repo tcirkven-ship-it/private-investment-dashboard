@@ -50,6 +50,17 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
     catch { return { error: "Manifest JSON parse error." }; }
     if (manifest.model_id !== "M1_B2_QUALITY_VETO_N30") return { error: `Manifest model_id must be M1_B2_QUALITY_VETO_N30, got ${manifest.model_id}` };
     if (!manifest.as_of_date) return { error: "Manifest missing as_of_date." };
+    if (!manifest.generated_at) return { error: "Manifest missing generated_at." };
+
+    const asOf = String(manifest.as_of_date);
+    const genDate = new Date(asOf);
+    const now = new Date();
+    if (isNaN(genDate.getTime())) return { error: `Invalid as_of_date: ${asOf}` };
+    if (genDate > now) return { error: `as_of_date (${asOf}) is in the future.` };
+
+    const genAt = new Date(String(manifest.generated_at));
+    if (isNaN(genAt.getTime())) return { error: `Invalid generated_at: ${manifest.generated_at}` };
+    if (genAt < genDate) return { error: `generated_at (${manifest.generated_at}) is before as_of_date (${asOf}).` };
   }
 
   const targetWeight = 1 / 30;
@@ -95,6 +106,8 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
 
   // Snapshot with metadata
   const asOf = manifest?.as_of_date || today;
+  const loadedAt = new Date().toISOString();
+  const quarterLabel = manifest?.quarter_label || "";
   const { data: snapshot } = await db.from("model_snapshots").insert({
     model_version_id: mv.id, snapshot_id: `nb-${ts}`, status: "DRAFT",
     effective_date: asOf as string,
@@ -104,8 +117,9 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
       generation_mode: "offline_notebook_official_generator",
       source: "notebook",
       as_of_date: asOf,
-      generated_at: manifest?.generated_at || new Date().toISOString(),
-      loaded_at: new Date().toISOString(),
+      generated_at: manifest?.generated_at || "",
+      loaded_at: loadedAt,
+      quarter_label: quarterLabel,
       input_row_count: rows.length,
     }),
   }).select("id").single();

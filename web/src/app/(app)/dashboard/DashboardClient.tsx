@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { importM1B2Model, refreshClosingPrices } from "@/lib/actions";
-import { Briefcase, TrendingUp, PlusCircle, RefreshCw, Clock, Upload } from "lucide-react";
+import { refreshClosingPrices } from "@/lib/actions";
+import { Briefcase, TrendingUp, PlusCircle, Clock, RefreshCw } from "lucide-react";
 import LoadNotebookModelButton from "@/components/model/LoadNotebookModelButton";
 
 function nextReviewWindow(): string {
@@ -37,22 +37,6 @@ export interface DashboardData {
 }
 
 function EmptyDashboard() {
-  const router = useRouter();
-  const [generating, setGenerating] = useState(false);
-  const [genResult, setGenResult] = useState<string | null>(null);
-
-  async function handleGenerate() {
-    setGenerating(true);
-    setGenResult(null);
-    const result = await importM1B2Model();
-    if (result.error) {
-      setGenResult(result.error);
-    } else {
-      setGenResult(result.message || "Done");
-      router.refresh();
-    }
-    setGenerating(false);
-  }
 
   return (
     <div className="space-y-6">
@@ -60,19 +44,8 @@ function EmptyDashboard() {
 
       <div className="card p-6">
         <h2 className="text-sm font-semibold mb-4">Getting Started</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <LoadNotebookModelButton />
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-blue-500/50 transition-colors text-left disabled:opacity-50"
-          >
-            <RefreshCw className={`w-5 h-5 text-blue-400 ${generating ? "animate-spin" : ""}`} />
-            <div>
-              <p className="text-sm font-medium">{generating ? "Generating..." : "Generate Quarter-End Top 30"}</p>
-              <p className="text-xs text-neutral-500">Import M1_B2_QUALITY_VETO_N30 model</p>
-            </div>
-          </button>
           <Link href="/portfolios/new" className="flex items-center gap-3 p-3 rounded-lg border border-neutral-700 hover:border-blue-500/50 transition-colors">
             <PlusCircle className="w-5 h-5 text-blue-400" />
             <div>
@@ -88,11 +61,6 @@ function EmptyDashboard() {
             </div>
           </Link>
         </div>
-        {genResult && (
-          <p className={`text-xs mt-3 ${genResult.includes("generated with") ? "text-green-400" : "text-red-400"}`}>
-            {genResult}
-          </p>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -129,8 +97,6 @@ export default function DashboardClient({ data, error, portfolios }: {
   error: string | null;
   portfolios: PortfolioSummary[];
 }) {
-  const [genLoading, setGenLoading] = useState(false);
-  const [genResult, setGenResult] = useState<{ msg: string; isErr: boolean } | null>(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceResult, setPriceResult] = useState<{ msg: string; isErr: boolean } | null>(null);
   const router = useRouter();
@@ -154,19 +120,6 @@ export default function DashboardClient({ data, error, portfolios }: {
   const modelStatusColor =
     data.modelStatus === "PUBLISHED" ? "text-green-400" :
     data.modelStatus === "DRAFT" ? "text-yellow-400" : "text-neutral-400";
-
-  async function handleGenerate() {
-    setGenLoading(true);
-    setGenResult(null);
-    const res = await importM1B2Model();
-    setGenLoading(false);
-    if (res.error) {
-      setGenResult({ msg: res.error, isErr: true });
-    } else {
-      setGenResult({ msg: res.message || "Done", isErr: false });
-      router.refresh();
-    }
-  }
 
   async function handleRefreshPrices() {
     setPriceLoading(true);
@@ -206,24 +159,17 @@ export default function DashboardClient({ data, error, portfolios }: {
             <p className="font-semibold mt-0.5">{data.lastPriceDate || "No data"}</p>
           </div>
         </div>
-        <div className="border-t border-neutral-800 pt-4">
-          <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Next Actions</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={handleGenerate}
-              disabled={genLoading}
-              className="text-xs px-3 py-1.5 rounded border border-neutral-700 hover:border-blue-500/50 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3 h-3 inline mr-1 ${genLoading ? "animate-spin" : ""}`} />
-              Generate Quarter-End Top 30
-            </button>
-            <button
-              onClick={handleRefreshPrices}
-              disabled={priceLoading}
-              className="text-xs px-3 py-1.5 rounded border border-neutral-700 hover:border-blue-500/50 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3 h-3 inline mr-1 ${priceLoading ? "animate-spin" : ""}`} />
-              Refresh Closing Prices
+          <div className="border-t border-neutral-800 pt-4">
+            <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Next Actions</p>
+            <div className="flex flex-wrap gap-2">
+              <LoadNotebookModelButton />
+              <button
+                onClick={handleRefreshPrices}
+                disabled={priceLoading}
+                className="text-xs px-3 py-1.5 rounded border border-neutral-700 hover:border-blue-500/50 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 inline mr-1 ${priceLoading ? "animate-spin" : ""}`} />
+                Refresh Closing Prices
             </button>
             {portfolios.length > 0 && (
               <>
@@ -243,11 +189,6 @@ export default function DashboardClient({ data, error, portfolios }: {
             )}
           </div>
         </div>
-        {genResult && (
-          <p className={`text-xs mt-3 ${genResult.isErr ? "text-red-400" : "text-green-400"}`}>
-            {genResult.msg}
-          </p>
-        )}
         {priceResult && (
           <p className={`text-xs mt-3 ${priceResult.isErr ? "text-red-400" : "text-green-400"}`}>
             {priceResult.msg}
