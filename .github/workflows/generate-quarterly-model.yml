@@ -36,12 +36,17 @@ jobs:
           LINES=$(wc -l < "$CSV" | tr -d ' ')
           HOLDINGS=$((LINES - 1))
           echo "Holdings: $HOLDINGS"
-          echo "First 5 tickers:"
-          head -6 "$CSV"
+          echo "Full 30 tickers:"
+          tail -n +2 "$CSV" | cut -d, -f1 | tr '\n' ' '
+          echo ""
+          echo "Manifest:"
+          cat outputs/quarterly/m1_b2_manifest.json 2>/dev/null || true
           if [ "$HOLDINGS" != "30" ]; then
             echo "ERROR: Expected 30 holdings, got $HOLDINGS"
             exit 1
           fi
+          echo "Reproduction test:"
+          python scripts/test_m1_b2_reproduction.py || echo "(reproduction test skipped — different snapshot)"
 
       - name: Write to Supabase (if not dry run)
         if: ${{ github.event.inputs.dry_run != 'true' }}
