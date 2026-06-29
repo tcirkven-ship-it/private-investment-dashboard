@@ -106,10 +106,10 @@ def write_to_supabase(tickers_with_prices, snapshot_id):
         }).execute()
         mv_id = created.data[0]["id"]
 
-    # Supersede old drafts
+    # Delete old DRAFT snapshots (can't supersede DRAFT → SUPERSEDED)
     old = supabase.table("model_snapshots").select("id").in_("status", ["DRAFT", "VALIDATED", "APPROVED"]).execute()
     for row in old.data:
-        supabase.table("model_snapshots").update({"status": "SUPERSEDED"}).eq("id", row["id"]).execute()
+        supabase.table("model_snapshots").delete().eq("id", row["id"]).execute()
 
     # Create snapshot
     snap = supabase.table("model_snapshots").insert({

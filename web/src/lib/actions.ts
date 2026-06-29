@@ -105,7 +105,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   const { data: oldDrafts } = await db.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
   if (oldDrafts) {
     for (const d of oldDrafts) {
-      await db.from("model_snapshots").update({ status: "SUPERSEDED" }).eq("id", d.id);
+      await db.from("model_snapshots").delete().eq("id", d.id);
     }
   }
 
