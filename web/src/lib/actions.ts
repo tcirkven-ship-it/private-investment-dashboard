@@ -2,6 +2,7 @@
 
 import { createServerSupabase } from "./supabase";
 import { revalidatePath } from "next/cache";
+import { loadHoldings } from "./route-loaders";
 import { parse } from "csv-parse/sync";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
@@ -286,6 +287,40 @@ export async function deletePortfolio(id: string): Promise<ActionResult> {
   revalidatePath("/portfolios");
   revalidatePath("/dashboard");
   return { error: null };
+}
+
+export async function recordValuationSnapshot(portfolioId: string): Promise<ActionResult & { nav?: number; date?: string }> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const result = await loadHoldings(portfolioId);
+  if (result.state.holdings.size > 0) {
+    const h = [...result.state.holdings.values()];
+    const missing = h.some((x) => x.market_value === undefined || x.market_value === null);
+    if (missing) return { error: "Cannot record snapshot: some holdings lack current prices. Add prices first." };
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const { error } = await db.from("portfolio_valuations").upsert({
+    portfolio_id: portfolioId,
+    valuation_date: today,
+    total_value: result.nav,
+    cash_balance: result.state.cash,
+    total_deposits: result.state.total_deposits,
+    total_withdrawals: result.state.total_withdrawals,
+  }, { onConflict: "portfolio_id,valuation_date" });
+
+  if (error) return { error: error.message };
+  revalidatePath(`/portfolios/${portfolioId}/performance`);
+  return { error: null, nav: result.nav, date: today };
 }
 
 export async function seedAcceptanceData(): Promise<ActionResult & { message?: string }> {
