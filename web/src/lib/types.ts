@@ -31,6 +31,7 @@ export interface ModelSnapshot {
   effective_date: string;
   status: string;
   published_at: string | null;
+  warnings: Record<string, unknown> | null;
   model_version: { model_id: string; version: string; description: string | null } | null;
   holdings: ModelHolding[];
 }

@@ -7,6 +7,7 @@ export interface ModelSnapshot {
   effective_date: string;
   status: string;
   published_at: string | null;
+  warnings: Record<string, unknown> | null;
   model_version: { model_id: string; version: string; description: string | null } | null;
   holdings: Array<{
     rank: number;
@@ -52,7 +53,7 @@ export const getPublishedModel = cache(async (): Promise<QueryResult<ModelSnapsh
   const { data, error } = await supabase
     .from("model_snapshots")
     .select(`
-      id, snapshot_id, effective_date, status, published_at,
+      id, snapshot_id, effective_date, status, published_at, warnings,
       model_version:model_version_id(model_id, version, description),
       holdings:model_snapshot_holdings(
         rank, target_weight, b2_score, quality_percentile,
@@ -74,7 +75,7 @@ export const getLatestModelSnapshot = cache(async (): Promise<QueryResult<ModelS
   const { data, error } = await supabase
     .from("model_snapshots")
     .select(`
-      id, snapshot_id, effective_date, status, published_at,
+      id, snapshot_id, effective_date, status, published_at, warnings,
       model_version:model_version_id(model_id, version, description),
       holdings:model_snapshot_holdings(
         rank, target_weight, b2_score, quality_percentile,
