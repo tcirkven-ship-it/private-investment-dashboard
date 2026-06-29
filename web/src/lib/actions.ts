@@ -166,11 +166,18 @@ export async function upsertPrice(formData: FormData): Promise<ActionResult> {
   const close = parseFloat(formData.get("close") as string);
   if (!ticker || !date || isNaN(close)) return { error: "Ticker, date, and price are required" };
 
-  // Resolve ticker to security_id
-  const { data: sec } = await supabase.from("securities").select("id").eq("ticker", ticker).maybeSingle();
+  // Use service client for price writes (RLS may not allow owner insert yet)
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const { data: sec } = await db.from("securities").select("id").eq("ticker", ticker).maybeSingle();
   if (!sec) return { error: `Security ${ticker} not found. Generate the Quarterly Top 30 first or add the security.` };
 
-  const { error } = await supabase.from("price_observations").upsert({
+  const { error } = await db.from("price_observations").upsert({
     security_id: sec.id,
     observation_date: date,
     close,
