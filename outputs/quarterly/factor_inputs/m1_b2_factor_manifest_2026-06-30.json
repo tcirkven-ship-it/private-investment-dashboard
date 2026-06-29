@@ -1,0 +1,21 @@
+{
+  "stage": "1",
+  "snapshot_id": "2026-06-24T080500Z",
+  "as_of_date": "2026-06-24",
+  "generated_at": "2026-06-29T22:14:58.845312+00:00",
+  "factor_panel_source": "/Users/tihomircirkvencic/Documents/Tihci - Investment strategy/data/prospective/daily_qvp/snapshots/2026-06-24T080500Z/analysis/factor_level_current.csv",
+  "factor_panel_sha256_12": "303b7f2f8e89",
+  "ranking_source": "/Users/tihomircirkvencic/Documents/Tihci - Investment strategy/outputs/final/current_daily_qvp_ranking.csv",
+  "ticker_count": 1070,
+  "b2_formula": "mean(M12_1, M6_1, TREND200)",
+  "quality_formula": "mean(ROA, GPA, FCF_MARGIN, DEBT_ASSETS)",
+  "output_file": "m1_b2_factor_input_2026-06-30.csv",
+  "size_kb": 308,
+  "sha256_12": "6aef4d7e7b62",
+  "b2_missing_count": 0,
+  "q_missing_count": 0,
+  "sector_missing_count": 0,
+  "B2_factors_present": true,
+  "Q_factors_present": true,
+  "integrity_floor": 500
+}
