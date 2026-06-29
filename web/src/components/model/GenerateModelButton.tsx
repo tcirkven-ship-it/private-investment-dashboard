@@ -6,8 +6,8 @@ import { RefreshCw } from "lucide-react";
 
 const STAGE_SEQUENCE: { at: number; label: string }[] = [
   { at: 2000, label: "Loading input data..." },
-  { at: 4000, label: "Running M1_B2_QUALITY_VETO_N30 engine..." },
-  { at: 8000, label: "Writing model snapshot..." },
+  { at: 4000, label: "Refreshing Top 30 & prices..." },
+  { at: 8000, label: "Writing to database..." },
 ];
 
 export default function GenerateModelButton() {
@@ -79,7 +79,7 @@ export default function GenerateModelButton() {
           className="btn-primary"
         >
           <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          {loading ? "Generating..." : "Generate Quarter-End Top 30"}
+          {loading ? "Refreshing..." : "Refresh Top 30 & Prices"}
         </button>
         {loading && (
           <span className="text-xs text-neutral-500 tabular-nums">{elapsed}s</span>
