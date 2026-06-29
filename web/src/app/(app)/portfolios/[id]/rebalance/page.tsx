@@ -187,12 +187,12 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
                   <tbody>
                     {items.map((c) => {
                       const decision = decisionByTicker.get(c.ticker);
-                      const diffVal = data.hasPrices && c.currentValue !== null && c.targetValue !== null
-                        ? c.targetValue - c.currentValue
-                        : null;
-                      const approxShares = data.hasPrices && diffVal !== null && c.currentPrice !== null && c.currentPrice > 0
-                        ? diffVal / c.currentPrice
-                        : null;
+                      const planPct = personalTarget.get(c.ticker);
+                      const planWeight = planPct && planPct !== "—" && planPct !== "0.00%" ? parseFloat(planPct) / 100 : null;
+                      const planTargetVal = data.hasPrices && nav > 0 && planWeight ? planWeight * nav : null;
+                      const planDiff = planTargetVal !== null && c.currentValue !== null ? planTargetVal - c.currentValue : null;
+                      const approxShares = data.hasPrices && planDiff !== null && c.currentPrice !== null && c.currentPrice > 0
+                        ? Math.abs(planDiff) / c.currentPrice : null;
                       return (
                         <tr key={c.ticker} className="border-b border-neutral-800/50">
                           <td className="table-cell-text font-semibold">{c.ticker}</td>
@@ -202,11 +202,14 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
                           {data.hasPrices && (
                             <>
                               <td className="table-cell text-right">{c.currentValue !== null ? `$${c.currentValue.toLocaleString()}` : "—"}</td>
-                              <td className="table-cell text-right">{c.targetValue !== null ? `$${c.targetValue.toLocaleString()}` : "—"}</td>
-                              <td className={`table-cell text-right ${diffVal !== null && diffVal > 0 ? "text-green-400" : diffVal !== null && diffVal < 0 ? "text-red-400" : ""}`}>
-                                {diffVal !== null ? `${diffVal >= 0 ? "+" : ""}$${diffVal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "—"}
+                              <td className="table-cell text-right">{planTargetVal !== null ? `$${planTargetVal.toLocaleString()}` : c.targetValue !== null ? `$${c.targetValue.toLocaleString()}` : "—"}</td>
+                              <td className={`table-cell text-right font-mono ${planDiff !== null && planDiff > 0 ? "text-green-400" : planDiff !== null && planDiff < 0 ? "text-red-400" : ""}`}>
+                                {planDiff !== null ? `${planDiff >= 0 ? "+" : ""}$${Math.abs(planDiff).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
                               </td>
-                              <td className="table-cell text-right">
+                              <td className="table-cell text-right font-mono text-neutral-400">{approxShares !== null ? `~${approxShares.toFixed(1)}` : "—"}</td>
+                            </>
+                          )}
+                          <td className="table-cell-text">
                                 {approxShares !== null ? `${approxShares >= 0 ? "+" : ""}${approxShares.toFixed(1)}` : "—"}
                               </td>
                             </>
