@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { saveOwnerDecision } from "./actions";
 
 const STATUS_OPTIONS = ["planned", "executed", "skipped", "watch", "not_now", ""] as const;
@@ -38,6 +39,7 @@ export default function DecisionCell({
   initialStatus: string;
   initialNote: string;
 }) {
+  const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [note, setNote] = useState(initialNote);
   const [saving, setSaving] = useState(false);
@@ -50,6 +52,7 @@ export default function DecisionCell({
     setSaving(false);
     if (!result.error) {
       setSaved(true);
+      router.refresh();
       setTimeout(() => setSaved(false), 2000);
     }
   };

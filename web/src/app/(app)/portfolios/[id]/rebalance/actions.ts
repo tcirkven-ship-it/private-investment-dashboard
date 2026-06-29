@@ -7,14 +7,30 @@ export async function saveOwnerDecision(portfolioId: string, snapshotId: string,
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { error: "Not authenticated" };
 
-  const { error } = await supabase.from("owner_decisions").upsert({
-    decision_type: status,
-    decision_data: { portfolio_id: portfolioId, security_id: securityId, snapshot_id: snapshotId, ticker, recommendation },
-    notes: note || null,
-    owner_id: user.id,
-  }, { onConflict: "owner_id,decision_data" });
-  
-  if (error) return { error: error.message };
+  // Check for existing decision with same snapshot + ticker
+  const { data: existing } = await supabase.from("owner_decisions")
+    .select("id")
+    .eq("owner_id", user.id)
+    .eq("decision_data->>snapshot_id", snapshotId)
+    .eq("decision_data->>ticker", ticker)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase.from("owner_decisions").update({
+      decision_type: status,
+      notes: note || null,
+    }).eq("id", existing.id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase.from("owner_decisions").insert({
+      decision_type: status,
+      decision_data: { portfolio_id: portfolioId, security_id: securityId, snapshot_id: snapshotId, ticker, recommendation },
+      notes: note || null,
+      owner_id: user.id,
+    });
+    if (error) return { error: error.message };
+  }
+
   revalidatePath(`/portfolios/${portfolioId}/rebalance`);
   return { error: null };
 }
