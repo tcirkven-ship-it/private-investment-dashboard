@@ -79,12 +79,13 @@ export default function GenerateModelButton() {
           className="btn-primary"
         >
           <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          {loading ? "Refreshing..." : "Refresh Top 30 & Prices"}
+          {loading ? "Loading..." : "Load Latest Generated Top 30"}
         </button>
         {loading && (
           <span className="text-xs text-neutral-500 tabular-nums">{elapsed}s</span>
         )}
       </div>
+      <p className="text-xs text-neutral-600 max-w-md">Loads the latest generated Top 30 CSV and refreshes closing prices from Yahoo Finance. Full universe generation runs through GitHub Actions.</p>
       {loading && stage && (
         <p className="text-xs text-neutral-400">{stage}</p>
       )}

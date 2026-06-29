@@ -101,15 +101,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     }
   }
 
-  // Supersede old DRAFT snapshots
-  const { data: oldDrafts } = await db.from("model_snapshots").select("id").in("status", ["DRAFT", "VALIDATED", "APPROVED"]);
-  if (oldDrafts) {
-    for (const d of oldDrafts) {
-      await db.from("model_snapshots").delete().eq("id", d.id);
-    }
-  }
-
-  // Ensure model version exists
+  // Create new DRAFT snapshot (preserve history)
   let { data: mv } = await db.from("model_versions").select("id").eq("model_id", "M1_B2_QUALITY_VETO_N30").maybeSingle();
   if (!mv) {
     const d = new Date();
