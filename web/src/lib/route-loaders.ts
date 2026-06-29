@@ -132,14 +132,18 @@ export async function loadBenchmarkReturns(db?: DB): Promise<BenchmarkReturns> {
 
 export interface RebalanceLine {
   ticker: string;
+  security_id: string;
   currentWeight: string;
   targetWeight: string;
   currentValue: number | null;
   targetValue: number | null;
+  currentPrice: number | null;
+  quantity: number;
   action: "Buy" | "Sell" | "Add" | "Reduce" | "Hold";
 }
 
 export interface RebalanceResult {
+  snapshotId: string;
   modelDate: string;
   comparisons: RebalanceLine[];
   hasPrices: boolean;
@@ -156,22 +160,27 @@ export async function loadRebalance(portfolioId: string, db?: DB): Promise<Rebal
     .maybeSingle();
 
   if (snapResult.error) throw new Error(`Failed to load model: ${snapResult.error.message}`);
-  if (!snapResult.data) return { modelDate: "", comparisons: [], hasPrices: false, nav: 0 };
+  if (!snapResult.data) return { snapshotId: "", modelDate: "", comparisons: [], hasPrices: false, nav: 0 };
 
   const snapId = String(snapResult.data.id);
 
   const [modelResult, holdingsResult] = await Promise.all([
     supabase.from("model_snapshot_holdings")
-      .select("rank, target_weight, security:security_id(ticker)")
+      .select("rank, target_weight, security_id, security:security_id(ticker)")
       .eq("snapshot_id", snapId),
     loadHoldings(portfolioId, supabase),
   ]);
 
   const modelTargets = new Map<string, number>();
+  const tickerToSecurityId = new Map<string, string>();
   if (modelResult.data) {
     for (const row of modelResult.data) {
       const h = getModelHolding(row);
-      if (h) modelTargets.set(h.ticker, h.target_weight);
+      if (h) {
+        modelTargets.set(h.ticker, h.target_weight);
+        const r = row as Record<string, unknown>;
+        if (typeof r.security_id === "string") tickerToSecurityId.set(h.ticker, r.security_id);
+      }
     }
   }
 
@@ -185,13 +194,16 @@ export async function loadRebalance(portfolioId: string, db?: DB): Promise<Rebal
     const hasPrice = h?.market_value !== undefined && h?.market_value !== null;
     const currentVal = hasPrice ? h!.market_value! : null;
     const targetVal = hasPrice && nav > 0 ? targetW * nav : null;
+    const currentPrice = h?.current_price ?? null;
+    const quantity = h?.quantity ?? 0;
+    const securityId = tickerToSecurityId.get(ticker) || "";
     let action: RebalanceLine["action"] = "Hold";
     if (!h || h.quantity <= 0) action = "Buy";
     else if (targetW === 0) action = "Sell";
     else if (currentW > targetW * 1.05) action = "Reduce";
     else if (targetW > 0 && currentW < targetW * 0.95) action = "Add";
-    return { ticker, currentWeight: hasPrice ? (currentW * 100).toFixed(1) : "—", targetWeight: (targetW * 100).toFixed(2), currentValue: currentVal, targetValue: targetVal, action };
+    return { ticker, security_id: securityId, currentWeight: hasPrice ? (currentW * 100).toFixed(1) : "—", targetWeight: (targetW * 100).toFixed(2), currentValue: currentVal, targetValue: targetVal, currentPrice, quantity, action };
   });
 
-  return { modelDate: String(snapResult.data.effective_date ?? ""), comparisons, hasPrices: priceCount > 0, nav };
+  return { snapshotId: snapId, modelDate: String(snapResult.data.effective_date ?? ""), comparisons, hasPrices: priceCount > 0, nav };
 }
