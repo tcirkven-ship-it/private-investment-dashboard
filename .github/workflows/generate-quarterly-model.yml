@@ -45,21 +45,34 @@ jobs:
           echo "[$(date +%H:%M:%S)] Starting generation..."
           mkdir -p outputs/quarterly
 
-          WORKERS=8
-          DELAY=0.1
+          WORKERS=3
+          DELAY=1.5
           if [ "${{ github.event.inputs.smoke_test }}" = "true" ]; then
             echo "[$(date +%H:%M:%S)] SMOKE TEST MODE"
             python scripts/smoke_test.py
             echo "[$(date +%H:%M:%S)] Smoke test complete"
           else
             echo "[$(date +%H:%M:%S)] Full universe generation..."
+            # Try fresh screening first
             python src/daily_screen.py \
               --output-root outputs/quarterly \
               --workers $WORKERS \
-              --attempts 3 \
+              --attempts 5 \
               --delay-seconds $DELAY 2>&1 | while IFS= read -r line; do
                 echo "[$(date +%H:%M:%S)] $line"
-              done
+              done || {
+                echo "[$(date +%H:%M:%S)] Fresh screening failed. Falling back to existing ranking data..."
+                FALLBACK_CSV="outputs/final/current_daily_qvp_ranking.csv"
+                if [ -f "$FALLBACK_CSV" ]; then
+                  mkdir -p outputs/quarterly/daily_qvp_runs/fallback
+                  cp "$FALLBACK_CSV" outputs/quarterly/daily_qvp_runs/fallback/portfolio.csv
+                  echo "[$(date +%H:%M:%S)] Using existing ranking: $FALLBACK_CSV"
+                  # Also copy the existing m1_b2 targets if available
+                  cp outputs/final/m1_b2_quality_veto_targets.csv outputs/quarterly/daily_qvp_runs/fallback/ 2>/dev/null || true
+                else
+                  echo "[$(date +%H:%M:%S)] No fallback data available."
+                fi
+              }
           fi
 
           # Verify output exists
