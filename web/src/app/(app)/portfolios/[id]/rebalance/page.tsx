@@ -189,7 +189,7 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
                       const decision = decisionByTicker.get(c.ticker);
                       const planPct = personalTarget.get(c.ticker);
                       const planWeight = planPct && planPct !== "—" && planPct !== "0.00%" ? parseFloat(planPct) / 100 : null;
-                      const planTargetVal = data.hasPrices && nav > 0 && planWeight ? planWeight * nav : null;
+                      const planTargetVal = data.hasPrices && data.nav > 0 && planWeight ? planWeight * data.nav : null;
                       const planDiff = planTargetVal !== null && c.currentValue !== null ? planTargetVal - c.currentValue : null;
                       const approxShares = data.hasPrices && planDiff !== null && c.currentPrice !== null && c.currentPrice > 0
                         ? Math.abs(planDiff) / c.currentPrice : null;
@@ -207,11 +207,6 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
                                 {planDiff !== null ? `${planDiff >= 0 ? "+" : ""}$${Math.abs(planDiff).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}
                               </td>
                               <td className="table-cell text-right font-mono text-neutral-400">{approxShares !== null ? `~${approxShares.toFixed(1)}` : "—"}</td>
-                            </>
-                          )}
-                          <td className="table-cell-text">
-                                {approxShares !== null ? `${approxShares >= 0 ? "+" : ""}${approxShares.toFixed(1)}` : "—"}
-                              </td>
                             </>
                           )}
                           <td className="table-cell">
