@@ -25,18 +25,16 @@ TARGET_WEIGHT = round(100.0 / TARGET_COUNT, 4)
 MAX_STALENESS_DAYS = 90
 
 def find_latest_factor_input():
-    """Find the most recent dated factor input file."""
-    dirs = [
-        ROOT / "outputs/quarterly/factor_inputs",
-        ROOT / "outputs/quarterly",
-    ]
-    for d in dirs:
-        if not d.exists(): continue
-        dated = sorted(d.glob("m1_b2_factor_input_2*.csv"), reverse=True)
+    """Find the most recent dated factor input file. Fails if no dated file exists."""
+    dated_dir = ROOT / "outputs/quarterly/factor_inputs"
+    if dated_dir.exists():
+        dated = sorted(dated_dir.glob("m1_b2_factor_input_2*.csv"), reverse=True)
         if dated: return dated[0]
-    fallback = ROOT / "outputs/quarterly/m1_b2_factor_input.csv"
-    if fallback.exists(): return fallback
-    raise FileNotFoundError("No factor input file found. Run Stage 1 first: scripts/build_m1_b2_factor_snapshot.py")
+    raise FileNotFoundError(
+        "No dated factor input file found in outputs/quarterly/factor_inputs/.\n"
+        "Run Stage 1 first: python scripts/build_m1_b2_factor_snapshot.py --snapshot-id <ID>\n"
+        "Or use --allow-legacy to fall back to committed undated input."
+    )
 
 def main():
     output_dir = ROOT / "outputs/quarterly"
@@ -47,17 +45,35 @@ def main():
     df = pd.read_csv(input_file)
     print(f"  Input: {len(df)} tickers")
 
-    # Staleness check
-    if "generated_at" in df.columns:
-        gen_str = str(df["generated_at"].iloc[0])[:10]
-        try:
-            gen_date = date.fromisoformat(gen_str)
-            age = (date.today() - gen_date).days
-            print(f"  Factor snapshot date: {gen_date} (age: {age} days)")
-            if age > MAX_STALENESS_DAYS:
-                print(f"ERROR: Factor snapshot is {age} days old (max {MAX_STALENESS_DAYS}). Run Stage 1 to refresh.")
-                sys.exit(1)
-        except: pass
+    # Strict date validation
+    required_date_cols = ["generated_at", "source_snapshot"]
+    for col in required_date_cols:
+        if col not in df.columns:
+            print(f"ERROR: Required column '{col}' missing from factor input")
+            sys.exit(1)
+
+    gen_str = str(df["generated_at"].iloc[0])
+    try:
+        gen_date = date.fromisoformat(gen_str[:10])
+        age = (date.today() - gen_date).days
+        print(f"  Factor snapshot date: {gen_date} (age: {age} days)")
+        if sum(df["generated_at"].isna()) > 0:
+            print("ERROR: Some rows have missing generated_at timestamps")
+            sys.exit(1)
+        if age > MAX_STALENESS_DAYS:
+            print(f"ERROR: Factor snapshot is {age} days old (max {MAX_STALENESS_DAYS}). Run Stage 1 to refresh.")
+            sys.exit(1)
+        if gen_date > date.today():
+            print(f"WARNING: Factor snapshot date {gen_date} is in the future")
+    except Exception as e:
+        print(f"ERROR: Cannot parse factor snapshot date from '{gen_str}': {e}")
+        sys.exit(1)
+
+    source_snap = str(df["source_snapshot"].iloc[0]) if "source_snapshot" in df.columns else ""
+    if not source_snap or source_snap == "nan":
+        print("ERROR: source_snapshot is missing or empty")
+        sys.exit(1)
+    print(f"  Source snapshot: {source_snap}")
 
     # Derive Q_components_ok
     for qf in Q_FACTORS:
