@@ -3,12 +3,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
-import { importM1B2Model } from "@/lib/actions";
 
 const STAGE_SEQUENCE: { at: number; label: string }[] = [
   { at: 2000, label: "Loading input data..." },
   { at: 4000, label: "Running M1_B2_QUALITY_VETO_N30 engine..." },
-  { at: 7000, label: "Writing model snapshot..." },
+  { at: 8000, label: "Writing model snapshot..." },
 ];
 
 export default function GenerateModelButton() {
@@ -52,14 +51,15 @@ export default function GenerateModelButton() {
     });
 
     try {
-      const res = await importM1B2Model();
+      const resp = await fetch("/api/generate-model");
+      const json = await resp.json();
       clearTimers();
       setLoading(false);
       setStage("");
-      if (res.error) {
-        setErrorMsg(res.error);
+      if (json.error || !json.ok) {
+        setErrorMsg(json.error || json.reason || "Generation failed");
       } else {
-        setSuccessMsg(res.message || "Done");
+        setSuccessMsg(json.message || `Generated ${json.holdings_count} holdings.`);
         router.refresh();
       }
     } catch (e) {
