@@ -46,7 +46,7 @@ jobs:
             exit 1
           fi
           echo "Reproduction test:"
-          python scripts/test_m1_b2_reproduction.py || echo "(reproduction test skipped — different snapshot)"
+          python scripts/test_m1_b2_reproduction.py
 
       - name: Write to Supabase (if not dry run)
         if: ${{ github.event.inputs.dry_run != 'true' }}
