@@ -108,7 +108,7 @@ def main():
         "industries": {str(k): int(v) for k, v in industry_counts.items()},
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
-    write_json(manifest, output_dir / "m1_b2_manifest.json")
+    write_json(output_dir / "m1_b2_manifest.json", manifest)
 
     print(f"\n{MODEL_ID} Generated:")
     print(f"  Holdings: {len(selected)}")
