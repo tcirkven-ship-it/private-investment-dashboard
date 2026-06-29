@@ -56,8 +56,10 @@ def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | N
     pivoted["Q_score"] = pivoted[Q_FACTORS].mean(axis=1, skipna=True)
     pivoted["source_snapshot"] = snapshot_id
     pivoted["generated_at"] = datetime.now(timezone.utc).isoformat()
+    as_of_date = snapshot_id[:10]
+    pivoted["as_of_date"] = as_of_date
 
-    out_cols = ["ticker", "company", "sector", "industry"] + B2_FACTORS + Q_FACTORS + ["B2_score", "Q_score", "Q_components_ok", "source_snapshot", "generated_at"]
+    out_cols = ["ticker", "company", "sector", "industry"] + B2_FACTORS + Q_FACTORS + ["B2_score", "Q_score", "Q_components_ok", "source_snapshot", "generated_at", "as_of_date"]
     out_cols = [c for c in out_cols if c in pivoted.columns]
 
     today = date.today().isoformat()
@@ -65,7 +67,10 @@ def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | N
     outfile = output_dir / f"m1_b2_factor_input_{today}.csv"
     pivoted[out_cols].to_csv(outfile, index=False)
 
-    # Checksum
+    raw_panel_sha = ""
+    with open(factor_panel, "rb") as f:
+        raw_panel_sha = hashlib.sha256(f.read()).hexdigest()[:12]
+
     with open(outfile, "rb") as f:
         sha = hashlib.sha256(f.read()).hexdigest()[:12]
     size_kb = outfile.stat().st_size / 1024
@@ -79,8 +84,10 @@ def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | N
     manifest = {
         "stage": "1",
         "snapshot_id": snapshot_id,
+        "as_of_date": as_of_date,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "factor_panel_source": str(factor_panel),
+        "factor_panel_sha256_12": raw_panel_sha,
         "ranking_source": str(ranking_csv),
         "ticker_count": int(ticker_count),
         "b2_formula": "mean(M12_1, M6_1, TREND200)",

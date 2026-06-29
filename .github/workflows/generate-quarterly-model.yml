@@ -39,6 +39,8 @@ jobs:
           echo "Full 30 tickers:"
           tail -n +2 "$CSV" | cut -d, -f1 | tr '\n' ' '
           echo ""
+          echo "Reproduction test:"
+          python scripts/test_m1_b2_reproduction.py || true
           echo "Manifest:"
           cat outputs/quarterly/m1_b2_manifest.json 2>/dev/null || true
           if [ "$HOLDINGS" != "30" ]; then

@@ -28,6 +28,46 @@ export default async function ModelPage() {
         <div>
           <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
           <p className="text-sm text-neutral-500 mt-1">M1_B2_QUALITY_VETO_N30</p>
+          {model && (
+            <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-xs text-neutral-400">
+              {(model.model_version?.description || (model.warnings as Record<string, unknown> | null)) && (
+                <span>
+                  Generation:{" "}
+                  <span className="text-neutral-300">
+                    {String(model.model_version?.description ?? "") || JSON.stringify(model.warnings)}
+                  </span>
+                </span>
+              )}
+              {model.warnings && (
+                <>
+                  {((model.warnings as Record<string, unknown>).factor_snapshot_date as string) && (
+                    <span>
+                      Factor snapshot:{" "}
+                      <span className="text-neutral-300">
+                        {(model.warnings as Record<string, unknown>).factor_snapshot_date as string}
+                      </span>
+                    </span>
+                  )}
+                  {(model.warnings as Record<string, unknown>).as_of_date && (
+                    <span>
+                      Factor snapshot:{" "}
+                      <span className="text-neutral-300">
+                        {String((model.warnings as Record<string, unknown>).as_of_date)}
+                      </span>
+                    </span>
+                  )}
+                  {(model.warnings as Record<string, unknown>).generator && (
+                    <span>
+                      Generator:{" "}
+                      <span className="text-neutral-300">
+                        {String((model.warnings as Record<string, unknown>).generator)}
+                      </span>
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
         <GenerateModelButton />
       </div>

@@ -38,9 +38,11 @@ def main():
         print(f"ERROR: Generated extra: {gen_extra}")
         errors.append("gen_extra")
     if acc_missing:
-        print(f"WARN: Accepted missing: {acc_missing}")
+        print(f"ERROR: Accepted missing: {acc_missing}")
+        errors.append("acc_missing")
     if acc_extra:
-        print(f"WARN: Accepted extra: {acc_extra}")
+        print(f"ERROR: Accepted extra: {acc_extra}")
+        errors.append("acc_extra")
 
     if len(gen) != 30:
         print(f"ERROR: Generated has {len(gen)} holdings (expected 30)")

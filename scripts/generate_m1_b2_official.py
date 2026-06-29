@@ -4,7 +4,7 @@ sector/industry caps, produces validated Top 30.
 Refuses to write if the factor snapshot is stale or missing metadata.
 """
 from __future__ import annotations
-import json, sys, csv
+import argparse, json, sys, csv
 from pathlib import Path
 from datetime import datetime, timezone, date
 from collections import Counter
@@ -24,49 +24,63 @@ TARGET_COUNT = 30
 TARGET_WEIGHT = round(100.0 / TARGET_COUNT, 4)
 MAX_STALENESS_DAYS = 90
 
-def find_latest_factor_input():
-    """Find the most recent dated factor input file. Fails if no dated file exists."""
+def find_latest_factor_input(allow_legacy: bool = False):
+    """Find the most recent dated factor input file.
+    Without --allow-legacy, fails if no dated file exists.
+    With --allow-legacy, falls back to the committed undated input."""
     dated_dir = ROOT / "outputs/quarterly/factor_inputs"
     if dated_dir.exists():
         dated = sorted(dated_dir.glob("m1_b2_factor_input_2*.csv"), reverse=True)
         if dated: return dated[0]
+    if allow_legacy:
+        legacy = ROOT / "outputs/quarterly/m1_b2_factor_input.csv"
+        if legacy.exists():
+            print("WARNING: Using legacy undated factor input (--allow-legacy). Staleness checks may not apply.")
+            return legacy
+        raise FileNotFoundError(
+            "No dated factor input file found and legacy fallback missing.\n"
+            "Run Stage 1 first: python scripts/build_m1_b2_factor_snapshot.py --snapshot-id <ID>"
+        )
     raise FileNotFoundError(
         "No dated factor input file found in outputs/quarterly/factor_inputs/.\n"
         "Run Stage 1 first: python scripts/build_m1_b2_factor_snapshot.py --snapshot-id <ID>\n"
         "Or use --allow-legacy to fall back to committed undated input."
     )
 
-def main():
+def main(allow_legacy: bool = False):
     output_dir = ROOT / "outputs/quarterly"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    input_file = find_latest_factor_input()
+    input_file = find_latest_factor_input(allow_legacy)
     print(f"Stage 2: Reading factor input: {input_file.name}")
     df = pd.read_csv(input_file)
     print(f"  Input: {len(df)} tickers")
 
-    # Strict date validation
-    required_date_cols = ["generated_at", "source_snapshot"]
+    required_date_cols = ["as_of_date", "source_snapshot"]
     for col in required_date_cols:
         if col not in df.columns:
             print(f"ERROR: Required column '{col}' missing from factor input")
             sys.exit(1)
 
-    gen_str = str(df["generated_at"].iloc[0])
+    as_of_str = str(df["as_of_date"].iloc[0])
     try:
-        gen_date = date.fromisoformat(gen_str[:10])
-        age = (date.today() - gen_date).days
-        print(f"  Factor snapshot date: {gen_date} (age: {age} days)")
-        if sum(df["generated_at"].isna()) > 0:
-            print("ERROR: Some rows have missing generated_at timestamps")
+        as_of_date = date.fromisoformat(as_of_str[:10])
+        age = (date.today() - as_of_date).days
+        print(f"  Factor snapshot date (as_of_date): {as_of_date} (age: {age} days)")
+        if sum(df["as_of_date"].isna()) > 0:
+            print("ERROR: Some rows have missing as_of_date values")
             sys.exit(1)
         if age > MAX_STALENESS_DAYS:
-            print(f"ERROR: Factor snapshot is {age} days old (max {MAX_STALENESS_DAYS}). Run Stage 1 to refresh.")
+            if allow_legacy:
+                print(f"WARNING: Legacy factor snapshot is {age} days old (max {MAX_STALENESS_DAYS}). Proceeding with --allow-legacy.")
+            else:
+                print(f"ERROR: Factor snapshot is {age} days old (max {MAX_STALENESS_DAYS}). Run Stage 1 to refresh.")
+                sys.exit(1)
+        if as_of_date > date.today():
+            print(f"ERROR: Factor snapshot date {as_of_date} is in the future")
             sys.exit(1)
-        if gen_date > date.today():
-            print(f"WARNING: Factor snapshot date {gen_date} is in the future")
     except Exception as e:
-        print(f"ERROR: Cannot parse factor snapshot date from '{gen_str}': {e}")
+        print(f"ERROR: Cannot parse factor snapshot as_of_date from '{as_of_str}': {e}")
         sys.exit(1)
 
     source_snap = str(df["source_snapshot"].iloc[0]) if "source_snapshot" in df.columns else ""
@@ -137,7 +151,7 @@ def main():
                         str(r.get("sector", "")), str(r.get("industry", "")), "False"])
 
     # Manifest
-    snapshot_date = str(df["generated_at"].iloc[0])[:10] if "generated_at" in df.columns else "unknown"
+    snapshot_date = str(df["as_of_date"].iloc[0])[:10] if "as_of_date" in df.columns else "unknown"
     source_snapshot = str(df.iloc[0].get("source_snapshot", "unknown")) if len(df) > 0 else "unknown"
     manifest = {
         "model_id": MODEL_ID,
@@ -168,4 +182,7 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    p = argparse.ArgumentParser(description="Stage 2 — Generate M1_B2_QUALITY_VETO_N30 official holdings")
+    p.add_argument("--allow-legacy", action="store_true", help="Allow fallback to undated legacy factor input CSV")
+    args = p.parse_args()
+    sys.exit(main(allow_legacy=args.allow_legacy))
