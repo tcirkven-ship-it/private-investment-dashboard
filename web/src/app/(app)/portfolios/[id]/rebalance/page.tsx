@@ -10,12 +10,13 @@ const STATUS_STYLE: Record<string, string> = {
   Hold: "bg-neutral-800 text-neutral-300",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  Buy: "Buy",
-  Sell: "Sell",
-  Add: "Add",
-  Reduce: "Reduce",
-  Hold: "Hold",
+const GROUP_ORDER = ["Sell", "Buy", "Reduce", "Add", "Hold"] as const;
+const GROUP_LABELS: Record<string, string> = {
+  Sell: "Sell — holdings not in current Top 30",
+  Buy: "Buy — Top 30 names missing from portfolio",
+  Reduce: "Reduce — holdings above target",
+  Add: "Add — holdings below target",
+  Hold: "Hold — near target",
 };
 
 export default async function RebalancePage({ params }: { params: Promise<{ id: string }> }) {
@@ -89,44 +90,48 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
       )}
 
       <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-neutral-800">
-                <th className="table-header">Ticker</th>
-                <th className="table-header text-right">Current %</th>
-                <th className="table-header text-right">Target %</th>
-                {data.hasPrices && (
-                  <>
-                    <th className="table-header text-right">Current $</th>
-                    <th className="table-header text-right">Target $</th>
-                  </>
-                )}
-                <th className="table-header">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.comparisons.map((c) => (
-                <tr key={c.ticker} className="border-b border-neutral-800/50">
-                  <td className="table-cell-text font-semibold">{c.ticker}</td>
-                  <td className="table-cell text-right">{c.currentWeight}%</td>
-                  <td className="table-cell text-right">{c.targetWeight}%</td>
-                  {data.hasPrices && (
-                    <>
-                      <td className="table-cell text-right">{c.currentValue ? `$${c.currentValue.toLocaleString()}` : "—"}</td>
-                      <td className="table-cell text-right">{c.targetValue ? `$${c.targetValue.toLocaleString()}` : "—"}</td>
-                    </>
-                  )}
-                  <td className="table-cell-text">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLE[c.action] || "bg-neutral-800 text-neutral-300"}`}>
-                      {STATUS_LABEL[c.action] || c.action}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {GROUP_ORDER.map((group) => {
+          const items = data.comparisons.filter((c) => c.action === group);
+          if (items.length === 0) return null;
+          return (
+            <div key={group}>
+              <div className="px-4 py-2 bg-neutral-900/50 border-b border-neutral-800">
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLE[group]}`}>{group}</span>
+                <span className="text-xs text-neutral-500 ml-2">{GROUP_LABELS[group]} ({items.length})</span>
+              </div>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-neutral-800">
+                    <th className="table-header">Ticker</th>
+                    <th className="table-header text-right">Current %</th>
+                    <th className="table-header text-right">Target %</th>
+                    {data.hasPrices && (
+                      <>
+                        <th className="table-header text-right">Current $</th>
+                        <th className="table-header text-right">Target $</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((c) => (
+                    <tr key={c.ticker} className="border-b border-neutral-800/50">
+                      <td className="table-cell-text font-semibold">{c.ticker}</td>
+                      <td className="table-cell text-right">{c.currentWeight}%</td>
+                      <td className="table-cell text-right">{c.targetWeight}%</td>
+                      {data.hasPrices && (
+                        <>
+                          <td className="table-cell text-right">{c.currentValue ? `$${c.currentValue.toLocaleString()}` : "—"}</td>
+                          <td className="table-cell text-right">{c.targetValue ? `$${c.targetValue.toLocaleString()}` : "—"}</td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
       </div>
 
       <div className="text-xs text-neutral-500 text-center">

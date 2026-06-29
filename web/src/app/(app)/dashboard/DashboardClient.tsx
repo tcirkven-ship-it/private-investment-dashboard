@@ -4,9 +4,27 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { importM1B2Model } from "@/lib/actions";
-import { Briefcase, TrendingUp, PlusCircle, RefreshCw } from "lucide-react";
+import { Briefcase, TrendingUp, PlusCircle, RefreshCw, Clock } from "lucide-react";
+
+function nextReviewWindow(): string {
+  const d = new Date();
+  const q = Math.floor(d.getMonth() / 3);
+  const months = ["March", "June", "September", "December"];
+  const qEnd = months[q];
+  const year = q === 3 && d.getMonth() >= 9 ? d.getFullYear() + 1 : d.getFullYear();
+  return `Next review window: after final trading session of ${qEnd} ${year}`;
+}
+
+function quarterLabel(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const q = Math.floor(d.getMonth() / 3) + 1;
+  return `Q${q} ${d.getFullYear()}`;
+}
 
 export interface DashboardData {
+  nextAction?: string;
+  nextReviewWindow?: string;
   portfolioCount: number;
   hasModel: boolean;
   modelStatus: string | null;
@@ -134,6 +152,38 @@ export default function DashboardClient({ data, error, portfolios }: {
         <h1 className="text-2xl font-semibold">Dashboard</h1>
       </div>
 
+      {data.hasModel && (
+        <div className="card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-blue-400" />
+            <h2 className="text-sm font-semibold">Quarterly Workflow</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-neutral-500 uppercase tracking-wider">Model</p>
+              <p className="font-semibold mt-0.5">M1_B2_QUALITY_VETO_N30</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500 uppercase tracking-wider">Status</p>
+              <p className={`font-semibold mt-0.5 ${modelStatusColor}`}>{data.modelStatus}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500 uppercase tracking-wider">Holdings</p>
+              <p className="font-semibold mt-0.5">{data.holdingsCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500 uppercase tracking-wider">Next Review</p>
+              <p className="text-xs font-semibold mt-0.5">{data.nextReviewWindow || nextReviewWindow()}</p>
+            </div>
+          </div>
+          {data.nextAction && (
+            <p className="text-xs text-blue-400 mt-3 pt-3 border-t border-neutral-800">
+              Next step: {data.nextAction}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card">
           <p className="metric-label">Portfolios</p>
@@ -150,6 +200,9 @@ export default function DashboardClient({ data, error, portfolios }: {
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-4 h-4 text-neutral-400" />
             <h2 className="text-sm font-semibold">M1_B2_QUALITY_VETO_N30</h2>
+            {quarterLabel(data.modelDate) && (
+              <span className="text-xs text-neutral-500">{quarterLabel(data.modelDate)}</span>
+            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <div>
@@ -164,6 +217,11 @@ export default function DashboardClient({ data, error, portfolios }: {
               <p className="text-xs text-neutral-500 uppercase tracking-wider">Holdings</p>
               <p className="font-semibold mt-0.5">{data.holdingsCount}</p>
             </div>
+          </div>
+          <div className="flex gap-4 mt-4 pt-4 border-t border-neutral-800">
+            <Link href="/model" className="text-xs text-blue-400 hover:underline">Quarterly Top 30 →</Link>
+            <Link href="/model/history" className="text-xs text-blue-400 hover:underline">Model History →</Link>
+            <Link href="/portfolios" className="text-xs text-blue-400 hover:underline">Rebalance Instructions →</Link>
           </div>
         </div>
       )}
