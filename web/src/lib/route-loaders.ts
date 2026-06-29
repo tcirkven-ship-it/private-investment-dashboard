@@ -134,6 +134,8 @@ export interface RebalanceLine {
   ticker: string;
   currentWeight: string;
   targetWeight: string;
+  currentValue: number | null;
+  targetValue: number | null;
   action: "Buy" | "Sell" | "Add" | "Reduce" | "Hold";
 }
 
@@ -141,6 +143,7 @@ export interface RebalanceResult {
   modelDate: string;
   comparisons: RebalanceLine[];
   hasPrices: boolean;
+  nav: number;
 }
 
 export async function loadRebalance(portfolioId: string, db?: DB): Promise<RebalanceResult> {
@@ -153,7 +156,7 @@ export async function loadRebalance(portfolioId: string, db?: DB): Promise<Rebal
     .maybeSingle();
 
   if (snapResult.error) throw new Error(`Failed to load model: ${snapResult.error.message}`);
-  if (!snapResult.data) return { modelDate: "", comparisons: [], hasPrices: false };
+  if (!snapResult.data) return { modelDate: "", comparisons: [], hasPrices: false, nav: 0 };
 
   const snapId = String(snapResult.data.id);
 
@@ -179,13 +182,16 @@ export async function loadRebalance(portfolioId: string, db?: DB): Promise<Rebal
     const h = state.holdings.get(ticker);
     const targetW = modelTargets.get(ticker) || 0;
     const currentW = h?.market_value && nav > 0 ? h.market_value / nav : 0;
+    const hasPrice = h?.market_value !== undefined && h?.market_value !== null;
+    const currentVal = hasPrice ? h!.market_value! : null;
+    const targetVal = hasPrice && nav > 0 ? targetW * nav : null;
     let action: RebalanceLine["action"] = "Hold";
     if (!h || h.quantity <= 0) action = "Buy";
     else if (targetW === 0) action = "Sell";
     else if (currentW > targetW * 1.05) action = "Reduce";
     else if (targetW > 0 && currentW < targetW * 0.95) action = "Add";
-    return { ticker, currentWeight: (currentW * 100).toFixed(1), targetWeight: (targetW * 100).toFixed(2), action };
+    return { ticker, currentWeight: hasPrice ? (currentW * 100).toFixed(1) : "—", targetWeight: (targetW * 100).toFixed(2), currentValue: currentVal, targetValue: targetVal, action };
   });
 
-  return { modelDate: String(snapResult.data.effective_date ?? ""), comparisons, hasPrices: priceCount > 0 };
+  return { modelDate: String(snapResult.data.effective_date ?? ""), comparisons, hasPrices: priceCount > 0, nav };
 }

@@ -1,6 +1,7 @@
 import { loadHoldings } from "@/lib/route-loaders";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import PriceEntryForm from "@/components/portfolios/PriceEntryForm";
 
 export default async function HoldingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -97,6 +98,11 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
       )}
+
+      <div className="card">
+        <h2 className="text-sm font-semibold mb-3">Update Prices</h2>
+        <PriceEntryForm />
+      </div>
     </div>
   );
 }

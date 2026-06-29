@@ -156,6 +156,33 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
   return { error: null, message: `M1_B2_QUALITY_VETO_N30 generated with ${rows.length} stocks from research output.` };
 }
 
+export async function upsertPrice(formData: FormData): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const ticker = (formData.get("ticker") as string)?.toUpperCase().trim();
+  const date = formData.get("date") as string;
+  const close = parseFloat(formData.get("close") as string);
+  if (!ticker || !date || isNaN(close)) return { error: "Ticker, date, and price are required" };
+
+  // Resolve ticker to security_id
+  const { data: sec } = await supabase.from("securities").select("id").eq("ticker", ticker).maybeSingle();
+  if (!sec) return { error: `Security ${ticker} not found. Generate the Quarterly Top 30 first or add the security.` };
+
+  const { error } = await supabase.from("price_observations").upsert({
+    security_id: sec.id,
+    observation_date: date,
+    close,
+    source: "manual",
+  }, { onConflict: "security_id,observation_date" });
+
+  if (error) return { error: error.message };
+  revalidatePath("/portfolios");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
 export async function insertTransaction(formData: FormData): Promise<ActionResult> {
   const supabase = await createServerSupabase();
   const portfolioId = formData.get("portfolio_id") as string;
