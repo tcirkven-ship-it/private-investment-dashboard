@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           echo "[$(date +%H:%M:%S)] Installing dependencies..."
-          pip install yfinance==1.4.0 pandas==3.0.3 numpy==2.4.6 supabase==2.17.0 2>&1 | tail -5
+          pip install yfinance pandas numpy supabase 2>&1 | tail -5
           echo "[$(date +%H:%M:%S)] Dependencies installed"
 
       - name: Run M1_B2 engine (daily scanner + Quality Veto)
