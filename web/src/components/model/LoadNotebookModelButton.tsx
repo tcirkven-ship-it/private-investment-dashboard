@@ -25,7 +25,7 @@ export default function LoadNotebookModelButton() {
 
     const res = await loadNotebookModel(fd);
     setMsg(res.error || res.message || "Done");
-    if (!res.error) router.refresh();
+    if (!res.error) router.push("/model");
     setLoading(false);
     if (fileRef.current) fileRef.current.value = "";
   }
@@ -35,7 +35,7 @@ export default function LoadNotebookModelButton() {
       <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
       <button onClick={() => fileRef.current?.click()} disabled={loading} className="btn-ghost text-sm flex items-center gap-2">
         <Upload className="w-4 h-4" />
-        {loading ? "Loading..." : "Load Notebook Model"}
+        {loading ? "Loading..." : "Load Notebook-Generated Top 30"}
       </button>
       {msg && (
         <span className={`text-xs ${msg.startsWith("Expected") || msg.startsWith("Missing") || msg.startsWith("Duplicate") || msg.startsWith("CSV") || msg.startsWith("Manifest") ? "text-red-400" : "text-green-400"}`}>

@@ -103,10 +103,10 @@ export default async function ModelPage() {
 
       {!model ? (
         <div className="card text-center py-12">
-          <p className="text-neutral-500">No model snapshot imported yet.</p>
-          <p className="text-sm text-neutral-600 mt-2">
-            Click <strong>Generate / Refresh</strong> to create the M1_B2_QUALITY_VETO_N30 model.
-          </p>
+            <p className="text-neutral-500">No official model loaded yet.</p>
+            <p className="text-sm text-neutral-600 mt-2">
+              Load the notebook-generated Top 30 CSV from the Dashboard.
+            </p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
