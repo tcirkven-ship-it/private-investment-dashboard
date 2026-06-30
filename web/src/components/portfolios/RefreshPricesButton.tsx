@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
-import { refreshClosingPrices } from "@/lib/actions";
+import { refreshPortfolioPrices } from "@/lib/actions";
 
-export default function RefreshPricesButton() {
+export default function RefreshPricesButton({ portfolioId }: { portfolioId: string }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const router = useRouter();
@@ -13,7 +13,7 @@ export default function RefreshPricesButton() {
   async function handleClick() {
     setLoading(true);
     setResult(null);
-    const res = await refreshClosingPrices();
+    const res = await refreshPortfolioPrices(portfolioId);
     setLoading(false);
     if (res.error) {
       setResult(res.error);

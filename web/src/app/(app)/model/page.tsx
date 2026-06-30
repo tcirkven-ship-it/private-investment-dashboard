@@ -1,4 +1,5 @@
 import { getLatestModelSnapshot } from "@/lib/supabase-queries";
+import LoadNotebookModelButton from "@/components/model/LoadNotebookModelButton";
 import Link from "next/link";
 
 export default async function ModelPage() {
@@ -24,13 +25,13 @@ export default async function ModelPage() {
   const asOfDate = warnings?.as_of_date ? String(warnings.as_of_date) : null;
   const generatedAt = warnings?.generated_at ? String(warnings.generated_at) : null;
   const loadedAt = warnings?.loaded_at ? String(warnings.loaded_at) : null;
-  const generator = warnings?.generator ? String(warnings.generator) : "offline notebook official generator";
   const holdingsCount = model?.holdings?.length || 0;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
+        <LoadNotebookModelButton />
       </div>
 
       {!model ? (
@@ -57,10 +58,6 @@ export default async function ModelPage() {
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Loaded at:</span>
               <span className="text-neutral-200">{loadedAt || "—"}</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-neutral-500 w-28 shrink-0">Source:</span>
-              <span className="text-neutral-200">{generator}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Holdings:</span>

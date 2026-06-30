@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  TrendingUp, Briefcase, ArrowLeftRight, FileText, LogOut, ChevronLeft,
+  TrendingUp, Briefcase, ArrowLeftRight, FileText, LogOut, ChevronLeft, Settings,
 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useState } from "react";
@@ -17,12 +17,13 @@ export default function Sidebar() {
     { href: "/model", label: "Top 30", icon: TrendingUp },
     { href: "/compare", label: "Compare", icon: ArrowLeftRight },
     { href: "/instructions", label: "Instructions", icon: FileText },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   return (
     <aside className={`${collapsed ? "w-16" : "w-56"} transition-all duration-200 flex flex-col border-r border-neutral-800 bg-neutral-950/50 backdrop-blur-sm`}>
       <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-800">
-        {!collapsed && <span className="text-sm font-semibold tracking-tight">Dashboard</span>}
+        {!collapsed && <span className="text-sm font-semibold tracking-tight">Investment Tracker</span>}
         <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-neutral-800 text-neutral-500">
           <ChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
         </button>

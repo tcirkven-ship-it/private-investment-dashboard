@@ -319,6 +319,55 @@ export async function recordValuationSnapshot(portfolioId: string): Promise<Acti
   return { error: null, nav: result.nav, date: today };
 }
 
+export async function refreshPortfolioPrices(portfolioId: string): Promise<ActionResult & { message?: string; results?: Record<string, { ok: boolean; price?: number; error?: string }> }> {
+  const ownerEmail = process.env.OWNER_EMAIL;
+  if (!ownerEmail) return { error: "OWNER_EMAIL not configured." };
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return { error: "SUPABASE_SERVICE_ROLE_KEY not configured." };
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.email?.toLowerCase() !== ownerEmail.toLowerCase()) return { error: "Owner access required." };
+
+  const holdingsResult = await loadHoldings(portfolioId);
+  const tickers = [...holdingsResult.state.holdings.keys()];
+
+  const benchmarkTickers = ["SPY", "QQQ"].filter((b) => !tickers.includes(b));
+  const allTickers = [...tickers, ...benchmarkTickers];
+
+  const today = new Date().toISOString().split("T")[0];
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } });
+
+  const { data: securities } = await supabase.from("securities").select("ticker, id");
+  const secMap = new Map<string, string>();
+  if (securities) for (const s of securities) secMap.set(s.ticker, s.id);
+
+  const results: Record<string, { ok: boolean; price?: number; error?: string }> = {};
+
+  for (const t of allTickers) {
+    try {
+      const resp = await fetch(`${YH_CHART_URL}${encodeURIComponent(t)}?range=5d&interval=1d`);
+      if (!resp.ok) { results[t] = { ok: false, error: `HTTP ${resp.status}` }; continue; }
+      const json = await resp.json();
+      const result = json?.chart?.result?.[0];
+      const close = result?.indicators?.quote?.[0]?.close?.slice(-1)[0];
+      if (!close) { results[t] = { ok: false, error: "No close price" }; continue; }
+      const secId = secMap.get(t);
+      if (!secId) { results[t] = { ok: false, error: "No security_id" }; continue; }
+      const { error } = await db.from("price_observations").upsert({
+        security_id: secId, observation_date: today, close, source: "yahoo-auto",
+      }, { onConflict: "security_id,observation_date" });
+      if (error) { results[t] = { ok: false, error: error.message }; }
+      else { results[t] = { ok: true, price: close }; }
+    } catch (e) { results[t] = { ok: false, error: e instanceof Error ? e.message : "Unknown" }; }
+  }
+
+  const okCount = Object.values(results).filter((r) => r.ok).length;
+  const failedCount = allTickers.length - okCount;
+  revalidatePath("/dashboard"); revalidatePath("/portfolios");
+  return { error: null, message: `Prices refreshed: ${okCount}/${allTickers.length}`, results };
+}
+
 export async function refreshClosingPrices(): Promise<ActionResult & { message?: string; ok?: number; failed?: number }> {
   const ownerEmail = process.env.OWNER_EMAIL;
   if (!ownerEmail) return { error: "OWNER_EMAIL not configured." };

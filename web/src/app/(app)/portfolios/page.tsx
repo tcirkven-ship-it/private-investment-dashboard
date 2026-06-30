@@ -4,6 +4,7 @@ import { getLatestModelSnapshot } from "@/lib/supabase-queries";
 import Link from "next/link";
 import RefreshPricesButton from "@/components/portfolios/RefreshPricesButton";
 import HoldingsManager from "@/components/portfolios/HoldingsManager";
+import PortfolioActivity from "@/components/portfolios/PortfolioActivity";
 
 export default async function PortfoliosPage() {
   const supabase = await createServerSupabase();
@@ -105,7 +106,7 @@ export default async function PortfoliosPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <RefreshPricesButton />
+        <RefreshPricesButton portfolioId={portfolio.id} />
         <Link href="/compare" className="btn-ghost text-sm">
           Compare to Top 30 &rarr;
         </Link>
@@ -120,6 +121,8 @@ export default async function PortfoliosPage() {
         unrealizedPct={unrealizedPct}
         modelTickers={modelTickers}
       />
+
+      <PortfolioActivity portfolioId={portfolio.id} />
     </div>
   );
 }

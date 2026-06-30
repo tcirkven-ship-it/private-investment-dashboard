@@ -43,12 +43,17 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
     if (!rows[0] || !(col in rows[0])) return { error: `Missing required column: ${col}` };
   }
 
-  // Validate B2_score column exists (case-insensitive)
+  // Validate required score columns exist (case-insensitive)
   const firstRow = rows[0]!;
   const b2Col = Object.keys(firstRow).find(
     (k) => k.toLowerCase() === "b2_score" || k.toLowerCase() === "b2score"
   );
   if (!b2Col) return { error: "CSV missing B2_score column." };
+
+  const qCol = Object.keys(firstRow).find(
+    (k) => k.toLowerCase() === "q_percentile" || k.toLowerCase() === "qpercentile" || k.toLowerCase() === "q_score"
+  );
+  if (!qCol) return { error: "CSV missing Q_percentile column." };
 
   // Parse manifest if provided
   let manifest: Record<string, unknown> | null = null;
