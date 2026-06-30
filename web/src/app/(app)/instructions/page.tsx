@@ -90,6 +90,70 @@ export default function InstructionsPage() {
           <li>The Compare page provides decision support only &mdash; it is not investment advice.</li>
         </ul>
       </section>
-    </div>
-  );
-}
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Portfolio — Add / Edit / Delete Holdings</h2>
+        <ul className="space-y-2 text-sm text-neutral-300 list-disc list-inside">
+          <li><strong>Add Holding</strong>: Enter ticker, shares, and average cost. Click Add.</li>
+          <li><strong>Edit Holding</strong>: Click the edit icon next to a holding. Update shares or average cost. Save.</li>
+          <li><strong>Delete Holding</strong>: Click the delete icon, then confirm.</li>
+          <li>You cannot add a ticker that is already in your portfolio. Edit the existing holding instead.</li>
+          <li>Blank tickers are not allowed. Shares must be greater than zero.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Price Refresh</h2>
+        <ul className="space-y-2 text-sm text-neutral-300 list-disc list-inside">
+          <li>Click <strong>Refresh Current Prices</strong> on the Portfolio page to fetch latest quotes.</li>
+          <li>Only tickers currently in your portfolio are refreshed (not all securities).</li>
+          <li>The result shows how many prices refreshed and which tickers failed.</li>
+          <li>Prices are latest available quotes from Yahoo Finance and may be delayed.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Compare</h2>
+        <ul className="space-y-2 text-sm text-neutral-300 list-disc list-inside">
+          <li><strong>Already Own / In Top 30</strong>: Stocks you hold that are also in the current Top 30.</li>
+          <li><strong>Consider Buying</strong>: Stocks in the Top 30 that you do not currently own.</li>
+          <li><strong>Consider Selling</strong>: Stocks you own that are no longer in the Top 30.</li>
+          <li>All decisions are manual. The app does not trade or connect to a broker.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Reset App Data</h2>
+        <ul className="space-y-2 text-sm text-neutral-300 list-disc list-inside">
+          <li>Go to <strong>Settings</strong> to reset all app data.</li>
+          <li>Click <strong>Reset App Data</strong>, review the row counts, then type RESET to confirm.</li>
+          <li>This clears portfolios, transactions, model snapshots, prices, and decisions.</li>
+          <li>Supabase auth users and migrations are never touched.</li>
+          <li>After reset, the app shows an empty Portfolio and no loaded Top 30.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold mb-4">Troubleshooting</h2>
+        <div className="space-y-3 text-sm text-neutral-300">
+          <div>
+            <p className="font-medium text-amber-400">Scores missing in Top 30</p>
+            <p className="text-neutral-400">Re-upload the CSV. Ensure it contains B2_score and Q_percentile (or Q_score) columns. The loader rejects CSVs without these columns.</p>
+          </div>
+          <div>
+            <p className="font-medium text-amber-400">Price refresh failed</p>
+            <p className="text-neutral-400">Some tickers may not have current quotes available. Check the ticker symbol. Retry later if Yahoo Finance is rate-limiting.</p>
+          </div>
+          <div>
+            <p className="font-medium text-amber-400">Blank holdings</p>
+            <p className="text-neutral-400">Old blank holdings from previous versions can be cleared using Settings → Reset App Data.</p>
+          </div>
+          <div>
+            <p className="font-medium text-amber-400">No Top 30 loaded</p>
+            <p className="text-neutral-400">Go to the Top 30 page and click Load Notebook-Generated Top 30. Upload a valid CSV with the required columns.</p>
+          </div>
+          <div>
+            <p className="font-medium text-amber-400">Reset failed</p>
+            <p className="text-neutral-400">Ensure you are the owner (OWNER_EMAIL environment variable). Check that SUPABASE_SERVICE_ROLE_KEY is configured.</p>
+          </div>
+        </div>
+      </section>
