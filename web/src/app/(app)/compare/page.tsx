@@ -18,9 +18,11 @@ export default async function ComparePage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Compare</h1>
         <div className="card text-center py-12">
-          <p className="text-neutral-500">No portfolio found.</p>
+          <p className="text-neutral-500">No portfolio holdings yet.</p>
           <p className="text-sm text-neutral-600 mt-2">
-            <Link href="/portfolios/new" className="text-blue-400 hover:text-blue-300 underline">Create a portfolio</Link> first.
+            <Link href="/portfolios" className="text-blue-400 hover:text-blue-300 underline">
+              Go to Portfolio &rarr; Add Holding
+            </Link>
           </p>
         </div>
       </div>
@@ -29,11 +31,26 @@ export default async function ComparePage() {
 
   const portfolio = portfolios[0];
 
-  const [holdingsResult, modelResult] = await Promise.all([
-    loadHoldings(portfolio.id),
-    getLatestModelSnapshot(),
-  ]);
+  let holdingsResult: Awaited<ReturnType<typeof loadHoldings>>;
+  try {
+    holdingsResult = await loadHoldings(portfolio.id);
+  } catch {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">Compare</h1>
+        <div className="card text-center py-12">
+          <p className="text-neutral-500">No portfolio holdings yet.</p>
+          <p className="text-sm text-neutral-600 mt-2">
+            <Link href="/portfolios" className="text-blue-400 hover:text-blue-300 underline">
+              Go to Portfolio &rarr; Add Holding
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
+  const modelResult = await getLatestModelSnapshot();
   const model = modelResult.data;
 
   if (modelResult.error || !model) {
@@ -41,9 +58,11 @@ export default async function ComparePage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Compare</h1>
         <div className="card text-center py-12">
-          <p className="text-neutral-500">No model snapshot loaded yet.</p>
+          <p className="text-neutral-500">No official model loaded yet.</p>
           <p className="text-sm text-neutral-600 mt-2">
-            Load the notebook-generated Top 30 CSV first.
+            <Link href="/model" className="text-blue-400 hover:text-blue-300 underline">
+              Go to Top 30 &rarr; Load Notebook-Generated Top 30
+            </Link>
           </p>
         </div>
       </div>
@@ -85,11 +104,11 @@ export default async function ComparePage() {
 
       <div className="card p-0 overflow-hidden">
         <h2 className="text-sm font-semibold p-4 pb-2 border-b border-neutral-800">
-          Keep / Already in Top 30
+          Already Own / In Top 30
           <span className="text-neutral-500 font-normal ml-2">({keepTickers.length})</span>
         </h2>
         {keepTickers.length === 0 ? (
-          <p className="p-4 text-sm text-neutral-500">No holdings in the latest Top 30.</p>
+          <p className="p-4 text-sm text-neutral-500">No portfolio holdings match the latest Top 30.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -98,8 +117,8 @@ export default async function ComparePage() {
                   <th className="table-header">Ticker</th>
                   <th className="table-header text-right">Shares</th>
                   <th className="table-header text-right">Current Value</th>
-                  <th className="table-header text-right">B2 Score</th>
                   <th className="table-header text-right">Rank</th>
+                  <th className="table-header text-right">B2 Score</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,8 +134,8 @@ export default async function ComparePage() {
                         <td className="table-cell text-right">
                           {h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}
                         </td>
-                        <td className="table-cell text-right">{m?.b2_score?.toFixed(3) ?? "—"}</td>
                         <td className="table-cell text-right">{m?.rank ?? "—"}</td>
+                        <td className="table-cell text-right">{m?.b2_score?.toFixed(3) ?? "—"}</td>
                       </tr>
                     );
                   })}
@@ -128,7 +147,7 @@ export default async function ComparePage() {
 
       <div className="card p-0 overflow-hidden">
         <h2 className="text-sm font-semibold p-4 pb-2 border-b border-neutral-800">
-          Consider Buying / New in Top 30
+          New in Top 30 / Consider Buying
           <span className="text-neutral-500 font-normal ml-2">({buyTickers.length})</span>
         </h2>
         {buyTickers.length === 0 ? (
@@ -170,7 +189,7 @@ export default async function ComparePage() {
 
       <div className="card p-0 overflow-hidden">
         <h2 className="text-sm font-semibold p-4 pb-2 border-b border-neutral-800">
-          Consider Selling / Not in Top 30
+          Owned but Not in Top 30 / Consider Selling
           <span className="text-neutral-500 font-normal ml-2">({sellTickers.length})</span>
         </h2>
         {sellTickers.length === 0 ? (
@@ -183,6 +202,7 @@ export default async function ComparePage() {
                   <th className="table-header">Ticker</th>
                   <th className="table-header text-right">Shares</th>
                   <th className="table-header text-right">Current Value</th>
+                  <th className="table-header text-right">Unrealized P/L</th>
                   <th className="table-header">Reason</th>
                 </tr>
               </thead>
@@ -197,6 +217,9 @@ export default async function ComparePage() {
                         <td className="table-cell text-right">{h.quantity.toFixed(3)}</td>
                         <td className="table-cell text-right">
                           {h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}
+                        </td>
+                        <td className={`table-cell text-right ${(h.unrealized_pl || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {h.unrealized_pl !== undefined ? `$${h.unrealized_pl.toFixed(2)}` : "—"}
                         </td>
                         <td className="table-cell-text text-sm text-neutral-400">Not in latest Top 30</td>
                       </tr>

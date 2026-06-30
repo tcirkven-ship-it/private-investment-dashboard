@@ -372,6 +372,80 @@ export async function refreshClosingPrices(): Promise<ActionResult & { message?:
   return { error: null, message: `Prices refreshed: ${ok}. Failed: ${failed.length}`, ok, failed: failed.length };
 }
 
+export async function deleteAllAppData(
+  confirm?: boolean,
+): Promise<ActionResult & { counts?: Record<string, number> }> {
+  const ownerEmail = process.env.OWNER_EMAIL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!ownerEmail) return { error: "OWNER_EMAIL env var not configured." };
+  if (!serviceKey) return { error: "SUPABASE_SERVICE_ROLE_KEY env var not configured." };
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  if (user.email?.toLowerCase() !== ownerEmail.toLowerCase()) {
+    return { error: "Owner access required." };
+  }
+
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const tables = [
+    "owner_decisions",
+    "rebalance_lines",
+    "rebalance_events",
+    "model_publication_events",
+    "portfolio_valuations",
+    "transactions",
+    "model_snapshot_holdings",
+    "model_snapshots",
+    "model_versions",
+    "price_observations",
+    "benchmark_observations",
+    "data_imports",
+    "audit_events",
+    "portfolios",
+    "securities",
+    "app_settings",
+  ];
+
+  const counts: Record<string, number> = {};
+
+  for (const table of tables) {
+    const { count, error: countErr } = await db
+      .from(table)
+      .select("*", { count: "exact", head: true });
+    if (!countErr) {
+      counts[table] = count ?? 0;
+    } else {
+      counts[table] = -1;
+    }
+  }
+
+  if (!confirm) {
+    return { error: null, counts };
+  }
+
+  for (const table of tables) {
+    const { error: delErr } = await db.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (delErr) {
+      return { error: `Failed to delete from ${table}: ${delErr.message}`, counts };
+    }
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/portfolios");
+  revalidatePath("/model");
+  revalidatePath("/compare");
+  revalidatePath("/settings");
+  return { error: null, counts };
+}
+
 export async function seedAcceptanceData(): Promise<ActionResult & { message?: string }> {
   const supabase = await createServerSupabase();
 

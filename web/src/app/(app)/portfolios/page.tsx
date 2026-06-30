@@ -2,8 +2,8 @@ import { createServerSupabase } from "@/lib/supabase";
 import { loadHoldings } from "@/lib/route-loaders";
 import { getLatestModelSnapshot } from "@/lib/supabase-queries";
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import RefreshPricesButton from "@/components/portfolios/RefreshPricesButton";
+import HoldingsManager from "@/components/portfolios/HoldingsManager";
 
 export default async function PortfoliosPage() {
   const supabase = await createServerSupabase();
@@ -22,7 +22,7 @@ export default async function PortfoliosPage() {
         <div className="card text-center py-12">
           <p className="text-neutral-500">No portfolios yet.</p>
           <Link href="/portfolios/new" className="btn-primary mt-4 inline-flex items-center">
-            <Plus className="w-4 h-4 mr-1.5" /> Create Portfolio
+            Create Portfolio
           </Link>
         </div>
       </div>
@@ -58,8 +58,17 @@ export default async function PortfoliosPage() {
     );
   }
 
-  const { state, nav } = holdingsData;
-  const holdings = [...state.holdings.values()];
+  const { state } = holdingsData;
+  const rawHoldings = [...state.holdings.values()];
+  const holdings = rawHoldings.map((h) => ({
+    ticker: h.ticker,
+    quantity: h.quantity,
+    total_cost: h.total_cost,
+    average_cost: h.average_cost,
+    market_value: h.market_value,
+    current_price: h.current_price,
+    unrealized_pl: h.unrealized_pl,
+  }));
   const totalMarketValue = holdings.reduce((s, h) => s + (h.market_value || 0), 0);
   const totalCostBasis = holdings.reduce((s, h) => s + h.total_cost, 0);
   const totalUnrealized = holdings.reduce((s, h) => s + (h.unrealized_pl || 0), 0);
@@ -102,64 +111,15 @@ export default async function PortfoliosPage() {
         </Link>
       </div>
 
-      {state.holdings.size === 0 ? (
-        <div className="card text-center py-12">
-          <p className="text-neutral-500">No holdings yet.</p>
-          <p className="text-sm text-neutral-600 mt-2">
-            Add transactions to get started.
-          </p>
-        </div>
-      ) : (
-        <div className="card p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-neutral-800">
-                  <th className="table-header">Ticker</th>
-                  <th className="table-header text-right">Shares</th>
-                  <th className="table-header text-right">Avg Cost</th>
-                  <th className="table-header text-right">Current Price</th>
-                  <th className="table-header text-right">Market Value</th>
-                  <th className="table-header text-right">Unrealized P/L</th>
-                  <th className="table-header text-right">Unrealized P/L %</th>
-                  <th className="table-header text-right">In Top 30?</th>
-                </tr>
-              </thead>
-              <tbody>
-                {holdings
-                  .sort((a, b) => (b.market_value || 0) - (a.market_value || 0))
-                  .map((h) => {
-                    const uplPct = h.total_cost > 0 ? ((h.unrealized_pl || 0) / h.total_cost) * 100 : 0;
-                    return (
-                      <tr key={h.ticker} className="border-b border-neutral-800/50">
-                        <td className="table-cell-text font-semibold">{h.ticker}</td>
-                        <td className="table-cell text-right">{h.quantity.toFixed(3)}</td>
-                        <td className="table-cell text-right">${h.average_cost.toFixed(2)}</td>
-                        <td className="table-cell text-right">
-                          {h.current_price ? `$${h.current_price.toFixed(2)}` : "—"}
-                        </td>
-                        <td className="table-cell text-right">
-                          {h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}
-                        </td>
-                        <td className={`table-cell text-right ${(h.unrealized_pl || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {h.unrealized_pl !== undefined ? `$${h.unrealized_pl.toFixed(2)}` : "—"}
-                        </td>
-                        <td className={`table-cell text-right ${uplPct >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {h.unrealized_pl !== undefined ? `${uplPct >= 0 ? "+" : ""}${uplPct.toFixed(2)}%` : "—"}
-                        </td>
-                        <td className="table-cell text-right">
-                          {modelTickers.size > 0
-                            ? (modelTickers.has(h.ticker) ? "Yes" : "No")
-                            : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <HoldingsManager
+        portfolioId={portfolio.id}
+        holdings={holdings}
+        totalMarketValue={totalMarketValue}
+        totalCostBasis={totalCostBasis}
+        totalUnrealized={totalUnrealized}
+        unrealizedPct={unrealizedPct}
+        modelTickers={modelTickers}
+      />
     </div>
   );
 }

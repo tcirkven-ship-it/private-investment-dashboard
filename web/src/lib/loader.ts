@@ -43,6 +43,13 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
     if (!rows[0] || !(col in rows[0])) return { error: `Missing required column: ${col}` };
   }
 
+  // Validate B2_score column exists (case-insensitive)
+  const firstRow = rows[0]!;
+  const b2Col = Object.keys(firstRow).find(
+    (k) => k.toLowerCase() === "b2_score" || k.toLowerCase() === "b2score"
+  );
+  if (!b2Col) return { error: "CSV missing B2_score column." };
+
   // Parse manifest if provided
   let manifest: Record<string, unknown> | null = null;
   if (manifestJson) {
@@ -109,11 +116,11 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
   const loadedAt = new Date().toISOString();
   const quarterLabel = manifest?.quarter_label || "";
   const { data: snapshot } = await db.from("model_snapshots").insert({
-    model_version_id: mv.id, snapshot_id: `nb-${ts}`, status: "DRAFT",
+    model_version_id: mv.id, snapshot_id: `nb-${ts}`, status: "PUBLISHED",
     effective_date: asOf as string,
     universe_screened: 2205, eligible_count: 1070, valid_score_count: rows.length,
     warnings: JSON.stringify({
-      generator: "offline_notebook",
+      generator: "offline notebook official generator",
       generation_mode: "offline_notebook_official_generator",
       source: "notebook",
       as_of_date: asOf,
@@ -130,12 +137,20 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
     const sid = secIds[tickers[i]];
     if (!sid) continue;
     const r = rows[i];
+
+    const qCol = Object.keys(r).find(
+      (k) => k.toLowerCase() === "q_percentile" || k.toLowerCase() === "qpercentile" || k.toLowerCase() === "q_score"
+    );
+    const qComponentsCol = Object.keys(r).find(
+      (k) => k.toLowerCase() === "q_components_ok" || k.toLowerCase() === "qcomponents_ok"
+    );
+
     await db.from("model_snapshot_holdings").upsert({
       snapshot_id: snapshot.id, security_id: sid, rank: i + 1,
       target_weight: targetWeight,
-      b2_score: parseFloat(String(r.B2_score || r.b2_score || "0")) || null,
-      quality_percentile: parseFloat(String(r.Q_percentile || r.q_percentile || r.Q_score || "0")) || null,
-      quality_components_ok: parseInt(String(r.Q_components_ok || "4")) || 4,
+      b2_score: parseFloat(String(r[b2Col] || "0")) || 0,
+      quality_percentile: qCol ? (parseFloat(String(r[qCol] || "0")) || 0) : 0,
+      quality_components_ok: qComponentsCol ? (parseInt(String(r[qComponentsCol] || "4")) || 4) : 4,
       inclusion_reason: `Notebook-generated. Loaded via app.`,
     }, { onConflict: "snapshot_id,security_id" });
   }
