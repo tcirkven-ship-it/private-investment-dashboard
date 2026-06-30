@@ -81,29 +81,6 @@ export default async function PortfoliosPage() {
         Portfolio{portfolio.name ? `: ${portfolio.name}` : ""}
       </h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card">
-          <p className="metric-label">Total Market Value</p>
-          <p className="metric-value mt-1">${totalMarketValue.toLocaleString()}</p>
-        </div>
-        <div className="card">
-          <p className="metric-label">Total Cost Basis</p>
-          <p className="metric-value mt-1">${totalCostBasis.toLocaleString()}</p>
-        </div>
-        <div className="card">
-          <p className="metric-label">Unrealized P/L</p>
-          <p className={`metric-value mt-1 ${totalUnrealized >= 0 ? "text-green-400" : "text-red-400"}`}>
-            ${totalUnrealized.toFixed(2)}
-          </p>
-        </div>
-        <div className="card">
-          <p className="metric-label">Unrealized P/L %</p>
-          <p className={`metric-value mt-1 ${unrealizedPct >= 0 ? "text-green-400" : "text-red-400"}`}>
-            {unrealizedPct >= 0 ? "+" : ""}{unrealizedPct.toFixed(2)}%
-          </p>
-        </div>
-      </div>
-
       <div className="flex items-center gap-4">
         <RefreshPricesButton portfolioId={portfolio.id} />
         <Link href="/compare" className="btn-ghost text-sm">
@@ -114,10 +91,10 @@ export default async function PortfoliosPage() {
       <HoldingsManager
         portfolioId={portfolio.id}
         holdings={holdings}
+        cash={state.cash}
         totalMarketValue={totalMarketValue}
         totalCostBasis={totalCostBasis}
         totalUnrealized={totalUnrealized}
-        unrealizedPct={unrealizedPct}
         modelTickers={modelTickers}
       />
 
