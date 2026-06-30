@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { insertTransaction, updateTransaction } from "@/lib/actions";
-import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
+import { insertTransaction } from "@/lib/actions";
+import { Plus, Trash2, X } from "lucide-react";
 
 interface Holding {
   ticker: string;
@@ -22,28 +22,22 @@ export default function HoldingsManager({
   totalUnrealized: number; unrealizedPct: number; modelTickers: Set<string>;
 }) {
   const router = useRouter();
-  const [showForm, setShowForm] = useState<"opening" | "buy" | "sell" | "deposit" | "withdraw" | null>(null);
+  const [showForm, setShowForm] = useState<"opening" | "buy" | "sell" | null>(null);
   const [ticker, setTicker] = useState("");
   const [shares, setShares] = useState("");
   const [price, setPrice] = useState("");
-  const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingTicker, setDeletingTicker] = useState<string | null>(null);
-  const [editingTicker, setEditingTicker] = useState<string | null>(null);
-  const [editQty, setEditQty] = useState("");
-  const [editPrice, setEditPrice] = useState("");
-  const [editTxId, setEditTxId] = useState("");
 
-  function reset() { setTicker(""); setShares(""); setPrice(""); setAmount(""); setSaving(false); setError(""); setShowForm(null); }
+  function reset() { setTicker(""); setShares(""); setPrice(""); setSaving(false); setError(""); setShowForm(null); }
 
   async function submit(eventType: string) {
     setSaving(true); setError("");
     const t = ticker.toUpperCase().trim();
     const qty = parseFloat(shares);
     const pr = parseFloat(price);
-    const amt = parseFloat(amount);
     const fd = new FormData();
     fd.set("portfolio_id", portfolioId);
     fd.set("event_type", eventType);
@@ -55,26 +49,10 @@ export default function HoldingsManager({
       const h = holdings.find(x => x.ticker === t);
       if (h && qty > h.quantity) { setError(`Cannot sell ${qty} shares. You own ${h.quantity.toFixed(3)}.`); setSaving(false); return; }
     }
-    if (eventType === "DEPOSIT" || eventType === "WITHDRAWAL") {
-      if (isNaN(amt) || amt <= 0) { setError("Amount is required"); setSaving(false); return; }
-      fd.set("gross_amount", String(amt));
-    } else {
-      if (!t || isNaN(qty) || qty <= 0 || isNaN(pr) || pr < 0) { setError("Ticker, shares (>0), and price (>=0) are required"); setSaving(false); return; }
-      fd.set("gross_amount", String(qty * pr));
-    }
+    if (!t || isNaN(qty) || qty <= 0 || isNaN(pr) || pr < 0) { setError("Ticker, shares (>0), and price (>=0) are required"); setSaving(false); return; }
+    fd.set("gross_amount", String(qty * pr));
     const r = await insertTransaction(fd);
     if (r.error) { setError(r.error); setSaving(false); } else { reset(); router.refresh(); }
-  }
-
-  async function handleEdit(e: React.FormEvent, ticker: string) {
-    e.preventDefault();
-    setSaving(true); setError("");
-    const fd = new FormData();
-    fd.set("ticker", ticker);
-    fd.set("quantity", editQty);
-    fd.set("price", editPrice);
-    const r = await updateTransaction(editTxId, portfolioId, fd);
-    if (r.error) { setError(r.error); setSaving(false); } else { setEditingTicker(null); router.refresh(); }
   }
 
   async function handleDelete(ticker: string, h: Holding) {
@@ -103,26 +81,19 @@ export default function HoldingsManager({
         <button onClick={() => { setShowForm("opening"); reset(); }} className="btn-ghost text-sm"><Plus className="w-3.5 h-3.5 mr-1" />Add Opening Position</button>
         <button onClick={() => { setShowForm("buy"); reset(); }} className="btn-ghost text-sm"><Plus className="w-3.5 h-3.5 mr-1" />Add Buy</button>
         <button onClick={() => { setShowForm("sell"); reset(); }} className="btn-ghost text-sm">Add Sell</button>
-        <button onClick={() => { setShowForm("deposit"); reset(); }} className="btn-ghost text-sm">Add Deposit</button>
-        <button onClick={() => { setShowForm("withdraw"); reset(); }} className="btn-ghost text-sm">Add Withdrawal</button>
       </div>
 
       {showForm && (
         <form onSubmit={(e) => { e.preventDefault(); submit(showForm); }} className="card space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Add {showForm === "opening" ? "Opening Position" : showForm === "buy" ? "Buy" : showForm === "sell" ? "Sell" : showForm === "deposit" ? "Deposit" : "Withdrawal"}</h3>
+            <h3 className="text-sm font-semibold">Add {showForm === "opening" ? "Opening Position" : showForm === "buy" ? "Buy" : "Sell"}</h3>
             <button type="button" onClick={reset} className="btn-ghost p-1"><X className="w-4 h-4" /></button>
           </div>
-          {showForm !== "deposit" && showForm !== "withdraw" && (
-            <div className="grid grid-cols-3 gap-3">
-              <div><label className="text-xs text-neutral-500 block mb-1">Ticker</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} className="input text-sm" required /></div>
-              <div><label className="text-xs text-neutral-500 block mb-1">Shares</label><input type="number" value={shares} onChange={e => setShares(e.target.value)} className="input text-sm" step="any" min="0" required /></div>
-              <div><label className="text-xs text-neutral-500 block mb-1">Price ($)</label><input type="number" value={price} onChange={e => setPrice(e.target.value)} className="input text-sm" step="0.01" min="0" required /></div>
-            </div>
-          )}
-          {(showForm === "deposit" || showForm === "withdraw") && (
-            <div><label className="text-xs text-neutral-500 block mb-1">Amount ($)</label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input text-sm w-48" step="0.01" min="0" required /></div>
-          )}
+          <div className="grid grid-cols-3 gap-3">
+            <div><label className="text-xs text-neutral-500 block mb-1">Ticker</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} className="input text-sm" required /></div>
+            <div><label className="text-xs text-neutral-500 block mb-1">Shares</label><input type="number" value={shares} onChange={e => setShares(e.target.value)} className="input text-sm" step="any" min="0" required /></div>
+            <div><label className="text-xs text-neutral-500 block mb-1">{showForm === "opening" ? "Avg Cost ($)" : "Price ($)"}</label><input type="number" value={price} onChange={e => setPrice(e.target.value)} className="input text-sm" step="0.01" min="0" required /></div>
+          </div>
           <div className="flex items-center gap-2">
             <div><label className="text-xs text-neutral-500 block mb-1">Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="input text-sm" /></div>
             <button type="submit" disabled={saving} className="btn-primary text-sm mt-4">{saving ? "Saving..." : "Save"}</button>
@@ -158,33 +129,14 @@ export default function HoldingsManager({
                       </td>
                       <td className="table-cell text-right">{modelTickers.size > 0 ? (modelTickers.has(h.ticker) ? "Yes" : "No") : "—"}</td>
                       <td className="table-cell text-right">
-                        <span className="flex items-center justify-end gap-1">
-                          {deletingTicker === h.ticker ? (
-                            <><button onClick={() => handleDelete(h.ticker, h)} disabled={saving} className="text-red-400 text-xs">Confirm</button><button onClick={() => setDeletingTicker(null)} className="text-neutral-400 text-xs">Cancel</button></>
-                          ) : (
-                            <><button onClick={() => setDeletingTicker(h.ticker)} className="btn-ghost p-1 text-neutral-400 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
-                            <button onClick={() => { setEditingTicker(h.ticker); setEditQty(String(h.quantity)); setEditPrice(String(h.average_cost)); }} className="btn-ghost p-1 text-neutral-400 hover:text-blue-400"><Pencil className="w-3 h-3" /></button></>
-                          )}
-                        </span>
+                        {deletingTicker === h.ticker ? (
+                          <span className="flex items-center gap-1"><button onClick={() => handleDelete(h.ticker, h)} disabled={saving} className="text-red-400 text-xs">Confirm</button><button onClick={() => setDeletingTicker(null)} className="text-neutral-400 text-xs">Cancel</button></span>
+                        ) : (
+                          <button onClick={() => setDeletingTicker(h.ticker)} className="btn-ghost p-1 text-neutral-400 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                        )}
                       </td>
                     </tr>
                   );
-                  if (editingTicker === h.ticker) {
-                    rows.push(
-                      <tr key={`edit-${h.ticker}`} className="border-b border-neutral-800/50 bg-neutral-900/50">
-                        <td colSpan={8} className="p-2">
-                          <form onSubmit={(e) => handleEdit(e, h.ticker)} className="flex items-center gap-2 text-sm">
-                            <span className="text-xs text-neutral-500">Qty:</span>
-                            <input type="number" value={editQty} onChange={e => setEditQty(e.target.value)} className="input text-sm w-20" step="any" min="0.001" required />
-                            <span className="text-xs text-neutral-500">Avg Cost $:</span>
-                            <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="input text-sm w-24" step="0.01" min="0" required />
-                            <button type="submit" disabled={saving} className="btn-ghost p-1 text-green-400"><Check className="w-4 h-4" /></button>
-                            <button type="button" onClick={() => setEditingTicker(null)} className="btn-ghost p-1 text-red-400"><X className="w-4 h-4" /></button>
-                          </form>
-                        </td>
-                      </tr>
-                    );
-                  }
                   return rows;
                 })}
               </tbody>
