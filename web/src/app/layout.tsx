@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Investment Dashboard",
+  title: "Investment Tracker",
   description: "Private investment operating dashboard",
   manifest: "/manifest.json",
 };

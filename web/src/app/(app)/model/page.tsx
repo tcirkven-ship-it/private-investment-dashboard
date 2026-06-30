@@ -38,7 +38,7 @@ export default async function ModelPage() {
       {!model ? (
         <div className="card text-center py-12">
           <p className="text-neutral-500">
-            No official model loaded yet. Load the notebook-generated Top 30 CSV from the Dashboard.
+            No official model loaded yet. Click Load Notebook-Generated Top 30 and select m1_b2_quality_veto_targets.csv.
           </p>
         </div>
       ) : (
@@ -114,8 +114,7 @@ export default async function ModelPage() {
       )}
 
       <div className="flex gap-4 mt-4">
-        <Link href="/model/history" className="btn-ghost text-sm">View Model History →</Link>
-        <Link href="/portfolios" className="btn-ghost text-sm">View My Portfolio & Rebalance →</Link>
+        <Link href="/compare" className="btn-ghost text-sm">Compare to Portfolio →</Link>
       </div>
     </div>
   );
