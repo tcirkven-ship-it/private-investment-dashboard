@@ -13,10 +13,10 @@ interface Holding {
 }
 
 export default function HoldingsManager({
-  portfolioId, holdings, cash, totalMarketValue, totalCostBasis, totalUnrealized, modelTickers,
+  portfolioId, holdings, cash, totalMarketValue, totalCostBasis, totalUnrealized, totalRealized, modelTickers,
 }: {
   portfolioId: string; holdings: Holding[]; cash: number; totalMarketValue: number;
-  totalCostBasis: number; totalUnrealized: number; modelTickers: Set<string>;
+  totalCostBasis: number; totalUnrealized: number; totalRealized: number; modelTickers: Set<string>;
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -115,11 +115,12 @@ export default function HoldingsManager({
         </form>
       )}
 
-      <div className="grid grid-cols-4 gap-4">
-        <div className="card"><p className="metric-label">Total Value</p><p className="metric-value mt-1">${nav.toLocaleString()}</p></div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="card"><p className="metric-label">Total Value</p><p className="metric-value mt-1">${nav.toLocaleString()}</p><p className="text-xs text-neutral-500 mt-0.5">Cash + Holdings</p></div>
         <div className="card"><p className="metric-label">Cash</p><p className="metric-value mt-1">${cash.toLocaleString()}</p></div>
-        <div className="card"><p className="metric-label">Cost Basis</p><p className="metric-value mt-1">${totalCostBasis.toLocaleString()}</p></div>
+        <div className="card"><p className="metric-label">Holdings</p><p className="metric-value mt-1">${totalMarketValue.toLocaleString()}</p></div>
         <div className="card"><p className="metric-label">Unrealized P/L</p><p className={`metric-value mt-1 ${totalUnrealized >= 0 ? "text-green-400" : "text-red-400"}`}>${totalUnrealized.toFixed(2)}</p></div>
+        <div className="card"><p className="metric-label">Realized P/L</p><p className={`metric-value mt-1 ${totalRealized >= 0 ? "text-green-400" : "text-red-400"}`}>${totalRealized.toFixed(2)}</p></div>
       </div>
 
       {sorted.length === 0 ? (

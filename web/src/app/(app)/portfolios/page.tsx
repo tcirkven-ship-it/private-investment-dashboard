@@ -99,6 +99,7 @@ export default async function PortfoliosPage() {
         totalMarketValue={totalMarketValue}
         totalCostBasis={totalCostBasis}
         totalUnrealized={totalUnrealized}
+        totalRealized={state.total_realized_pl}
         modelTickers={modelTickers}
       />
 
