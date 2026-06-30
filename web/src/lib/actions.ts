@@ -222,14 +222,23 @@ export async function insertTransaction(formData: FormData): Promise<ActionResul
 
   const ticker = formData.get("ticker") as string;
   if (ticker) {
+    const t = ticker.toUpperCase().trim();
     // Find or create security
     const { data: sec } = await supabase
       .from("securities")
       .select("id")
-      .eq("ticker", ticker.toUpperCase())
+      .eq("ticker", t)
       .maybeSingle();
     if (sec) {
       payload.security_id = sec.id;
+    } else {
+      const { data: created } = await supabase.from("securities").insert({
+        ticker: t,
+        sector: "",
+        industry: "",
+        is_active: true,
+      }).select("id").single();
+      if (created) payload.security_id = created.id;
     }
   }
 
@@ -474,7 +483,10 @@ export async function deleteAllAppData(
   }
 
   for (const table of tables) {
-    const { error: delErr } = await db.from(table).delete();
+    // Use a filter that matches all rows (Supabase requires WHERE clause for deletes)
+    // For app_settings, use key column; for others, use id column
+    const filterCol = table === "app_settings" ? "key" : "id";
+    const { error: delErr } = await db.from(table).delete().neq(filterCol, "00000000-0000-0000-0000-000000000000");
     if (delErr) {
       return { error: `Failed to delete from ${table}: ${delErr.message}`, counts };
     }
