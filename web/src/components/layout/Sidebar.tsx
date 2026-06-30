@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, TrendingUp, Briefcase, LogOut, ChevronLeft,
+  TrendingUp, Briefcase, ArrowLeftRight, FileText, LogOut, ChevronLeft,
 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useState } from "react";
@@ -13,9 +13,10 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/model", label: "Quarterly Top 30", icon: TrendingUp },
-    { href: "/portfolios", label: "My Portfolio", icon: Briefcase },
+    { href: "/portfolios", label: "Portfolio", icon: Briefcase },
+    { href: "/model", label: "Top 30", icon: TrendingUp },
+    { href: "/compare", label: "Compare", icon: ArrowLeftRight },
+    { href: "/instructions", label: "Instructions", icon: FileText },
   ];
 
   return (
