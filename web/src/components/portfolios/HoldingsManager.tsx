@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { insertTransaction } from "@/lib/actions";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Trash2 } from "lucide-react";
 
 const TX_TYPES = ["DEPOSIT", "WITHDRAWAL", "BUY", "SELL"] as const;
 
@@ -28,6 +28,7 @@ export default function HoldingsManager({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [deletingTicker, setDeletingTicker] = useState<string | null>(null);
 
   function reset() { setTicker(""); setShares(""); setPrice(""); setAmount(""); setSaving(false); setError(""); }
   const needsTicker = txType === "BUY" || txType === "SELL";
@@ -58,6 +59,20 @@ export default function HoldingsManager({
     }
     const r = await insertTransaction(fd);
     if (r.error) { setError(r.error); setSaving(false); } else { reset(); router.refresh(); }
+  }
+
+  async function handleDelete(h: Holding) {
+    setSaving(true); setError("");
+    const fd = new FormData();
+    fd.set("portfolio_id", portfolioId);
+    fd.set("event_type", "SELL");
+    fd.set("event_date", new Date().toISOString().split("T")[0]);
+    fd.set("ticker", h.ticker);
+    fd.set("quantity", String(h.quantity));
+    fd.set("price", String(h.average_cost));
+    fd.set("gross_amount", String(h.quantity * h.average_cost));
+    const r = await insertTransaction(fd);
+    if (r.error) { setError(r.error); setSaving(false); } else { setDeletingTicker(null); router.refresh(); }
   }
 
   const nav = cash + totalMarketValue;
@@ -113,7 +128,7 @@ export default function HoldingsManager({
         <div className="card p-0 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead><tr className="border-b border-neutral-800"><th className="table-header">Ticker</th><th className="table-header text-right">Shares</th><th className="table-header text-right">Avg Cost</th><th className="table-header text-right">Price</th><th className="table-header text-right">Mkt Value</th><th className="table-header text-right">P/L</th><th className="table-header text-right">In Top 30?</th></tr></thead>
+              <thead><tr className="border-b border-neutral-800"><th className="table-header">Ticker</th><th className="table-header text-right">Shares</th><th className="table-header text-right">Avg Cost</th><th className="table-header text-right">Price</th><th className="table-header text-right">Mkt Value</th><th className="table-header text-right">P/L</th><th className="table-header text-right">In Top 30?</th><th className="table-header text-right"></th></tr></thead>
               <tbody>
                 {sorted.map(h => (
                   <tr key={h.ticker} className="border-b border-neutral-800/50">
@@ -124,6 +139,13 @@ export default function HoldingsManager({
                     <td className="table-cell text-right">{h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}</td>
                     <td className={`table-cell text-right ${(h.unrealized_pl||0) >= 0 ? "text-green-400" : "text-red-400"}`}>{h.unrealized_pl !== undefined ? `$${h.unrealized_pl.toFixed(2)}` : "—"}</td>
                     <td className="table-cell text-right">{modelTickers.size > 0 ? (modelTickers.has(h.ticker) ? "Yes" : "No") : "—"}</td>
+                    <td className="table-cell text-right">
+                      {deletingTicker === h.ticker ? (
+                        <span className="flex items-center gap-1"><button onClick={() => handleDelete(h)} disabled={saving} className="text-red-400 text-xs">Confirm</button><button onClick={() => setDeletingTicker(null)} className="text-neutral-400 text-xs">Cancel</button></span>
+                      ) : (
+                        <button onClick={() => setDeletingTicker(h.ticker)} className="btn-ghost p-1 text-neutral-400 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

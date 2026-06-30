@@ -2,9 +2,12 @@ import { createServerSupabase } from "@/lib/supabase";
 import { loadHoldings } from "@/lib/route-loaders";
 import { getLatestModelSnapshot } from "@/lib/supabase-queries";
 import Link from "next/link";
-import RefreshPricesButton from "@/components/portfolios/RefreshPricesButton";
+import { loadHoldings } from "@/lib/route-loaders";
+import { refreshPortfolioPrices } from "@/lib/actions";
 import HoldingsManager from "@/components/portfolios/HoldingsManager";
+import RefreshPricesButton from "@/components/portfolios/RefreshPricesButton";
 import PortfolioActivity from "@/components/portfolios/PortfolioActivity";
+import DeletePortfolioButton from "@/components/portfolios/DeletePortfolioButton";
 
 export default async function PortfoliosPage() {
   const supabase = await createServerSupabase();
@@ -77,9 +80,12 @@ export default async function PortfoliosPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">
-        Portfolio{portfolio.name ? `: ${portfolio.name}` : ""}
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">
+          Portfolio{portfolio.name ? `: ${portfolio.name}` : ""}
+        </h1>
+        <DeletePortfolioButton portfolioId={portfolio.id} />
+      </div>
 
       <div className="flex items-center gap-4">
         <RefreshPricesButton portfolioId={portfolio.id} />
