@@ -274,6 +274,38 @@ export async function createPortfolio(formData: FormData): Promise<ActionResult>
   return { error: null };
 }
 
+export async function updateTransaction(
+  txId: string, portfolioId: string, formData: FormData,
+): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const ticker = (formData.get("ticker") as string)?.toUpperCase().trim();
+  const qty = parseFloat(formData.get("quantity") as string) || 0;
+  const price = parseFloat(formData.get("price") as string) || 0;
+
+  const updates: Record<string, unknown> = {};
+  if (ticker) {
+    const t = ticker.toUpperCase().trim();
+    const { data: sec } = await supabase.from("securities").select("id").eq("ticker", t).maybeSingle();
+    if (sec) updates.security_id = sec.id;
+    else {
+      const { data: created } = await supabase.from("securities").insert({ ticker: t, sector: "", industry: "", is_active: true }).select("id").single();
+      if (created) updates.security_id = created.id;
+    }
+  }
+  if (qty > 0) updates.quantity = qty;
+  if (price > 0) updates.price = price;
+  updates.gross_amount = qty * price;
+
+  const { error } = await supabase.from("transactions").update(updates).eq("id", txId).eq("owner_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  return { error: null };
+}
+
 export async function deletePortfolio(id: string): Promise<ActionResult> {
   const supabase = await createServerSupabase();
 

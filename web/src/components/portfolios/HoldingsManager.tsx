@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { insertTransaction } from "@/lib/actions";
+import { insertTransaction, updateTransaction } from "@/lib/actions";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
 
 interface Holding {
@@ -31,6 +31,10 @@ export default function HoldingsManager({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingTicker, setDeletingTicker] = useState<string | null>(null);
+  const [editingTicker, setEditingTicker] = useState<string | null>(null);
+  const [editQty, setEditQty] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editTxId, setEditTxId] = useState("");
 
   function reset() { setTicker(""); setShares(""); setPrice(""); setAmount(""); setSaving(false); setError(""); setShowForm(null); }
 
@@ -62,6 +66,17 @@ export default function HoldingsManager({
     if (r.error) { setError(r.error); setSaving(false); } else { reset(); router.refresh(); }
   }
 
+  async function handleEdit(e: React.FormEvent, ticker: string) {
+    e.preventDefault();
+    setSaving(true); setError("");
+    const fd = new FormData();
+    fd.set("ticker", ticker);
+    fd.set("quantity", editQty);
+    fd.set("price", editPrice);
+    const r = await updateTransaction(editTxId, portfolioId, fd);
+    if (r.error) { setError(r.error); setSaving(false); } else { setEditingTicker(null); router.refresh(); }
+  }
+
   async function handleDelete(ticker: string, h: Holding) {
     setSaving(true); setError("");
     const today = new Date().toISOString().split("T")[0];
@@ -89,6 +104,7 @@ export default function HoldingsManager({
         <button onClick={() => { setShowForm("buy"); reset(); }} className="btn-ghost text-sm"><Plus className="w-3.5 h-3.5 mr-1" />Add Buy</button>
         <button onClick={() => { setShowForm("sell"); reset(); }} className="btn-ghost text-sm">Add Sell</button>
         <button onClick={() => { setShowForm("deposit"); reset(); }} className="btn-ghost text-sm">Add Deposit</button>
+        <button onClick={() => { setShowForm("withdraw"); reset(); }} className="btn-ghost text-sm">Add Withdrawal</button>
       </div>
 
       {showForm && (
@@ -129,7 +145,8 @@ export default function HoldingsManager({
               <tbody>
                 {sortedHoldings.map((h) => {
                   const uplPct = h.total_cost > 0 ? ((h.unrealized_pl || 0) / h.total_cost) * 100 : 0;
-                  return (
+                  const rows = [];
+                  rows.push(
                     <tr key={h.ticker} className="border-b border-neutral-800/50">
                       <td className="table-cell-text font-semibold">{h.ticker}</td>
                       <td className="table-cell text-right">{h.quantity.toFixed(3)}</td>
@@ -141,14 +158,34 @@ export default function HoldingsManager({
                       </td>
                       <td className="table-cell text-right">{modelTickers.size > 0 ? (modelTickers.has(h.ticker) ? "Yes" : "No") : "—"}</td>
                       <td className="table-cell text-right">
-                        {deletingTicker === h.ticker ? (
-                          <span className="flex items-center gap-1"><button onClick={() => handleDelete(h.ticker, h)} disabled={saving} className="text-red-400 text-xs">Confirm</button><button onClick={() => setDeletingTicker(null)} className="text-neutral-400 text-xs">Cancel</button></span>
-                        ) : (
-                          <button onClick={() => setDeletingTicker(h.ticker)} className="btn-ghost p-1 text-neutral-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
-                        )}
+                        <span className="flex items-center justify-end gap-1">
+                          {deletingTicker === h.ticker ? (
+                            <><button onClick={() => handleDelete(h.ticker, h)} disabled={saving} className="text-red-400 text-xs">Confirm</button><button onClick={() => setDeletingTicker(null)} className="text-neutral-400 text-xs">Cancel</button></>
+                          ) : (
+                            <><button onClick={() => setDeletingTicker(h.ticker)} className="btn-ghost p-1 text-neutral-400 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                            <button onClick={() => { setEditingTicker(h.ticker); setEditQty(String(h.quantity)); setEditPrice(String(h.average_cost)); }} className="btn-ghost p-1 text-neutral-400 hover:text-blue-400"><Pencil className="w-3 h-3" /></button></>
+                          )}
+                        </span>
                       </td>
                     </tr>
                   );
+                  if (editingTicker === h.ticker) {
+                    rows.push(
+                      <tr key={`edit-${h.ticker}`} className="border-b border-neutral-800/50 bg-neutral-900/50">
+                        <td colSpan={8} className="p-2">
+                          <form onSubmit={(e) => handleEdit(e, h.ticker)} className="flex items-center gap-2 text-sm">
+                            <span className="text-xs text-neutral-500">Qty:</span>
+                            <input type="number" value={editQty} onChange={e => setEditQty(e.target.value)} className="input text-sm w-20" step="any" min="0.001" required />
+                            <span className="text-xs text-neutral-500">Avg Cost $:</span>
+                            <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="input text-sm w-24" step="0.01" min="0" required />
+                            <button type="submit" disabled={saving} className="btn-ghost p-1 text-green-400"><Check className="w-4 h-4" /></button>
+                            <button type="button" onClick={() => setEditingTicker(null)} className="btn-ghost p-1 text-red-400"><X className="w-4 h-4" /></button>
+                          </form>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return rows;
                 })}
               </tbody>
             </table>
