@@ -87,10 +87,6 @@ export default async function PortfoliosPage() {
           <p className="metric-value mt-1">${totalMarketValue.toLocaleString()}</p>
         </div>
         <div className="card">
-          <p className="metric-label">Cash</p>
-          <p className="metric-value mt-1">${state.cash.toLocaleString()}</p>
-        </div>
-        <div className="card">
           <p className="metric-label">Total Cost Basis</p>
           <p className="metric-value mt-1">${totalCostBasis.toLocaleString()}</p>
         </div>
@@ -98,9 +94,12 @@ export default async function PortfoliosPage() {
           <p className="metric-label">Unrealized P/L</p>
           <p className={`metric-value mt-1 ${totalUnrealized >= 0 ? "text-green-400" : "text-red-400"}`}>
             ${totalUnrealized.toFixed(2)}
-            <span className="text-sm ml-1">
-              ({unrealizedPct >= 0 ? "+" : ""}{unrealizedPct.toFixed(2)}%)
-            </span>
+          </p>
+        </div>
+        <div className="card">
+          <p className="metric-label">Unrealized P/L %</p>
+          <p className={`metric-value mt-1 ${unrealizedPct >= 0 ? "text-green-400" : "text-red-400"}`}>
+            {unrealizedPct >= 0 ? "+" : ""}{unrealizedPct.toFixed(2)}%
           </p>
         </div>
       </div>

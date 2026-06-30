@@ -51,7 +51,7 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
   if (!b2Col) return { error: "CSV missing B2_score column." };
 
   const qCol = Object.keys(firstRow).find(
-    (k) => k.toLowerCase() === "q_percentile" || k.toLowerCase() === "qpercentile" || k.toLowerCase() === "q_score"
+    (k) => k.toLowerCase() === "q_percentile" || k.toLowerCase() === "qpercentile" || k.toLowerCase() === "q_score" || k.toLowerCase() === "quality_percentile"
   );
   if (!qCol) return { error: "CSV missing Q_percentile column." };
 
@@ -144,7 +144,7 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
     const r = rows[i];
 
     const qCol = Object.keys(r).find(
-      (k) => k.toLowerCase() === "q_percentile" || k.toLowerCase() === "qpercentile" || k.toLowerCase() === "q_score"
+      (k) => k.toLowerCase() === "q_percentile" || k.toLowerCase() === "qpercentile" || k.toLowerCase() === "q_score" || k.toLowerCase() === "quality_percentile"
     );
     const qComponentsCol = Object.keys(r).find(
       (k) => k.toLowerCase() === "q_components_ok" || k.toLowerCase() === "qcomponents_ok"

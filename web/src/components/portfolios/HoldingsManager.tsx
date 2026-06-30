@@ -62,8 +62,14 @@ export default function HoldingsManager({
     const shares = parseFloat(addForm.shares);
     const avgCost = parseFloat(addForm.avgCost);
 
-    if (!ticker || isNaN(shares) || shares <= 0 || isNaN(avgCost) || avgCost <= 0) {
-      setError("Ticker, shares, and avg cost are required");
+    if (!ticker || isNaN(shares) || shares <= 0 || isNaN(avgCost) || avgCost < 0) {
+      setError("Ticker, shares (>0), and avg cost (>=0) are required");
+      setSaving(false);
+      return;
+    }
+
+    if (holdings.some((h) => h.ticker === ticker)) {
+      setError("This ticker already exists.");
       setSaving(false);
       return;
     }
@@ -109,8 +115,8 @@ export default function HoldingsManager({
     const newQty = parseFloat(editForm.shares);
     const newAvg = parseFloat(editForm.avgCost);
 
-    if (isNaN(newQty) || newQty <= 0 || isNaN(newAvg) || newAvg <= 0) {
-      setError("Shares and avg cost are required");
+    if (isNaN(newQty) || newQty <= 0 || isNaN(newAvg) || newAvg < 0) {
+      setError("Shares (>0) and avg cost (>=0) are required");
       setSaving(false);
       return;
     }
