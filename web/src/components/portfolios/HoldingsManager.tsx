@@ -29,7 +29,7 @@ export default function HoldingsManager({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  function reset() { setTicker(""); setShares(""); setPrice(""); setAmount(""); setSaving(false); setError(""); setShowForm(false); }
+  function reset() { setTicker(""); setShares(""); setPrice(""); setAmount(""); setSaving(false); setError(""); }
   const needsTicker = txType === "BUY" || txType === "SELL";
 
   async function handleSubmit(e: React.FormEvent) {
