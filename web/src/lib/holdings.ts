@@ -7,7 +7,8 @@
 export type TransactionEventType =
   | "DEPOSIT" | "WITHDRAWAL" | "BUY" | "SELL" | "DIVIDEND"
   | "FEE" | "TAX" | "INTEREST" | "SPLIT" | "SYMBOL_CHANGE"
-  | "MERGER" | "SPINOFF" | "CORRECTION" | "TRANSFER";
+  | "MERGER" | "SPINOFF" | "CORRECTION" | "TRANSFER"
+  | "OPENING_POSITION";
 
 export interface Transaction {
   id?: string;
@@ -201,6 +202,18 @@ export function deriveHoldings(transactions: Transaction[], prices?: Map<string,
             }
             if (h.quantity <= 0) state.holdings.delete(ticker);
           }
+        }
+        break;
+      }
+
+      case "OPENING_POSITION": {
+        // Set initial holding without affecting cash
+        if (ticker && qty > 0) {
+          const totalCost = qty * price;
+          state.holdings.set(ticker, {
+            ticker, quantity: qty, total_cost: totalCost,
+            average_cost: price, realized_pl: 0, dividends: 0, fees: 0, taxes: 0,
+          });
         }
         break;
       }
