@@ -25,13 +25,14 @@ export default async function ModelPage() {
   const asOfDate = warnings?.as_of_date ? String(warnings.as_of_date) : null;
   const generatedAt = warnings?.generated_at ? String(warnings.generated_at) : null;
   const loadedAt = warnings?.loaded_at ? String(warnings.loaded_at) : null;
+  const generator = warnings?.generator ? String(warnings.generator) : null;
   const holdingsCount = model?.holdings?.length || 0;
 
   return (
     <div className="space-y-6">
+      <LoadNotebookModelButton />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Quarterly Top 30</h1>
-        <LoadNotebookModelButton />
       </div>
 
       {!model ? (
@@ -58,6 +59,10 @@ export default async function ModelPage() {
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Loaded at:</span>
               <span className="text-neutral-200">{loadedAt || "—"}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-neutral-500 w-28 shrink-0">Source:</span>
+              <span className="text-neutral-200">{generator || "—"}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Holdings:</span>
@@ -95,8 +100,8 @@ export default async function ModelPage() {
                         <td className="table-cell text-neutral-500">{h.rank || "—"}</td>
                         <td className="table-cell-text font-semibold">{h.security?.ticker ?? "—"}</td>
                         <td className="table-cell-text text-sm text-neutral-400">{h.security?.company_name ?? "—"}</td>
-                        <td className="table-cell text-right">{h.b2_score?.toFixed(3) ?? "—"}</td>
-                        <td className="table-cell text-right">{h.quality_percentile?.toFixed(3) ?? "—"}</td>
+                        <td className="table-cell text-right">{h.b2_score != null && h.b2_score !== 0 ? h.b2_score.toFixed(3) : "—"}</td>
+                        <td className="table-cell text-right">{h.quality_percentile != null && h.quality_percentile !== 0 ? h.quality_percentile.toFixed(3) : "—"}</td>
                         <td className="table-cell-text text-sm">{h.security?.sector ?? "—"}</td>
                         <td className="table-cell-text text-sm text-neutral-400">{h.security?.industry ?? "—"}</td>
                       </tr>

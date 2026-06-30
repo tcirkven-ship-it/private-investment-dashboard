@@ -148,7 +148,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     }, { onConflict: "snapshot_id,security_id" });
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath("/portfolios");
   revalidatePath("/model");
   return { error: null, message: `M1_B2_QUALITY_VETO_N30 generated with ${rows.length} stocks from research output.` };
 }
@@ -183,7 +183,6 @@ export async function upsertPrice(formData: FormData): Promise<ActionResult> {
 
   if (error) return { error: error.message };
   revalidatePath("/portfolios");
-  revalidatePath("/dashboard");
   return { error: null };
 }
 
@@ -263,7 +262,6 @@ export async function createPortfolio(formData: FormData): Promise<ActionResult>
   if (error) return { error: error.message };
 
   revalidatePath("/portfolios");
-  revalidatePath("/dashboard");
   return { error: null };
 }
 
@@ -281,7 +279,6 @@ export async function deletePortfolio(id: string): Promise<ActionResult> {
   if (error) return { error: error.message };
 
   revalidatePath("/portfolios");
-  revalidatePath("/dashboard");
   return { error: null };
 }
 
@@ -364,7 +361,7 @@ export async function refreshPortfolioPrices(portfolioId: string): Promise<Actio
 
   const okCount = Object.values(results).filter((r) => r.ok).length;
   const failedCount = allTickers.length - okCount;
-  revalidatePath("/dashboard"); revalidatePath("/portfolios");
+  revalidatePath("/portfolios");
   return { error: null, message: `Prices refreshed: ${okCount}/${allTickers.length}`, results };
 }
 
@@ -417,7 +414,7 @@ export async function refreshClosingPrices(): Promise<ActionResult & { message?:
     } catch (e) { failed.push(t); errors.push(e instanceof Error ? e.message : "Unknown"); }
   }
 
-  revalidatePath("/dashboard"); revalidatePath("/portfolios"); revalidatePath("/model");
+  revalidatePath("/portfolios"); revalidatePath("/model");
   return { error: null, message: `Prices refreshed: ${ok}. Failed: ${failed.length}`, ok, failed: failed.length };
 }
 
@@ -445,19 +442,15 @@ export async function deleteAllAppData(
   );
 
   const tables = [
+    "portfolio_valuations",
     "owner_decisions",
     "rebalance_lines",
     "rebalance_events",
-    "model_publication_events",
-    "portfolio_valuations",
     "transactions",
     "model_snapshot_holdings",
     "model_snapshots",
     "model_versions",
     "price_observations",
-    "benchmark_observations",
-    "data_imports",
-    "audit_events",
     "portfolios",
     "securities",
     "app_settings",
@@ -481,13 +474,12 @@ export async function deleteAllAppData(
   }
 
   for (const table of tables) {
-    const { error: delErr } = await db.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    const { error: delErr } = await db.from(table).delete();
     if (delErr) {
       return { error: `Failed to delete from ${table}: ${delErr.message}`, counts };
     }
   }
 
-  revalidatePath("/dashboard");
   revalidatePath("/portfolios");
   revalidatePath("/model");
   revalidatePath("/compare");
@@ -647,7 +639,6 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
     });
   }
 
-  revalidatePath("/dashboard");
   revalidatePath("/portfolios");
   revalidatePath("/model");
   return { error: null, message: "Acceptance test data created successfully." };

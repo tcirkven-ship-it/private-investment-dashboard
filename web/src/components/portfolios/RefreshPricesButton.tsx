@@ -18,9 +18,14 @@ export default function RefreshPricesButton({ portfolioId }: { portfolioId: stri
     if (res.error) {
       setResult(res.error);
     } else if (res.results) {
-      const okCount = Object.values(res.results).filter((r) => r.ok).length;
-      const failedCount = Object.values(res.results).length - okCount;
-      setResult(`${okCount} price${okCount !== 1 ? "s" : ""} refreshed. ${failedCount} failed.`);
+      const entries = Object.entries(res.results) as [string, { ok: boolean }][];
+      const okTickers = entries.filter(([, r]) => r.ok).map(([t]) => t);
+      const failedTickers = entries.filter(([, r]) => !r.ok).map(([t]) => t);
+      let msg = `${okTickers.length} price${okTickers.length !== 1 ? "s" : ""} refreshed.`;
+      if (failedTickers.length > 0) {
+        msg += ` Failed: ${failedTickers.join(", ")}.`;
+      }
+      setResult(msg);
     } else {
       setResult(res.message || "Done");
     }

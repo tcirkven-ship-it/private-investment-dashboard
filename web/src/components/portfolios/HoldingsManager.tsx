@@ -69,7 +69,7 @@ export default function HoldingsManager({
     }
 
     if (holdings.some((h) => h.ticker === ticker)) {
-      setError("This ticker already exists.");
+      setError("Ticker already exists.");
       setSaving(false);
       return;
     }
@@ -259,7 +259,7 @@ export default function HoldingsManager({
               />
             </div>
           </div>
-          <button type="submit" disabled={saving} className="btn-primary text-sm">
+          <button type="submit" disabled={saving || !addForm.ticker.trim() || !addForm.shares.trim()} className="btn-primary text-sm">
             {saving ? "Saving..." : "Add Holding"}
           </button>
         </form>

@@ -160,7 +160,6 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
     }, { onConflict: "snapshot_id,security_id" });
   }
 
-  revalidatePath("/dashboard");
   revalidatePath("/model");
   return { error: null, message: `Loaded ${tickers.length} holdings from notebook.`, holdings: tickers.length, modelId: "M1_B2_QUALITY_VETO_N30" };
 }
