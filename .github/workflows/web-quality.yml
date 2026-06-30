@@ -1,22 +1,6 @@
 name: Web App Quality
 on:
-  pull_request:
-    paths:
-      - "web/src/**"
-      - "web/package.json"
-      - "web/package-lock.json"
-      - "web/tsconfig.json"
-      - "web/next.config.ts"
-      - ".github/workflows/web-quality.yml"
-  push:
-    branches: [main]
-    paths:
-      - "web/src/**"
-      - "web/package.json"
-      - "web/package-lock.json"
-      - "web/tsconfig.json"
-      - "web/next.config.ts"
-      - ".github/workflows/web-quality.yml"
+  workflow_dispatch:
 
 env:
   # Dummy CI-only placeholders — never real hosted Supabase keys

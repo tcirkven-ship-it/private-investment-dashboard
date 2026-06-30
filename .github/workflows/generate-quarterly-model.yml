@@ -1,6 +1,7 @@
 name: Generate Official Quarterly M1_B2 Model
 on:
   workflow_dispatch:
+  workflow_dispatch:
     inputs:
       dry_run:
         description: "Dry run (validate only, do not write to Supabase)"

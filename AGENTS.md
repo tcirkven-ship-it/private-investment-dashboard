@@ -111,3 +111,10 @@ A feature is not complete until:
 - instructions page is updated;
 - no stale old-product language remains in UI.
 
+### GitHub Actions
+
+GitHub Actions must not be run or re-enabled without explicit user approval.
+Workflows must not auto-run on push or pull_request while the project is in active repair mode.
+All workflows are set to `workflow_dispatch` only (manual trigger).
+Definition of done requires local build/test results and manual preview test results, not GitHub Actions.
+

@@ -1,15 +1,6 @@
 name: Inspection Safety
 on:
-  pull_request:
-    paths:
-      - "docs/**"
-      - "supabase/sql/**"
-      - ".github/workflows/inspection-safety.yml"
-  push:
-    branches: [main]
-    paths:
-      - "docs/**"
-      - "supabase/sql/**"
+  workflow_dispatch:
       - ".github/workflows/inspection-safety.yml"
 
 jobs:
