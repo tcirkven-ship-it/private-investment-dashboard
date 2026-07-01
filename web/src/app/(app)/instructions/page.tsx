@@ -41,16 +41,20 @@ export default function InstructionsPage() {
 
       <section>
         <h2 className="text-lg font-semibold mb-4">Required CSV Columns</h2>
+        <p className="text-sm text-neutral-400 mb-3">The generator CSV must include these columns:</p>
         <ul className="space-y-1 text-sm text-neutral-400 list-disc list-inside">
+          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">model_id</code> — must be M1_B2_QUALITY_VETO_N30</li>
+          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">quarter_label</code> — e.g. 2026-Q2</li>
+          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">as_of_date</code> — quarter-end market date</li>
+          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">generated_at</code> — when the CSV was created</li>
+          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">source</code> — offline notebook official generator</li>
+          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">rank</code> — 1-30 position</li>
           <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">ticker</code> — required</li>
-          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">company</code> — optional</li>
+          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">company</code> — optional (ticker-only display if missing)</li>
           <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">sector</code> — required</li>
           <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">industry</code> — required</li>
-          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">rank</code> — optional</li>
           <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">B2_score</code> — required (rejected if missing)</li>
           <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">Q_score</code> or <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">Q_percentile</code> — required</li>
-          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">as_of_date</code> — via manifest</li>
-          <li><code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">generated_at</code> — via manifest</li>
         </ul>
       </section>
 

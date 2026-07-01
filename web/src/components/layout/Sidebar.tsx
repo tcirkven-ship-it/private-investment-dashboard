@@ -21,7 +21,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className={`${collapsed ? "w-16" : "w-56"} transition-all duration-200 flex flex-col border-r border-neutral-800 bg-neutral-950/50 backdrop-blur-sm`}>
+    <aside className={`${collapsed ? "w-16" : "w-56"} transition-all duration-200 flex flex-col border-r border-neutral-800 bg-neutral-950`}>
       <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-800">
         {!collapsed && <span className="text-sm font-semibold tracking-tight">Investment Tracker</span>}
         <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-neutral-800 text-neutral-500">

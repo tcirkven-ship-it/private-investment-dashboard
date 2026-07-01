@@ -26,11 +26,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-neutral-950 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-lg">I</span>
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
+            <span className="text-white font-bold text-lg tracking-tight">I</span>
           </div>
-          <h1 className="text-xl font-semibold">Private Investment Tracker</h1>
-          <p className="text-sm text-neutral-500 mt-1">Sign in with email and password</p>
+          <h1 className="text-xl font-semibold tracking-tight">Private Investment Tracker</h1>
+          <p className="text-sm text-neutral-500 mt-1">Owner access</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
