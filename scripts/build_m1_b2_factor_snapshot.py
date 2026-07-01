@@ -15,7 +15,7 @@ B2_FACTORS = ["M12_1", "M6_1", "TREND200"]
 Q_FACTORS = ["ROA", "GPA", "FCF_MARGIN", "DEBT_ASSETS"]
 MIN_ELIGIBLE = 500
 
-def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | None = None):
+def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | None = None, as_of_date: str | None = None):
     """Build the M1_B2 factor input CSV from raw factor panel for a given snapshot."""
     factor_panel = ROOT / f"data/prospective/daily_qvp/snapshots/{snapshot_id}/analysis/factor_level_current.csv"
     if not factor_panel.exists():
@@ -56,7 +56,7 @@ def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | N
     pivoted["Q_score"] = pivoted[Q_FACTORS].mean(axis=1, skipna=True)
     pivoted["source_snapshot"] = snapshot_id
     pivoted["generated_at"] = datetime.now(timezone.utc).isoformat()
-    as_of_date = snapshot_id[:10]
+    as_of_date = as_of_date if as_of_date else snapshot_id[:10]
     pivoted["as_of_date"] = as_of_date
 
     out_cols = ["ticker", "company", "sector", "industry"] + B2_FACTORS + Q_FACTORS + ["B2_score", "Q_score", "Q_components_ok", "source_snapshot", "generated_at", "as_of_date"]
@@ -118,10 +118,12 @@ def main():
     p.add_argument("--output-dir", default=str(ROOT / "outputs/quarterly/factor_inputs"),
                    help="Output directory")
     p.add_argument("--ranking-csv", help="Path to ranking CSV with sectors/industries")
+    p.add_argument("--as-of", help="Override as_of_date (market data date), e.g. 2026-06-30")
     args = p.parse_args()
     try:
         build_factor_input(args.snapshot_id, Path(args.output_dir),
-                          Path(args.ranking_csv) if args.ranking_csv else None)
+                          Path(args.ranking_csv) if args.ranking_csv else None,
+                          as_of_date=args.as_of)
     except Exception as e:
         print(f"STAGE 1 FAILED: {e}", file=sys.stderr)
         sys.exit(1)

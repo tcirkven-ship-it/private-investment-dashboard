@@ -69,7 +69,8 @@ def main():
         snap_id = snap_dirs[0].name
         print(f"  Using snapshot: {snap_id}")
         r = subprocess.run([sys.executable, "scripts/build_m1_b2_factor_snapshot.py",
-                           "--snapshot-id", snap_id, "--output-dir", str(out_dir)],
+                           "--snapshot-id", snap_id, "--output-dir", str(out_dir),
+                           "--as-of", as_of],
                            capture_output=True, text=True)
         print(r.stdout)
         if r.returncode != 0:
