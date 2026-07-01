@@ -30,16 +30,12 @@ read -p "Enter quarter-end date [2026-06-30]: " AS_OF
 AS_OF="${AS_OF:-2026-06-30}"
 
 echo ""
-echo "Running generator with as_of_date=$AS_OF"
-echo "This may take 1–2 hours."
-echo ""
-echo "The full pipeline includes fresh data pull (1-2 hours)."
-echo "For quick testing, fresh data pull is skipped."
-echo "For official quarter-end: remove --skip-fresh below."
+echo "Using existing snapshot data (--skip-fresh)."
+echo "For official quarter-end with fresh data pull, remove --skip-fresh below."
 echo ""
 
-$PYTHON scripts/run_quarterly_top30_generator.py --as-of "$AS_OF" 
-# $PYTHON scripts/run_quarterly_top30_generator.py --as-of "$AS_OF" --skip-fresh
+$PYTHON scripts/run_quarterly_top30_generator.py --as-of "$AS_OF" --skip-fresh
+# $PYTHON scripts/run_quarterly_top30_generator.py --as-of "$AS_OF"
 
 echo ""
 echo "Done. Press Enter to close."
