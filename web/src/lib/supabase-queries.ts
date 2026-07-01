@@ -107,10 +107,44 @@ export const getModelHistory = cache(async (): Promise<QueryResult<Record<string
   const supabase = await createServerSupabase();
   const { data, error } = await supabase
     .from("model_snapshots")
-    .select("id, snapshot_id, effective_date, status, created_at")
+    .select("id, snapshot_id, effective_date, status, warnings, created_at")
+    .eq("status", "PUBLISHED")
     .order("effective_date", { ascending: false });
   if (error) return { data: null, error: error.message };
-  return { data: data || [], error: null };
+  const enriched = (data || []).map((s: Record<string, unknown>) => {
+    const w = s.warnings as Record<string, unknown> | string | null;
+    let wo: Record<string, unknown> = {};
+    if (w) {
+      if (typeof w === "string") { try { wo = JSON.parse(w) as Record<string, unknown>; } catch { wo = {}; } }
+      else { wo = w as Record<string, unknown>; }
+    }
+    return {
+      ...s,
+      quarter_label: wo?.quarter_label || null,
+      generated_at: wo?.generated_at || null,
+      source: wo?.source || null,
+    };
+  });
+  return { data: enriched || [], error: null };
+});
+
+export const getModelSnapshotById = cache(async (id: string): Promise<QueryResult<ModelSnapshot>> => {
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("model_snapshots")
+    .select(`
+      id, snapshot_id, effective_date, status, published_at, warnings,
+      model_version:model_version_id(model_id, version, description),
+      holdings:model_snapshot_holdings(
+        rank, target_weight, b2_score, quality_percentile,
+        quality_components_ok, inclusion_reason,
+        security:security_id(ticker, company_name, sector, industry)
+      )
+    `)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { data: null, error: `Failed to load snapshot: ${error.message}` };
+  return { data: data as ModelSnapshot | null, error: null };
 });
 
 export const getPortfolios = cache(async (): Promise<QueryResult<Portfolio[]>> => {

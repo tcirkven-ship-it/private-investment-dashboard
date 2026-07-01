@@ -1,9 +1,25 @@
-import { getLatestModelSnapshot } from "@/lib/supabase-queries";
+import { getLatestModelSnapshot, getModelSnapshotById, getModelHistory } from "@/lib/supabase-queries";
 import LoadNotebookModelButton from "@/components/model/LoadNotebookModelButton";
+import SnapshotSelector from "@/components/model/SnapshotSelector";
 import Link from "next/link";
 
-export default async function ModelPage() {
-  const result = await getLatestModelSnapshot();
+export default async function ModelPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ snapshot?: string }>;
+}) {
+  const params = await searchParams;
+  const snapshotId = params.snapshot || null;
+
+  const [historyResult, result] = await Promise.all([
+    getModelHistory(),
+    snapshotId
+      ? getModelSnapshotById(snapshotId)
+      : getLatestModelSnapshot(),
+  ]);
+
+  const history = historyResult.data || [];
+  const currentSnapshotId = snapshotId || (result.data?.id as string) || null;
 
   if (result.error) {
     return (
@@ -72,9 +88,18 @@ export default async function ModelPage() {
           <p className="text-neutral-500">
             No official model loaded yet. Click Load Notebook-Generated Top 30 and select m1_b2_quality_veto_targets.csv.
           </p>
+          {history.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm text-neutral-500 mb-2">Previous snapshots:</p>
+              <SnapshotSelector history={history} currentId={null} />
+            </div>
+          )}
         </div>
       ) : (
         <>
+          {history.length > 1 && (
+            <SnapshotSelector history={history} currentId={currentSnapshotId} />
+          )}
           {!validationPassed && (
             <div className="card border-amber-500/30 bg-amber-500/5 space-y-1">
               <p className="text-sm font-semibold text-amber-400">Warning — metadata incomplete</p>
