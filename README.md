@@ -18,3 +18,17 @@ The project completed validated contribution benchmarks, a current OEF/yfinance 
 ## Important limitation
 
 Historical outperformance, if later observed, will not guarantee future results. The program permits a fail conclusion and requires point-in-time controls, realistic costs, fair benchmark cash flows, multiple-testing discipline, and adversarial review.
+
+## App URL
+
+Use the latest verified Vercel Preview URL while the app is still being repaired and tested.
+
+Current verified preview:
+https://private-investment-dashboard-6mqbgabxb-tcirkven-projects.vercel.app/
+
+Do not use the production URL yet:
+https://private-investment-dashboard.vercel.app
+
+That production URL is not currently verified and may point to an older deployment.
+
+Before using production, verify the Vercel production deployment commit or explicitly promote the tested preview deployment to production.

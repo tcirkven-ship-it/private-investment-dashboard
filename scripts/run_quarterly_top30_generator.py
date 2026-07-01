@@ -174,7 +174,7 @@ def main():
     with open(out_dir / "README_LOAD_IN_APP.txt", "w") as f:
         f.write("HOW TO LOAD IN APP\n")
         f.write("==================\n\n")
-        f.write("1. Open the app: https://private-investment-dashboard.vercel.app\n")
+        f.write("1. Open the latest Vercel Preview URL for the app.\n")
         f.write("2. Sign in.\n")
         f.write("3. Go to Top 30 page.\n")
         f.write("4. Click 'Load Notebook-Generated Top 30'.\n")
