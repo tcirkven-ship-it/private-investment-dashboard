@@ -7,12 +7,13 @@ export default function InstructionsPage() {
         <h2 className="text-lg font-semibold mb-4">Quarterly Review</h2>
         <ol className="space-y-3 text-sm text-neutral-300 list-decimal list-inside">
           <li>Wait for the final trading session of the quarter to close.</li>
-          <li>Run the official generator on your notebook.</li>
-          <li>Export the Top 30 CSV and manifest.</li>
+          <li>Double-click <strong>Run Quarterly Top30 Generator.command</strong> in the project folder.</li>
+          <li>Confirm the quarter-end date (defaults to last day of previous quarter).</li>
+          <li>Wait for generation to complete (opens output folder automatically).</li>
           <li>Open the app → Top 30 → Load Notebook-Generated Top 30.</li>
-          <li>Upload the CSV. Review scores and metadata.</li>
-          <li>Go to Portfolio → Refresh Current Prices.</li>
-          <li>Open Compare to see Keep / Consider Buying / Consider Selling.</li>
+          <li>Select <code className="text-xs bg-neutral-800 px-1 py-0.5 rounded">m1_b2_quality_veto_targets.csv</code> from the output folder.</li>
+          <li>Confirm 30 holdings with B2 scores and Quality percentiles are visible.</li>
+          <li>Go to Compare to see Keep / Consider Buying / Consider Selling.</li>
           <li>Make manual buy/sell decisions at your brokerage. The app does not execute trades.</li>
         </ol>
       </section>
