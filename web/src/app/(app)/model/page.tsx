@@ -26,7 +26,19 @@ export default async function ModelPage() {
   const generatedAt = warnings?.generated_at ? String(warnings.generated_at) : null;
   const loadedAt = warnings?.loaded_at ? String(warnings.loaded_at) : null;
   const generator = warnings?.generator ? String(warnings.generator) : null;
+  const quarterLabel = warnings?.quarter_label ? String(warnings.quarter_label) : null;
+  const fileName = warnings?.file_name ? String(warnings.file_name) : null;
+  const metadataMissing = warnings?.metadata_missing as string[] | null | undefined;
+  const companyWarning = warnings?.company_warning ? String(warnings.company_warning) : null;
   const holdingsCount = model?.holdings?.length || 0;
+  const hasMetadata = !metadataMissing || metadataMissing.length === 0;
+  const validationPassed = holdingsCount === 30 && hasMetadata;
+
+  const formatTs = (s: string | null): string => {
+    if (!s) return "—";
+    try { return new Date(s).toLocaleString(); }
+    catch { return s; }
+  };
 
   return (
     <div className="space-y-6">
@@ -43,10 +55,30 @@ export default async function ModelPage() {
         </div>
       ) : (
         <>
+          {metadataMissing && metadataMissing.length > 0 && (
+            <div className="card border-amber-500/30 bg-amber-500/5 space-y-1">
+              <p className="text-sm font-semibold text-amber-400">Incomplete Metadata</p>
+              <p className="text-sm text-neutral-400">
+                Loaded CSV is missing: {metadataMissing.join(", ")}. This can be viewed for testing but should not be treated as the official quarterly model.
+              </p>
+            </div>
+          )}
+
+          {companyWarning && (
+            <div className="card border-amber-500/30 bg-amber-500/5 space-y-1">
+              <p className="text-sm font-semibold text-amber-400">Note</p>
+              <p className="text-sm text-neutral-400">{companyWarning}</p>
+            </div>
+          )}
+
           <div className="card space-y-2 text-sm">
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Model:</span>
               <span className="text-neutral-200 font-semibold">M1_B2_QUALITY_VETO_N30</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-neutral-500 w-28 shrink-0">Quarter:</span>
+              <span className="text-neutral-200">{quarterLabel || "—"}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">As-of date:</span>
@@ -54,15 +86,19 @@ export default async function ModelPage() {
             </div>
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Generated at:</span>
-              <span className="text-neutral-200">{generatedAt || "—"}</span>
+              <span className="text-neutral-200">{formatTs(generatedAt)}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Loaded at:</span>
-              <span className="text-neutral-200">{loadedAt || "—"}</span>
+              <span className="text-neutral-200">{formatTs(loadedAt)}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Source:</span>
               <span className="text-neutral-200">{generator || "—"}</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-neutral-500 w-28 shrink-0">File name:</span>
+              <span className="text-neutral-200">{fileName || "—"}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Holdings:</span>
@@ -70,7 +106,9 @@ export default async function ModelPage() {
             </div>
             <div className="flex gap-2">
               <span className="text-neutral-500 w-28 shrink-0">Validation:</span>
-              <span className="text-green-400 font-semibold">Passed</span>
+              <span className={validationPassed ? "text-green-400 font-semibold" : "text-red-400 font-semibold"}>
+                {validationPassed ? "Passed" : "Incomplete"}
+              </span>
             </div>
           </div>
 

@@ -146,22 +146,33 @@ def main(factor_input: str | None = None, allow_legacy: bool = False):
         return 1
     print(f"  VALIDATION PASSED: {len(selected)} holdings, {len(sector_counts)} sectors")
 
-    # Write CSV
+    # Derive quarter label and generation timestamp
+    gen_ts = datetime.now(timezone.utc).isoformat()
+    quarter_label = f"{as_of_date.year}-Q{((as_of_date.month - 1) // 3) + 1}"
+
+    # Write CSV with metadata columns
     csv_path = output_dir / "m1_b2_quality_veto_targets.csv"
     with open(csv_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["ticker", "B2_score", "Q_percentile", "Q_components_ok", "target_pct", "sector", "industry", "is_missing_q"])
-        for r in selected:
+        w.writerow(["model_id", "quarter_label", "as_of_date", "generated_at", "source", "rank",
+                     "ticker", "company", "sector", "industry", "B2_score", "Q_percentile",
+                     "Q_components_ok", "target_pct", "is_missing_q"])
+        for i, r in enumerate(selected):
             t = str(r["ticker"]).strip().upper()
-            w.writerow([t, f"{float(r['B2_score']):.4f}", f"{round(float(r['q_rank'])*100,4):.4f}",
-                        int(r.get("Q_components_ok", 4)), f"{TARGET_WEIGHT:.4f}",
-                        str(r.get("sector", "")), str(r.get("industry", "")), "False"])
+            company = str(r.get("name", r.get("company", r.get("company_name", "")))) if "name" in r.index or "company" in r.index or "company_name" in r.index else ""
+            w.writerow([MODEL_ID, quarter_label, as_of_str[:10], gen_ts,
+                        "offline notebook official generator", i + 1,
+                        t, company, str(r.get("sector", "")), str(r.get("industry", "")),
+                        f"{float(r['B2_score']):.4f}", f"{round(float(r['q_rank'])*100,4):.4f}",
+                        int(r.get("Q_components_ok", 4)), f"{TARGET_WEIGHT:.4f}", "False"])
 
     # Manifest
-    snapshot_date = str(df["as_of_date"].iloc[0])[:10] if "as_of_date" in df.columns else "unknown"
-    source_snapshot = str(df.iloc[0].get("source_snapshot", "unknown")) if len(df) > 0 else "unknown"
+    snapshot_date = as_of_str[:10]
+    source_snapshot = source_snap
     manifest = {
         "model_id": MODEL_ID,
+        "quarter_label": quarter_label,
+        "as_of_date": as_of_str[:10],
         "generation_mode": "official_factor_snapshot",
         "stage": "2",
         "factor_snapshot_date": snapshot_date,
@@ -177,7 +188,8 @@ def main(factor_input: str | None = None, allow_legacy: bool = False):
         "validation_passed": ok,
         "tickers": tickers,
         "sectors": {str(k): int(v) for k, v in sector_counts.items()},
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": gen_ts,
+        "source": "offline notebook official generator",
         "staleness_max_days": MAX_STALENESS_DAYS,
     }
     write_json(output_dir / "m1_b2_manifest.json", manifest)

@@ -130,9 +130,26 @@ def main():
         errors = []
         if len(rows) != 30: errors.append(f"Expected 30, got {len(rows)}")
         if len(set(tickers)) != len(tickers): errors.append("Duplicate tickers")
-        for col in ["B2_score", "Q_percentile"]:
+        for col in ["B2_score", "Q_percentile", "model_id", "as_of_date", "generated_at", "source", "quarter_label", "rank"]:
             missing = sum(1 for r in rows if not r.get(col) or r[col] in ("", "0", "0.0"))
             if missing > 0: errors.append(f"{missing} rows missing {col}")
+        # Check date consistency
+        csv_asof = rows[0].get("as_of_date", "") if rows else ""
+        if csv_asof and csv_asof != as_of:
+            errors.append(f"as_of_date mismatch: CSV says {csv_asof}, expected {as_of}")
+        csv_ql = rows[0].get("quarter_label", "") if rows else ""
+        if csv_ql and csv_ql != ql:
+            errors.append(f"quarter_label mismatch: CSV says {csv_ql}, expected {ql}")
+
+        # Date validation: as_of_date should be the quarter-end date
+        if as_of:
+            try:
+                ad = date.fromisoformat(as_of)
+                expected_month = {"1": 3, "2": 6, "3": 9, "4": 12}.get(ql.split("-Q")[-1] if "-Q" in ql else "")
+                if expected_month and ad.month != expected_month:
+                    errors.append(f"as_of_date ({as_of}) month does not match quarter-end for {ql} (expected month {expected_month})")
+            except:
+                pass
     else:
         tickers = []
         csv_sha = ""

@@ -55,29 +55,59 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
   );
   if (!qCol) return { error: "CSV missing Q_percentile column." };
 
-  // Parse manifest if provided
+  // Check for metadata columns (warn if missing)
+  const metadataMissing: string[] = [];
+  for (const col of ["model_id", "as_of_date", "generated_at", "rank", "sector", "industry"]) {
+    if (!firstRow || !(col in firstRow || Object.keys(firstRow).some(k => k.toLowerCase() === col.toLowerCase())))
+      metadataMissing.push(col);
+  }
+  const hasB2 = b2Col !== undefined;
+  const hasQ = qCol !== undefined;
+  if (!hasB2) metadataMissing.push("B2_score");
+  if (!hasQ) metadataMissing.push("Q_percentile");
+
+  const csvCompanyCol = Object.keys(firstRow).find(
+    (k) => k.toLowerCase() === "company" || k.toLowerCase() === "company_name"
+  );
+  const hasCompanyCol = csvCompanyCol !== undefined;
+
+  // Parse manifest if provided, otherwise read metadata from CSV columns
   let manifest: Record<string, unknown> | null = null;
   if (manifestJson) {
     try { manifest = JSON.parse(manifestJson) as Record<string, unknown>; }
     catch { return { error: "Manifest JSON parse error." }; }
-    if (manifest.model_id !== "M1_B2_QUALITY_VETO_N30") return { error: `Manifest model_id must be M1_B2_QUALITY_VETO_N30, got ${manifest.model_id}` };
-    if (!manifest.as_of_date) return { error: "Manifest missing as_of_date." };
-    if (!manifest.generated_at) return { error: "Manifest missing generated_at." };
+  }
 
-    const asOf = String(manifest.as_of_date);
-    const genDate = new Date(asOf);
-    const now = new Date();
-    if (isNaN(genDate.getTime())) return { error: `Invalid as_of_date: ${asOf}` };
-    if (genDate > now) return { error: `as_of_date (${asOf}) is in the future.` };
+  // Read metadata from CSV columns (first row)
+  const first = rows[0];
+  const csvAsOf = String(first?.as_of_date || "");
+  const csvGenAt = String(first?.generated_at || "");
+  const csvModelId = String(first?.model_id || "");
+  const csvQuarter = String(first?.quarter_label || "");
+  const csvSource = String(first?.source || "");
+  const csvCompany = String(first?.company || "");
 
-    const genAt = new Date(String(manifest.generated_at));
-    if (isNaN(genAt.getTime())) return { error: `Invalid generated_at: ${manifest.generated_at}` };
-    if (genAt < genDate) return { error: `generated_at (${manifest.generated_at}) is before as_of_date (${asOf}).` };
+  const today = new Date().toISOString().split("T")[0];
+
+  // Validate model_id
+  const finalModelId = csvModelId || (manifest?.model_id as string) || "";
+  if (finalModelId && finalModelId !== "M1_B2_QUALITY_VETO_N30") return { error: `model_id must be M1_B2_QUALITY_VETO_N30, got ${finalModelId}` };
+  const asOf = csvAsOf || (manifest?.as_of_date as string) || today;
+  const genAt = csvGenAt || (manifest?.generated_at as string) || "";
+  const quarterLabel = csvQuarter || (manifest?.quarter_label as string) || "";
+  const source = csvSource || (manifest?.source as string) || "offline notebook official generator";
+
+  // Validate dates
+  const genDate = new Date(asOf);
+  if (isNaN(genDate.getTime())) return { error: `Invalid as_of_date: ${asOf}` };
+  if (genDate > new Date()) return { error: `as_of_date (${asOf}) is in the future.` };
+  if (genAt) {
+    const ga = new Date(genAt);
+    if (isNaN(ga.getTime())) return { error: `Invalid generated_at: ${genAt}` };
   }
 
   const targetWeight = 1 / 30;
   const ts = Date.now().toString(36);
-  const today = new Date().toISOString().split("T")[0];
 
   // Service client for writes
   const { createClient } = await import("@supabase/supabase-js");
@@ -86,16 +116,21 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  // Upsert securities
+  // Upsert securities (include company name if CSV provides it)
   const secIds: Record<string, string> = {};
   for (let i = 0; i < tickers.length; i++) {
     const t = tickers[i];
-    const { data: created } = await db.from("securities").upsert({
+    const companyName = hasCompanyCol ? String(rows[i][csvCompanyCol] || "") : "";
+    const upsertData: Record<string, unknown> = {
       ticker: t,
       sector: String(rows[i].sector || ""),
       industry: String(rows[i].industry || ""),
       is_active: true,
-    }, { onConflict: "ticker" }).select("id").single();
+    };
+    if (companyName) upsertData.company_name = companyName;
+    const { data: created } = await db.from("securities").upsert(
+      upsertData, { onConflict: "ticker" }
+    ).select("id").single();
     if (created) secIds[t] = created.id;
     else {
       const { data: existing } = await db.from("securities").select("id").eq("ticker", t).single();
@@ -117,22 +152,26 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
   }
 
   // Snapshot with metadata
-  const asOf = manifest?.as_of_date || today;
   const loadedAt = new Date().toISOString();
-  const quarterLabel = manifest?.quarter_label || "";
+  const fileName = csvFile.name ? String(csvFile.name) : "uploaded file";
   const { data: snapshot } = await db.from("model_snapshots").insert({
     model_version_id: mv.id, snapshot_id: `nb-${ts}`, status: "PUBLISHED",
     effective_date: asOf as string,
     universe_screened: 2205, eligible_count: 1070, valid_score_count: rows.length,
     warnings: JSON.stringify({
-      generator: "offline notebook official generator",
+      generator: source,
       generation_mode: "offline_notebook_official_generator",
-      source: "notebook",
+      source: source,
+      model_id: finalModelId || "M1_B2_QUALITY_VETO_N30",
       as_of_date: asOf,
-      generated_at: manifest?.generated_at || "",
+      generated_at: genAt,
       loaded_at: loadedAt,
       quarter_label: quarterLabel,
       input_row_count: rows.length,
+      file_name: fileName,
+      csv_company: csvCompany || undefined,
+      metadata_missing: metadataMissing.length > 0 ? metadataMissing : undefined,
+      company_warning: !hasCompanyCol ? "Company names missing from CSV — ticker-only display used." : undefined,
     }),
   }).select("id").single();
   if (!snapshot) return { error: "Failed to create snapshot." };
