@@ -1,9 +1,21 @@
 import { createServerSupabase } from "@/lib/supabase";
 import { loadHoldings } from "@/lib/route-loaders";
-import { getLatestModelSnapshot } from "@/lib/supabase-queries";
+import {
+  getLatestModelSnapshot,
+  getModelSnapshotById,
+  getModelHistory,
+} from "@/lib/supabase-queries";
+import SnapshotSelector from "@/components/model/SnapshotSelector";
 import Link from "next/link";
 
-export default async function ComparePage() {
+export default async function ComparePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ snapshot?: string }>;
+}) {
+  const params = await searchParams;
+  const snapshotId = params.snapshot || null;
+
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -50,7 +62,14 @@ export default async function ComparePage() {
     );
   }
 
-  const modelResult = await getLatestModelSnapshot();
+  const [historyResult, modelResult] = await Promise.all([
+    getModelHistory(),
+    snapshotId
+      ? getModelSnapshotById(snapshotId)
+      : getLatestModelSnapshot(),
+  ]);
+
+  const history = historyResult.data || [];
   const model = modelResult.data;
 
   if (modelResult.error || !model) {
@@ -92,13 +111,29 @@ export default async function ComparePage() {
   const buyTickers = [...modelTickers].filter((t) => !ownedTickers.has(t));
   const sellTickers = [...ownedTickers].filter((t) => !modelTickers.has(t));
 
+  // Extract model metadata
+  const modelWarnings = model?.warnings as Record<string, unknown> | string | null | undefined;
+  let mw: Record<string, unknown> = {};
+  if (modelWarnings) {
+    if (typeof modelWarnings === "string") { try { mw = JSON.parse(modelWarnings) as Record<string, unknown>; } catch {} }
+    else { mw = modelWarnings as Record<string, unknown>; }
+  }
+  const modelQuarter = mw?.quarter_label ? String(mw.quarter_label) : null;
+  const modelAsOf = mw?.as_of_date ? String(mw.as_of_date) : null;
+
+  const currentSnapshotId = snapshotId || (model?.id as string) || null;
+
   return (
     <div className="space-y-6">
+      {history.length > 1 && (
+        <SnapshotSelector history={history} currentId={currentSnapshotId} />
+      )}
       <div>
         <h1 className="text-2xl font-semibold">Compare</h1>
         <p className="text-sm text-neutral-500 mt-1">
           {portfolio.name} vs {model.model_version?.model_id || "Top 30"}
-          {" "}&mdash; {model.effective_date || ""}
+          {modelQuarter ? ` — ${modelQuarter}` : ""}
+          {modelAsOf ? ` (${modelAsOf})` : ""}
         </p>
       </div>
 
