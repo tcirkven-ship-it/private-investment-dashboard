@@ -1,0 +1,90 @@
+{
+  "classification": "current_decision_support_integrity_passed",
+  "code_commit": "144e01281e848a2a4c711cb0058eddc75099bb40",
+  "configuration": "research/configs/daily_qvp_v1.json",
+  "configuration_sha256": "d3881a1328862a39dc4af32e15c4826237a09adca2da7038eafb5659ddb68bb4",
+  "created_at_utc": "2026-07-01T07:21:40.777213+00:00",
+  "eligible_count": 1081,
+  "files": [
+    {
+      "bytes": 1075,
+      "path": "changes.json",
+      "sha256": "faa485854634c04a38c3245227bbb940be8059e7b0383befbed961fd4f23a16d"
+    },
+    {
+      "bytes": 173,
+      "path": "constraint_exclusions.csv",
+      "sha256": "a17e9c28f5d4890b249ffe4e3c272c616b5e163001139c0dede5b42074e28cf3"
+    },
+    {
+      "bytes": 8083,
+      "path": "contribution_allocations.csv",
+      "sha256": "0d88c1b9194d448ef9f05f7153565315cb78ded035254f98eb74e1a9f5f53864"
+    },
+    {
+      "bytes": 1051,
+      "path": "data_quality_warnings.json",
+      "sha256": "a9e67e6f2f63bd6381868c19e7c6503949e4683c84d90565688f81021bd6de59"
+    },
+    {
+      "bytes": 11836,
+      "path": "exposures.csv",
+      "sha256": "b6418a31e8d15110db6747285f6a155124b004b2a36bb504bddf44315f1c8c66"
+    },
+    {
+      "bytes": 173,
+      "path": "holdings_analysis.csv",
+      "sha256": "a17e9c28f5d4890b249ffe4e3c272c616b5e163001139c0dede5b42074e28cf3"
+    },
+    {
+      "bytes": 705,
+      "path": "output_manifest_identity.json",
+      "sha256": "8bda06ce0251beedd6a5f2cd61a08ef37682841102d3b9d86a1ab602640baf4e"
+    },
+    {
+      "bytes": 22211,
+      "path": "portfolio.csv",
+      "sha256": "5c1ef30a7feb7d83508421a564f423b2f09e9e1879a80c3810d48e5c26278873"
+    },
+    {
+      "bytes": 753772,
+      "path": "ranking.csv",
+      "sha256": "ea2a5dd2807c5e43e2db6a78afb56c97e93d44d1b5d51a3933199d58a12bdf5c"
+    },
+    {
+      "bytes": 455397,
+      "path": "reconciliation.csv",
+      "sha256": "9f3133908c2091e3acab8f0f1489b133de9798fb9d78248f0a3d7da347b37a2c"
+    },
+    {
+      "bytes": 1915,
+      "path": "reconciliation_summary.json",
+      "sha256": "3ebb63e4b68e75a90bfac90c231eac6db6f72b3378b0661c21a6bab62c9889c0"
+    },
+    {
+      "bytes": 26844,
+      "path": "report.html",
+      "sha256": "0dc65faa6b5679c5da22cdfe5e221e9a969677d31311cdd8e8c4d2c91e0445d2"
+    },
+    {
+      "bytes": 9100,
+      "path": "report.md",
+      "sha256": "547f79bedcf8ebe23f10adb418ad24ce60d9fa25da6c2e549ac18c15a7b28420"
+    },
+    {
+      "bytes": 1947383,
+      "path": "universe_report.csv",
+      "sha256": "765b70ac04a85f3e63142c8732f6cc43c870927f098416c143e3a57fc99cf819"
+    }
+  ],
+  "holdings_file": null,
+  "output_manifest_identity_sha256": "8bda06ce0251beedd6a5f2cd61a08ef37682841102d3b9d86a1ab602640baf4e",
+  "previous_run": null,
+  "requested_contribution": 0.0,
+  "run_id": "2026-07-01T053352Z",
+  "schema": "YF-DAILY-QVP-RUN-1.0.0",
+  "score_session": "2026-06-30",
+  "scored_count": 1043,
+  "snapshot": "data/prospective/daily_qvp/snapshots/2026-07-01T053352Z/raw",
+  "snapshot_manifest_sha256": "17079e0b06282756a5ab724f6c2043608d904202532d29f1943311c451f11683"
+}

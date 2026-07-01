@@ -189,7 +189,9 @@ def main(factor_input: str | None = None, allow_legacy: bool = False):
     return 0
 
 if __name__ == "__main__":
+    import argparse
     p = argparse.ArgumentParser(description="Stage 2 — Generate M1_B2_QUALITY_VETO_N30 official holdings")
     p.add_argument("--allow-legacy", action="store_true", help="Allow fallback to undated legacy factor input CSV")
+    p.add_argument("--factor-input", type=str, default=None, help="Exact path to factor input CSV from Stage 1")
     args = p.parse_args()
-    sys.exit(main(allow_legacy=args.allow_legacy))
+    sys.exit(main(factor_input=args.factor_input, allow_legacy=args.allow_legacy))
