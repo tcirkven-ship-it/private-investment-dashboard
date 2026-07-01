@@ -9,7 +9,7 @@ export default async function PortfolioActivity({ portfolioId }: { portfolioId: 
     .eq("portfolio_id", portfolioId)
     .is("corrected_by", null)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(200);
 
   if (!transactions || transactions.length === 0) {
     return (
