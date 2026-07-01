@@ -125,7 +125,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     universe_screened: 2205,
     eligible_count: 1070,
     valid_score_count: 1034,
-    warnings: JSON.stringify({ source_file: "m1_b2_quality_veto_targets.csv", ticker_count: rows.length }),
+    warnings: { source_file: "m1_b2_quality_veto_targets.csv", ticker_count: rows.length },
   }).select("id").single();
   if (snapErr) return { error: `Failed to create snapshot: ${snapErr.message}` };
   if (!snapshot) return { error: "Failed to create snapshot" };
@@ -662,7 +662,7 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
     eligible_count: 1070,
     valid_score_count: 1034,
     integrity_hash: `test-hash-${ts}`,
-    warnings: JSON.stringify({ notice: "Acceptance test data — not a real investment recommendation" }),
+    warnings: { notice: "Acceptance test data — not a real investment recommendation" },
     published_at: new Date().toISOString(),
   }).select("id").single();
   const sid = snapshot!.id;

@@ -1,8 +1,9 @@
 {
+  "as_of_date": "2026-06-30",
   "b2_formula": "mean of M12_1, M6_1, TREND200",
   "factor_snapshot_date": "2026-06-30",
   "factor_snapshot_id": "2026-07-01T053352Z",
-  "generated_at": "2026-07-01T07:57:05.077448+00:00",
+  "generated_at": "2026-07-01T08:35:16.994856+00:00",
   "generation_mode": "official_factor_snapshot",
   "holdings": 30,
   "industry_cap": "4",
@@ -10,6 +11,7 @@
   "model_id": "M1_B2_QUALITY_VETO_N30",
   "quality_formula": "mean of ROA, GPA, FCF_MARGIN, DEBT_ASSETS",
   "quality_veto_threshold": "10.0%",
+  "quarter_label": "2026-Q2",
   "sector_cap": "7",
   "sectors": {
     "Basic Materials": 3,
@@ -20,6 +22,7 @@
     "Industrials": 7,
     "Technology": 7
   },
+  "source": "offline notebook official generator",
   "source_factor_file": "m1_b2_factor_input_2026-07-01.csv",
   "stage": "2",
   "staleness_max_days": 90,

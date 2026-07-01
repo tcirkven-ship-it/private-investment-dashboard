@@ -21,18 +21,38 @@ export default async function ModelPage() {
 
   const model = result.data;
 
-  const warnings = model?.warnings as Record<string, unknown> | null | undefined;
-  const asOfDate = warnings?.as_of_date ? String(warnings.as_of_date) : null;
-  const generatedAt = warnings?.generated_at ? String(warnings.generated_at) : null;
-  const loadedAt = warnings?.loaded_at ? String(warnings.loaded_at) : null;
-  const generator = warnings?.generator ? String(warnings.generator) : null;
-  const quarterLabel = warnings?.quarter_label ? String(warnings.quarter_label) : null;
-  const fileName = warnings?.file_name ? String(warnings.file_name) : null;
-  const metadataMissing = warnings?.metadata_missing as string[] | null | undefined;
-  const companyWarning = warnings?.company_warning ? String(warnings.company_warning) : null;
+  const warnings = model?.warnings as Record<string, unknown> | string | null | undefined;
+  let warningsObj: Record<string, unknown> | null = null;
+  if (warnings) {
+    if (typeof warnings === "string") {
+      try { warningsObj = JSON.parse(warnings) as Record<string, unknown>; } catch { warningsObj = null; }
+    } else {
+      warningsObj = warnings as Record<string, unknown>;
+    }
+  }
+  const w = warningsObj || {};
+  const asOfDate = w?.as_of_date ? String(w.as_of_date) : null;
+  const generatedAt = w?.generated_at ? String(w.generated_at) : null;
+  const loadedAt = w?.loaded_at ? String(w.loaded_at) : null;
+  const generator = w?.generator ? String(w.generator) : null;
+  const quarterLabel = w?.quarter_label ? String(w.quarter_label) : null;
+  const fileName = w?.file_name ? String(w.file_name) : null;
+  const metadataMissing = w?.metadata_missing as string[] | null | undefined;
+  const companyWarning = w?.company_warning ? String(w.company_warning) : null;
   const holdingsCount = model?.holdings?.length || 0;
-  const hasMetadata = !metadataMissing || metadataMissing.length === 0;
-  const validationPassed = holdingsCount === 30 && hasMetadata;
+  const b2ScoresVisible = model?.holdings?.some(h => h.b2_score != null && h.b2_score !== 0) ?? false;
+  const qScoresVisible = model?.holdings?.some(h => h.quality_percentile != null && h.quality_percentile !== 0) ?? false;
+  const metadataFields = {
+    model: "M1_B2_QUALITY_VETO_N30", // hardcoded, always populated
+    quarter: quarterLabel,
+    as_of_date: asOfDate,
+    generated_at: generatedAt,
+    loaded_at: loadedAt,
+    source: generator,
+    file_name: fileName,
+  };
+  const allMetadataPopulated = Object.values(metadataFields).every(v => v !== null && v !== "");
+  const validationPassed = holdingsCount === 30 && allMetadataPopulated && b2ScoresVisible && qScoresVisible;
 
   const formatTs = (s: string | null): string => {
     if (!s) return "—";
@@ -55,11 +75,24 @@ export default async function ModelPage() {
         </div>
       ) : (
         <>
-          {metadataMissing && metadataMissing.length > 0 && (
+          {!validationPassed && (
             <div className="card border-amber-500/30 bg-amber-500/5 space-y-1">
-              <p className="text-sm font-semibold text-amber-400">Incomplete Metadata</p>
-              <p className="text-sm text-neutral-400">
-                Loaded CSV is missing: {metadataMissing.join(", ")}. This can be viewed for testing but should not be treated as the official quarterly model.
+              <p className="text-sm font-semibold text-amber-400">Warning — metadata incomplete</p>
+              {metadataMissing && metadataMissing.length > 0 && (
+                <p className="text-sm text-neutral-400">
+                  Loaded CSV is missing: {metadataMissing.join(", ")}.
+                </p>
+              )}
+              {!generatedAt && <p className="text-sm text-neutral-400">generated_at is empty.</p>}
+              {!loadedAt && <p className="text-sm text-neutral-400">loaded_at is empty.</p>}
+              {!generator && <p className="text-sm text-neutral-400">source is empty.</p>}
+              {!quarterLabel && <p className="text-sm text-neutral-400">quarter_label is empty.</p>}
+              {!fileName && <p className="text-sm text-neutral-400">file_name is empty.</p>}
+              {!asOfDate && <p className="text-sm text-neutral-400">as_of_date is empty.</p>}
+              {!b2ScoresVisible && <p className="text-sm text-neutral-400">B2 scores are empty.</p>}
+              {!qScoresVisible && <p className="text-sm text-neutral-400">Q scores are empty.</p>}
+              <p className="text-sm text-neutral-500 mt-1">
+                This can be viewed for testing but should not be treated as the official quarterly model.
               </p>
             </div>
           )}

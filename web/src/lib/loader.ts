@@ -158,7 +158,7 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
     model_version_id: mv.id, snapshot_id: `nb-${ts}`, status: "PUBLISHED",
     effective_date: asOf as string,
     universe_screened: 2205, eligible_count: 1070, valid_score_count: rows.length,
-    warnings: JSON.stringify({
+    warnings: {
       generator: source,
       generation_mode: "offline_notebook_official_generator",
       source: source,
@@ -172,7 +172,7 @@ export async function loadNotebookModel(formData: FormData): Promise<ActionResul
       csv_company: csvCompany || undefined,
       metadata_missing: metadataMissing.length > 0 ? metadataMissing : undefined,
       company_warning: !hasCompanyCol ? "Company names missing from CSV — ticker-only display used." : undefined,
-    }),
+    },
   }).select("id").single();
   if (!snapshot) return { error: "Failed to create snapshot." };
 
