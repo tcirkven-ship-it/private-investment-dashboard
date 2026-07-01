@@ -29,8 +29,8 @@ export default function LoginPage() {
           <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-lg">I</span>
           </div>
-          <h1 className="text-xl font-semibold">Investment Dashboard</h1>
-          <p className="text-sm text-neutral-500 mt-1">Sign in to your account</p>
+          <h1 className="text-xl font-semibold">Private Investment Tracker</h1>
+          <p className="text-sm text-neutral-500 mt-1">Sign in with email and password</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
