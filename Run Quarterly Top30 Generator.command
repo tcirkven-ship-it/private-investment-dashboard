@@ -3,22 +3,26 @@ cd "$(dirname "$0")"
 echo "M1_B2_QUALITY_VETO_N30 — Quarterly Top 30 Generator"
 echo ""
 
-# Find Python
+# Use project virtual environment
 PYTHON=""
-for py in python3 python; do
-    if command -v "$py" &>/dev/null; then
-        PYTHON="$py"
-        break
-    fi
-done
+if [ -f ".venv/bin/python3" ]; then
+    PYTHON=".venv/bin/python3"
+    echo "Using: .venv Python"
+elif [ -f ".venv/bin/python" ]; then
+    PYTHON=".venv/bin/python"
+elif command -v python3 &>/dev/null; then
+    PYTHON="python3"
+elif command -v python &>/dev/null; then
+    PYTHON="python"
+fi
 
 if [ -z "$PYTHON" ]; then
-    echo "ERROR: Python not found. Install Python 3."
+    echo "ERROR: Python not found. Set up the project virtual environment first."
     read -p "Press Enter to close..."
     exit 1
 fi
 
-echo "Using: $($PYTHON --version)"
+echo "Python: $($PYTHON --version 2>&1)"
 echo ""
 
 # Ask for as_of_date
