@@ -126,7 +126,7 @@ export default async function ComparePage({
   return (
     <div className="space-y-6">
       {history.length > 1 && (
-        <SnapshotSelector history={history} currentId={currentSnapshotId} />
+        <SnapshotSelector history={history} currentId={currentSnapshotId} basePath="/compare" />
       )}
       <div>
         <h1 className="text-2xl font-semibold">Compare</h1>

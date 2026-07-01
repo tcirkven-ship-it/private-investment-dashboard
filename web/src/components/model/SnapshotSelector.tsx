@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 export default function SnapshotSelector({
   history,
   currentId,
+  basePath = "/model",
 }: {
   history: Record<string, unknown>[];
   currentId: string | null;
+  basePath?: string;
 }) {
   const router = useRouter();
 
@@ -20,9 +22,9 @@ export default function SnapshotSelector({
         onChange={(e) => {
           const val = e.target.value;
           if (val) {
-            router.push(`/model?snapshot=${val}`);
+            router.push(`${basePath}?snapshot=${val}`);
           } else {
-            router.push("/model");
+            router.push(basePath);
           }
         }}
       >
