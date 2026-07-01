@@ -1,0 +1,31 @@
+ticker,B2_score,Q_percentile,Q_components_ok,target_pct,sector,industry,is_missing_q
+DOCN,0.9879,21.6822,4,3.3333,Technology,Software - Infrastructure,False
+VICR,0.9879,87.8505,4,3.3333,Technology,Electronic Components,False
+MU,0.9879,82.3364,4,3.3333,Technology,Semiconductors,False
+TTMI,0.9879,12.1495,4,3.3333,Technology,Electronic Components,False
+WDC,0.9879,87.4766,4,3.3333,Technology,Computer Hardware,False
+MXL,0.9879,20.0000,4,3.3333,Technology,Semiconductors,False
+SYRE,0.9832,65.5140,2,3.3333,Healthcare,Biotechnology,False
+ERAS,0.9804,30.0000,2,3.3333,Healthcare,Biotechnology,False
+POWL,0.9788,98.2243,4,3.3333,Industrials,Electrical Equipment & Parts,False
+STRL,0.9782,91.2150,4,3.3333,Industrials,Engineering & Construction,False
+AMD,0.9757,66.7290,4,3.3333,Technology,Semiconductors,False
+RVMD,0.9654,36.8224,2,3.3333,Healthcare,Biotechnology,False
+AGX,0.9579,92.3364,4,3.3333,Industrials,Engineering & Construction,False
+DFTX,0.9579,31.7757,2,3.3333,Healthcare,Biotechnology,False
+GTX,0.9570,65.0467,4,3.3333,Consumer Cyclical,Auto Parts,False
+MYRG,0.9480,81.1215,4,3.3333,Industrials,Engineering & Construction,False
+FIX,0.9458,97.8505,4,3.3333,Industrials,Engineering & Construction,False
+MTRN,0.9393,35.0467,4,3.3333,Basic Materials,Other Industrial Metals & Mining,False
+VRT,0.9287,93.4579,4,3.3333,Industrials,Electrical Equipment & Parts,False
+BTSG,0.9227,31.5888,4,3.3333,Healthcare,Health Information Services,False
+KGS,0.9227,36.1682,4,3.3333,Energy,Oil & Gas Equipment & Services,False
+MOD,0.9209,51.9626,4,3.3333,Consumer Cyclical,Auto Parts,False
+INSW,0.9209,90.4673,4,3.3333,Energy,Oil & Gas Midstream,False
+RKLB,0.9174,10.8411,4,3.3333,Industrials,Aerospace & Defense,False
+SPHR,0.9100,61.1215,4,3.3333,Communication Services,Entertainment,False
+IRDM,0.9090,56.4486,4,3.3333,Communication Services,Telecom Services,False
+TXG,0.9087,76.5421,4,3.3333,Healthcare,Health Information Services,False
+TWST,0.9078,33.4579,4,3.3333,Healthcare,Diagnostics & Research,False
+WTTR,0.9056,44.6729,4,3.3333,Energy,Oil & Gas Equipment & Services,False
+COCO,0.8922,93.7383,4,3.3333,Consumer Defensive,Beverages - Non-Alcoholic,False

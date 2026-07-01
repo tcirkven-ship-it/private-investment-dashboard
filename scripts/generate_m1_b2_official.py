@@ -47,12 +47,19 @@ def find_latest_factor_input(allow_legacy: bool = False):
         "Or use --allow-legacy to fall back to committed undated input."
     )
 
-def main(allow_legacy: bool = False):
+def main(factor_input: str | None = None, allow_legacy: bool = False):
     output_dir = ROOT / "outputs/quarterly"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    input_file = find_latest_factor_input(allow_legacy)
-    print(f"Stage 2: Reading factor input: {input_file.name}")
+    if factor_input:
+        input_file = Path(factor_input)
+        if not input_file.exists():
+            print(f"ERROR: Factor input file not found: {factor_input}")
+            sys.exit(1)
+    else:
+        input_file = find_latest_factor_input(allow_legacy)
+
+    print(f"Stage 2: Reading factor input: {input_file.name} (from {input_file.parent})")
     df = pd.read_csv(input_file)
     print(f"  Input: {len(df)} tickers")
 

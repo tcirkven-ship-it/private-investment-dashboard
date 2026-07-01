@@ -25,6 +25,7 @@ def main():
     p = argparse.ArgumentParser(description="M1_B2_QUALITY_VETO_N30 quarterly generator launcher")
     p.add_argument("--as-of", default=default_as_of(), help=f"Quarter-end market data date (default: {default_as_of()})")
     p.add_argument("--skip-build", action="store_true", help="Skip Stage 1 factor snapshot build")
+    p.add_argument("--skip-fresh", action="store_true", help="Skip Stage 0 fresh data pull (use existing snapshot)")
     args = p.parse_args()
 
     as_of = args.as_of
@@ -39,13 +40,31 @@ def main():
     print(f"  Output: {out_dir.name}")
     print(f"{'='*60}\n")
 
+    # Stage 0: Fresh data pull
+    if not args.skip_fresh:
+        print("[0/3] Pulling fresh market data...")
+        print("  This may take 1–2 hours. Waiting for daily_screen.py...")
+        r = subprocess.run([sys.executable, "src/daily_screen.py",
+                           "--output-root", "outputs/quarterly_pull",
+                           "--workers", "2", "--attempts", "5", "--delay-seconds", "1.5"],
+                           cwd=str(ROOT))
+        if r.returncode != 0:
+            print("STAGE 0 FAILED: Fresh data pull failed. Try again or use --skip-fresh.")
+            sys.exit(1)
+        print("  Fresh data pull complete.\n")
+    else:
+        print("[0/3] Skipping fresh data pull (--skip-fresh). Using existing snapshot data.\n")
+
     # Stage 1: Build factor snapshot
+    factor_input_path = None
     if not args.skip_build:
         print("[1/3] Building factor snapshot...")
         snap_dirs = sorted(Path("data/prospective/daily_qvp/snapshots").glob("2*"), reverse=True)
         if not snap_dirs:
-            print("ERROR: No raw snapshot data found in data/prospective/daily_qvp/snapshots/")
-            print("Run daily_screen.py first to pull fresh market data.")
+            snap_dirs = sorted(Path("outputs/quarterly_pull/daily_qvp_runs").rglob("analysis/factor_level_current.csv"), reverse=True)
+            snap_dirs = [d.parent.parent.parent for d in snap_dirs]
+        if not snap_dirs:
+            print("ERROR: No raw snapshot data found. Run Stage 0 first (data pull).")
             sys.exit(1)
         snap_id = snap_dirs[0].name
         print(f"  Using snapshot: {snap_id}")
@@ -56,35 +75,42 @@ def main():
         if r.returncode != 0:
             print(f"STAGE 1 FAILED:\n{r.stderr}")
             sys.exit(1)
+        # Find the exact output file
+        factor_files = sorted(out_dir.glob("m1_b2_factor_input_*.csv"), reverse=True)
+        if factor_files:
+            factor_input_path = str(factor_files[0])
     else:
         print("[1/3] Skipping factor snapshot build (--skip-build)")
 
-    # Stage 2: Select Top 30
+    # Stage 2: Select Top 30 — MUST use exact Stage 1 output
     print("[2/3] Selecting Top 30...")
-    # Find the latest factor input
-    factor_files = sorted(out_dir.glob("m1_b2_factor_input_*.csv"), reverse=True)
-    if not factor_files:
-        factor_files = sorted(ROOT.glob("outputs/quarterly/factor_inputs/m1_b2_factor_input_*.csv"), reverse=True)
-    if not factor_files:
-        print("ERROR: No factor input file found. Run Stage 1 first.")
+    if not factor_input_path:
+        print("ERROR: No factor input from Stage 1. Cannot proceed.")
         sys.exit(1)
 
-    # Copy factor input to output dir if not there
-    factor_file = factor_files[0]
-    if factor_file.parent != out_dir:
-        shutil.copy(factor_file, out_dir / factor_file.name)
-
-    r = subprocess.run([sys.executable, "scripts/generate_m1_b2_official.py", "--allow-legacy"],
-                       cwd=str(ROOT), capture_output=True, text=True)
+    cmd = [sys.executable, "scripts/generate_m1_b2_official.py", "--factor-input", factor_input_path]
+    r = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
     print(r.stdout)
     if r.returncode != 0:
         print(f"STAGE 2 FAILED:\n{r.stderr}")
         sys.exit(1)
 
-    # Stage 3: Copy outputs to timestamped folder + write extras
-    print("[3/3] Finalizing outputs...")
+    # Stage 3: Validate and finalize
+    print("[3/3] Validating and finalizing...")
     source_csv = ROOT / "outputs/quarterly/m1_b2_quality_veto_targets.csv"
     source_manifest = ROOT / "outputs/quarterly/m1_b2_manifest.json"
+
+    # Date validation
+    if source_manifest.exists():
+        with open(source_manifest) as f:
+            mf = json.load(f)
+        snap_date = mf.get("factor_snapshot_date", "")
+        if snap_date and snap_date != as_of:
+            print(f"HARD STOP: Factor snapshot date ({snap_date}) != as_of_date ({as_of}).")
+            print("Generation aborted. Run Stage 0 (fresh data pull) to get current quarter-end data.")
+            sys.exit(1)
+        print(f"  Date check: factor_snapshot_date ({snap_date}) == as_of_date ({as_of}) PASSED")
+    print(f"  Stage 2 input: {factor_input_path}")
 
     if source_csv.exists():
         dest_csv = out_dir / "m1_b2_quality_veto_targets.csv"
