@@ -15,6 +15,6 @@ export async function deleteTransaction(txId: string, portfolioId: string) {
   revalidatePath(`/portfolios/${portfolioId}/holdings`);
   revalidatePath(`/portfolios/${portfolioId}/rebalance`);
   revalidatePath(`/portfolios/${portfolioId}/performance`);
-  revalidatePath("/dashboard");
+  revalidatePath("/portfolios");
   return { error: null };
 }

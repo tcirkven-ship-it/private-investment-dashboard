@@ -1,0 +1,292 @@
+import { createServerSupabase } from "@/lib/supabase";
+import { loadHoldings } from "@/lib/route-loaders";
+import {
+  getLatestModelSnapshot,
+  getModelSnapshotById,
+  getModelHistory,
+} from "@/lib/supabase-queries";
+import SnapshotSelector from "@/components/model/SnapshotSelector";
+import Link from "next/link";
+
+export default async function ComparePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ snapshot?: string }>;
+}) {
+  const params = await searchParams;
+  const snapshotId = params.snapshot || null;
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: portfolios } = await supabase
+    .from("portfolios")
+    .select("id, name")
+    .eq("owner_id", user?.id)
+    .order("created_at", { ascending: false });
+
+  if (!portfolios || portfolios.length === 0) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">Compare</h1>
+        <div className="card text-center py-12">
+          <p className="text-neutral-500">No portfolio holdings yet.</p>
+          <p className="text-sm text-neutral-600 mt-2">
+            <Link href="/portfolios" className="text-blue-400 hover:text-blue-300 underline">
+              Go to Portfolio &rarr; Add Holding
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const portfolio = portfolios[0];
+
+  let holdingsResult: Awaited<ReturnType<typeof loadHoldings>>;
+  try {
+    holdingsResult = await loadHoldings(portfolio.id);
+  } catch {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">Compare</h1>
+        <div className="card text-center py-12">
+          <p className="text-neutral-500">No portfolio holdings yet.</p>
+          <p className="text-sm text-neutral-600 mt-2">
+            <Link href="/portfolios" className="text-blue-400 hover:text-blue-300 underline">
+              Go to Portfolio &rarr; Add Holding
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const [historyResult, modelResult] = await Promise.all([
+    getModelHistory(),
+    snapshotId
+      ? getModelSnapshotById(snapshotId)
+      : getLatestModelSnapshot(),
+  ]);
+
+  const history = historyResult.data || [];
+  const model = modelResult.data;
+
+  if (modelResult.error || !model) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">Compare</h1>
+        <div className="card text-center py-12">
+          <p className="text-neutral-500">No official model loaded yet.</p>
+          <p className="text-sm text-neutral-600 mt-2">
+            <Link href="/model" className="text-blue-400 hover:text-blue-300 underline">
+              Go to Top 30 &rarr; Load Notebook-Generated Top 30
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const { state } = holdingsResult;
+  const ownedTickers = new Set(state.holdings.keys());
+
+  const modelMap = new Map<string, { rank: number; b2_score: number | null; sector: string | null; industry: string | null; company: string | null }>();
+  for (const h of model.holdings) {
+    const ticker = h.security?.ticker;
+    if (ticker) {
+      modelMap.set(ticker, {
+        rank: h.rank,
+        b2_score: h.b2_score,
+        sector: h.security?.sector ?? null,
+        industry: h.security?.industry ?? null,
+        company: h.security?.company_name ?? null,
+      });
+    }
+  }
+
+  const modelTickers = new Set(modelMap.keys());
+
+  const keepTickers = [...ownedTickers].filter((t) => modelTickers.has(t));
+  const buyTickers = [...modelTickers].filter((t) => !ownedTickers.has(t));
+  const sellTickers = [...ownedTickers].filter((t) => !modelTickers.has(t));
+
+  // Extract model metadata
+  const modelWarnings = model?.warnings as Record<string, unknown> | string | null | undefined;
+  let mw: Record<string, unknown> = {};
+  if (modelWarnings) {
+    if (typeof modelWarnings === "string") { try { mw = JSON.parse(modelWarnings) as Record<string, unknown>; } catch {} }
+    else { mw = modelWarnings as Record<string, unknown>; }
+  }
+  const modelQuarter = mw?.quarter_label ? String(mw.quarter_label) : null;
+  const modelAsOf = mw?.as_of_date ? String(mw.as_of_date) : null;
+
+  const currentSnapshotId = snapshotId || (model?.id as string) || null;
+
+  return (
+    <div className="space-y-6">
+      {history.length > 1 && (
+        <SnapshotSelector history={history} currentId={currentSnapshotId} basePath="/compare" />
+      )}
+      <div>
+        <h1 className="text-2xl font-semibold">Compare</h1>
+        <p className="text-sm text-neutral-500 mt-1">
+          {portfolio.name} vs {model.model_version?.model_id || "Top 30"}
+          {modelQuarter ? ` — ${modelQuarter}` : ""}
+          {modelAsOf ? ` (${modelAsOf})` : ""}
+        </p>
+      </div>
+
+      <div className="card p-0 overflow-hidden">
+        <h2 className="text-sm font-semibold p-4 pb-2 border-b border-neutral-800">
+          Already Own / In Top 30
+          <span className="text-neutral-500 font-normal ml-2">({keepTickers.length})</span>
+        </h2>
+        {keepTickers.length === 0 ? (
+          <p className="p-4 text-sm text-neutral-500">No portfolio holdings match the latest Top 30.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
+              <colgroup>
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "26%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "20%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="table-header td-left">Ticker</th>
+                  <th className="table-header td-right">Shares</th>
+                  <th className="table-header td-right">Current Value</th>
+                  <th className="table-header td-right">Rank</th>
+                  <th className="table-header td-right">B2 Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {keepTickers
+                  .sort((a, b) => (modelMap.get(a)?.rank ?? 99) - (modelMap.get(b)?.rank ?? 99))
+                  .map((ticker) => {
+                    const h = state.holdings.get(ticker)!;
+                    const m = modelMap.get(ticker);
+                    return (
+                      <tr key={ticker} className="table-row">
+                        <td className="table-cell-text td-left font-semibold">{ticker}</td>
+                        <td className="table-cell td-right">{h.quantity.toFixed(3)}</td>
+                        <td className="table-cell td-right">
+                          {h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}
+                        </td>
+                        <td className="table-cell td-right">{m?.rank ?? "—"}</td>
+                        <td className="table-cell td-right">{m?.b2_score?.toFixed(3) ?? "—"}</td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="card p-0 overflow-hidden">
+        <h2 className="text-sm font-semibold p-4 pb-2 border-b border-neutral-800">
+          New in Top 30 / Consider Buying
+          <span className="text-neutral-500 font-normal ml-2">({buyTickers.length})</span>
+        </h2>
+        {buyTickers.length === 0 ? (
+          <p className="p-4 text-sm text-neutral-500">Your portfolio covers all Top 30 stocks.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
+              <colgroup>
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "28%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "20%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="table-header td-right">Rank</th>
+                  <th className="table-header td-left">Ticker</th>
+                  <th className="table-header td-left">Company</th>
+                  <th className="table-header td-right">B2 Score</th>
+                  <th className="table-header td-left">Sector</th>
+                  <th className="table-header td-left">Industry</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buyTickers
+                  .sort((a, b) => (modelMap.get(a)?.rank ?? 99) - (modelMap.get(b)?.rank ?? 99))
+                  .map((ticker) => {
+                    const m = modelMap.get(ticker)!;
+                    return (
+                      <tr key={ticker} className="table-row">
+                        <td className="table-cell td-right text-neutral-500">{m.rank}</td>
+                        <td className="table-cell-text td-left font-semibold">{ticker}</td>
+                        <td className="table-cell-text td-left text-sm text-neutral-400">{m.company ?? "—"}</td>
+                        <td className="table-cell td-right">{m.b2_score?.toFixed(3) ?? "—"}</td>
+                        <td className="table-cell-text td-left text-sm">{m.sector ?? "—"}</td>
+                        <td className="table-cell-text td-left text-sm text-neutral-400">{m.industry ?? "—"}</td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="card p-0 overflow-hidden">
+        <h2 className="text-sm font-semibold p-4 pb-2 border-b border-neutral-800">
+          Owned but Not in Top 30 / Consider Selling
+          <span className="text-neutral-500 font-normal ml-2">({sellTickers.length})</span>
+        </h2>
+        {sellTickers.length === 0 ? (
+          <p className="p-4 text-sm text-neutral-500">All holdings are in the Top 30.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
+              <colgroup>
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "26%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "18%" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="table-header td-left">Ticker</th>
+                  <th className="table-header td-right">Shares</th>
+                  <th className="table-header td-right">Current Value</th>
+                  <th className="table-header td-right">Unrealized P/L</th>
+                  <th className="table-header td-left">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sellTickers
+                  .sort((a, b) => (state.holdings.get(b)?.market_value || 0) - (state.holdings.get(a)?.market_value || 0))
+                  .map((ticker) => {
+                    const h = state.holdings.get(ticker)!;
+                    return (
+                      <tr key={ticker} className="table-row">
+                        <td className="table-cell-text td-left font-semibold">{ticker}</td>
+                        <td className="table-cell td-right">{h.quantity.toFixed(3)}</td>
+                        <td className="table-cell td-right">
+                          {h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}
+                        </td>
+                        <td className={`table-cell td-right ${(h.unrealized_pl || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {h.unrealized_pl !== undefined ? `$${h.unrealized_pl.toFixed(2)}` : "—"}
+                        </td>
+                        <td className="table-cell-text td-left text-sm text-neutral-400">Not in latest Top 30</td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

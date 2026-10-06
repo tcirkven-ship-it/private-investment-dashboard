@@ -14,9 +14,37 @@ ROOT = Path(__file__).resolve().parents[1]
 B2_FACTORS = ["M12_1", "M6_1", "TREND200"]
 Q_FACTORS = ["ROA", "GPA", "FCF_MARGIN", "DEBT_ASSETS"]
 MIN_ELIGIBLE = 500
+MAX_SNAPSHOT_AGE_DAYS_AFTER_ASOF = 21
 
-def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | None = None):
+def parse_snapshot_date(snapshot_id: str) -> date:
+    """Extract the calendar date from a snapshot id like 2026-07-01T053352Z."""
+    try:
+        return date.fromisoformat(snapshot_id[:10])
+    except ValueError as e:
+        raise RuntimeError(f"Cannot parse snapshot date from snapshot id '{snapshot_id}': {e}")
+
+def validate_freshness(snapshot_id: str, as_of_date: str) -> None:
+    """Hard fail if the snapshot does not cover the requested as_of_date or is too old."""
+    snap_date = parse_snapshot_date(snapshot_id)
+    asof = date.fromisoformat(as_of_date)
+    if snap_date < asof:
+        raise RuntimeError(
+            f"STALE SNAPSHOT: snapshot {snapshot_id} (data date {snap_date}) predates requested "
+            f"as_of_date {asof}. A snapshot must be taken on or after the quarter-end session. "
+            f"Run a fresh data pull (Stage 0 / full run) for this quarter."
+        )
+    age = (snap_date - asof).days
+    if age > MAX_SNAPSHOT_AGE_DAYS_AFTER_ASOF:
+        raise RuntimeError(
+            f"STALE SNAPSHOT: snapshot {snapshot_id} (data date {snap_date}) is {age} days after "
+            f"as_of_date {asof} (max {MAX_SNAPSHOT_AGE_DAYS_AFTER_ASOF}). Run a fresh data pull."
+        )
+
+def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | None = None, as_of_date: str | None = None):
     """Build the M1_B2 factor input CSV from raw factor panel for a given snapshot."""
+    if as_of_date:
+        validate_freshness(snapshot_id, as_of_date)
+
     factor_panel = ROOT / f"data/prospective/daily_qvp/snapshots/{snapshot_id}/analysis/factor_level_current.csv"
     if not factor_panel.exists():
         raise FileNotFoundError(f"Factor panel not found: {factor_panel}\nRun the daily scanner first to generate this file.")
@@ -56,7 +84,7 @@ def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | N
     pivoted["Q_score"] = pivoted[Q_FACTORS].mean(axis=1, skipna=True)
     pivoted["source_snapshot"] = snapshot_id
     pivoted["generated_at"] = datetime.now(timezone.utc).isoformat()
-    as_of_date = snapshot_id[:10]
+    as_of_date = as_of_date if as_of_date else snapshot_id[:10]
     pivoted["as_of_date"] = as_of_date
 
     out_cols = ["ticker", "company", "sector", "industry"] + B2_FACTORS + Q_FACTORS + ["B2_score", "Q_score", "Q_components_ok", "source_snapshot", "generated_at", "as_of_date"]
@@ -84,7 +112,9 @@ def build_factor_input(snapshot_id: str, output_dir: Path, ranking_csv: Path | N
     manifest = {
         "stage": "1",
         "snapshot_id": snapshot_id,
+        "snapshot_date": str(parse_snapshot_date(snapshot_id)),
         "as_of_date": as_of_date,
+        "freshness_max_days_after_asof": MAX_SNAPSHOT_AGE_DAYS_AFTER_ASOF,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "factor_panel_source": str(factor_panel),
         "factor_panel_sha256_12": raw_panel_sha,
@@ -118,10 +148,12 @@ def main():
     p.add_argument("--output-dir", default=str(ROOT / "outputs/quarterly/factor_inputs"),
                    help="Output directory")
     p.add_argument("--ranking-csv", help="Path to ranking CSV with sectors/industries")
+    p.add_argument("--as-of", help="Override as_of_date (market data date), e.g. 2026-06-30")
     args = p.parse_args()
     try:
         build_factor_input(args.snapshot_id, Path(args.output_dir),
-                          Path(args.ranking_csv) if args.ranking_csv else None)
+                          Path(args.ranking_csv) if args.ranking_csv else None,
+                          as_of_date=args.as_of)
     except Exception as e:
         print(f"STAGE 1 FAILED: {e}", file=sys.stderr)
         sys.exit(1)

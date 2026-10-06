@@ -1,0 +1,419 @@
+{
+  "changes": {
+    "crossed_below_60": [
+      "ADM",
+      "AIT",
+      "AZZ",
+      "BWA",
+      "CALM",
+      "CBT",
+      "CF",
+      "CRC",
+      "CRUS",
+      "DAL",
+      "EIX",
+      "ENS",
+      "ES",
+      "FDX",
+      "FFIV",
+      "GNTX",
+      "KEX",
+      "LEA",
+      "MATX",
+      "NJR",
+      "NOV",
+      "NYT",
+      "OGE",
+      "POR",
+      "RS",
+      "RUSHA",
+      "TTC",
+      "UTHR",
+      "WLY"
+    ],
+    "factor_score_changes": [
+      {
+        "price_score_change": -0.6040207007422602,
+        "quality_score_change": -0.004630045425085272,
+        "qvp_score_change": -0.1696302348118242,
+        "ticker": "MTZ",
+        "value_score_change": 0.09976004173187286
+      },
+      {
+        "price_score_change": -0.5481300635202551,
+        "quality_score_change": 0.0010418780912558323,
+        "qvp_score_change": -0.10870597312943675,
+        "ticker": "DY",
+        "value_score_change": 0.22097026604068865
+      },
+      {
+        "price_score_change": -0.5422373759776502,
+        "quality_score_change": -0.07068596571767849,
+        "qvp_score_change": -0.19859051400277256,
+        "ticker": "PL",
+        "value_score_change": 0.01715179968701093
+      },
+      {
+        "price_score_change": -0.5190044877770027,
+        "quality_score_change": 0.05337389380530971,
+        "qvp_score_change": -0.09375493742025942,
+        "ticker": "LASR",
+        "value_score_change": 0.1843657817109146
+      },
+      {
+        "price_score_change": -0.515659158230957,
+        "quality_score_change": 0.0017719568567027,
+        "qvp_score_change": -0.14790932735416423,
+        "ticker": "CC",
+        "value_score_change": 0.07015921931176161
+      },
+      {
+        "price_score_change": -0.5056240514511421,
+        "quality_score_change": 0.009837647534078009,
+        "qvp_score_change": -0.10248348744722857,
+        "ticker": "AGX",
+        "value_score_change": 0.1883359415753782
+      },
+      {
+        "price_score_change": -0.4961330512562513,
+        "quality_score_change": 0.002060780421031805,
+        "qvp_score_change": -0.1453994345460926,
+        "ticker": "AAP",
+        "value_score_change": 0.05787396719694171
+      },
+      {
+        "price_score_change": -0.49586684027517514,
+        "quality_score_change": -0.004464285714285622,
+        "qvp_score_change": -0.16407301053139345,
+        "ticker": "ASTS",
+        "value_score_change": 0.00811209439528024
+      },
+      {
+        "price_score_change": -0.49546460264786785,
+        "quality_score_change": 0.04165858750763762,
+        "qvp_score_change": -0.1245185413013079,
+        "ticker": "AAON",
+        "value_score_change": 0.08025039123630673
+      },
+      {
+        "price_score_change": 0.4940354410041191,
+        "quality_score_change": 0.03497773854985409,
+        "qvp_score_change": 0.13092316656403058,
+        "ticker": "ANF",
+        "value_score_change": -0.1362436798618818
+      }
+    ],
+    "largest_deteriorations": [
+      {
+        "rank_change": -541.0,
+        "ticker": "RRX"
+      },
+      {
+        "rank_change": -515.0,
+        "ticker": "HII"
+      },
+      {
+        "rank_change": -487.0,
+        "ticker": "RMBS"
+      },
+      {
+        "rank_change": -438.0,
+        "ticker": "CW"
+      },
+      {
+        "rank_change": -426.0,
+        "ticker": "NXT"
+      },
+      {
+        "rank_change": -417.0,
+        "ticker": "CTRI"
+      },
+      {
+        "rank_change": -407.0,
+        "ticker": "CHRW"
+      },
+      {
+        "rank_change": -402.0,
+        "ticker": "MTZ"
+      },
+      {
+        "rank_change": -400.0,
+        "ticker": "NE"
+      },
+      {
+        "rank_change": -395.0,
+        "ticker": "AKAM"
+      }
+    ],
+    "largest_improvements": [
+      {
+        "rank_change": 681.0,
+        "ticker": "MGNI"
+      },
+      {
+        "rank_change": 626.0,
+        "ticker": "QTWO"
+      },
+      {
+        "rank_change": 564.0,
+        "ticker": "TNET"
+      },
+      {
+        "rank_change": 534.0,
+        "ticker": "NTNX"
+      },
+      {
+        "rank_change": 524.0,
+        "ticker": "DNOW"
+      },
+      {
+        "rank_change": 473.0,
+        "ticker": "HNI"
+      },
+      {
+        "rank_change": 472.0,
+        "ticker": "AGYS"
+      },
+      {
+        "rank_change": 462.0,
+        "ticker": "AVTR"
+      },
+      {
+        "rank_change": 447.0,
+        "ticker": "PAYC"
+      },
+      {
+        "rank_change": 445.0,
+        "ticker": "ICUI"
+      }
+    ],
+    "largest_qvp_score_changes": [
+      {
+        "qvp_score_change": -0.19859051400277256,
+        "ticker": "PL"
+      },
+      {
+        "qvp_score_change": 0.19384085579408444,
+        "ticker": "MGNI"
+      },
+      {
+        "qvp_score_change": -0.17399822112746216,
+        "ticker": "PRIM"
+      },
+      {
+        "qvp_score_change": 0.17008388686354048,
+        "ticker": "QTWO"
+      },
+      {
+        "qvp_score_change": -0.1696302348118242,
+        "ticker": "MTZ"
+      },
+      {
+        "qvp_score_change": -0.16407301053139345,
+        "ticker": "ASTS"
+      },
+      {
+        "qvp_score_change": -0.15814347909127896,
+        "ticker": "RRX"
+      },
+      {
+        "qvp_score_change": -0.15534391699054334,
+        "ticker": "HII"
+      },
+      {
+        "qvp_score_change": 0.15304950522628757,
+        "ticker": "ELF"
+      },
+      {
+        "qvp_score_change": 0.1501270784955827,
+        "ticker": "HNI"
+      }
+    ],
+    "left_top30": [
+      "AVA",
+      "AZZ",
+      "BRC",
+      "CALM",
+      "CRUS",
+      "EIX",
+      "ENS",
+      "NBIX",
+      "OGE",
+      "POR",
+      "PRDO",
+      "SIRI",
+      "SNA",
+      "TTC",
+      "VISN",
+      "WLY"
+    ],
+    "new_top30": [
+      "ADUS",
+      "ANF",
+      "CART",
+      "CHRD",
+      "CNC",
+      "DV",
+      "EOG",
+      "FLYW",
+      "FRSH",
+      "MD",
+      "OVV",
+      "RELY",
+      "RHI",
+      "SWK",
+      "THC",
+      "VLO"
+    ],
+    "newly_eligible": [
+      "ADUS",
+      "AMLX",
+      "AMTM",
+      "ASAN",
+      "AVAH",
+      "BKV",
+      "CBZ",
+      "CON",
+      "DV",
+      "FIGS",
+      "FTRE",
+      "GPI",
+      "GRDN",
+      "HURN",
+      "INSP",
+      "INTA",
+      "LB",
+      "LPG",
+      "MAN",
+      "MBX",
+      "MRVI",
+      "NCNO",
+      "NEOG",
+      "NOG",
+      "PRLB",
+      "SDGR",
+      "SNAP",
+      "SONO",
+      "STGW",
+      "TRLV",
+      "UHAL-B",
+      "VAL",
+      "XXI",
+      "ZG"
+    ],
+    "newly_ineligible": [
+      "AESI",
+      "AGIO",
+      "AIN",
+      "ALHC",
+      "AMSC",
+      "BAND",
+      "BHVN",
+      "BLD",
+      "BW",
+      "CHE",
+      "CLOV",
+      "CLX",
+      "CMC",
+      "CRNX",
+      "CWAN",
+      "DRVN",
+      "EA",
+      "EXPD",
+      "FLNC",
+      "FUN",
+      "GLUE",
+      "GTLS",
+      "HE",
+      "HUBG",
+      "IOSP",
+      "ITT",
+      "JBLU",
+      "LBRDA",
+      "LCID",
+      "LCII",
+      "MGEE",
+      "MGRC",
+      "MLYS",
+      "MSM",
+      "NPO",
+      "NUVL",
+      "NWN",
+      "OLN",
+      "PGNY",
+      "PRDO",
+      "PRKS",
+      "PTON",
+      "QS",
+      "RARE",
+      "ROKU",
+      "RUN",
+      "SAH",
+      "SEM",
+      "SGRY",
+      "STOK",
+      "SXI",
+      "TE",
+      "TGLS",
+      "TMHC",
+      "TR",
+      "UAA",
+      "UHAL",
+      "USLM",
+      "UTI",
+      "VISN",
+      "VMI",
+      "WERN",
+      "WHR",
+      "WTS",
+      "XRAY",
+      "Z"
+    ],
+    "newly_missing": [
+      "UEC"
+    ],
+    "previous_run": "2026-07-01T053352Z",
+    "sector_exposure_changes": [
+      {
+        "sector": "Energy",
+        "target_weight_change": 0.13333333333333333
+      },
+      {
+        "sector": "Healthcare",
+        "target_weight_change": 0.1
+      },
+      {
+        "sector": "Industrials",
+        "target_weight_change": -0.1
+      },
+      {
+        "sector": "Utilities",
+        "target_weight_change": -0.1
+      },
+      {
+        "sector": "Consumer Cyclical",
+        "target_weight_change": 0.06666666666666668
+      },
+      {
+        "sector": "Consumer Defensive",
+        "target_weight_change": -0.06666666666666667
+      },
+      {
+        "sector": "Communication Services",
+        "target_weight_change": -0.03333333333333333
+      }
+    ]
+  },
+  "metadata": {
+    "code_commit": "476a0536c46a788a7630fa9f3e94f5d730de1f8c",
+    "configuration_sha256": "d3881a1328862a39dc4af32e15c4826237a09adca2da7038eafb5659ddb68bb4",
+    "eligible_count": 1049,
+    "output_manifest_sha256": "7194e4af2e31dac8fc23edad49491676d7b802278c45a341c3257fc8203aed7a",
+    "retrieval_completed_at_utc": "2026-10-06T17:24:47.586158+00:00",
+    "retrieval_started_at_utc": "2026-10-06T17:18:00.923876+00:00",
+    "run_id": "2026-10-06T142958Z",
+    "score_session": "2026-10-05",
+    "scored_count": 1014,
+    "source_snapshot": "data/prospective/daily_qvp/snapshots/2026-10-06T142958Z/raw"
+  }
+}

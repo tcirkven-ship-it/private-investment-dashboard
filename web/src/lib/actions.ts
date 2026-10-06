@@ -125,7 +125,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     universe_screened: 2205,
     eligible_count: 1070,
     valid_score_count: 1034,
-    warnings: JSON.stringify({ source_file: "m1_b2_quality_veto_targets.csv", ticker_count: rows.length }),
+    warnings: { source_file: "m1_b2_quality_veto_targets.csv", ticker_count: rows.length },
   }).select("id").single();
   if (snapErr) return { error: `Failed to create snapshot: ${snapErr.message}` };
   if (!snapshot) return { error: "Failed to create snapshot" };
@@ -148,7 +148,7 @@ export async function importM1B2Model(): Promise<ActionResult & { message?: stri
     }, { onConflict: "snapshot_id,security_id" });
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath("/portfolios");
   revalidatePath("/model");
   return { error: null, message: `M1_B2_QUALITY_VETO_N30 generated with ${rows.length} stocks from research output.` };
 }
@@ -183,7 +183,6 @@ export async function upsertPrice(formData: FormData): Promise<ActionResult> {
 
   if (error) return { error: error.message };
   revalidatePath("/portfolios");
-  revalidatePath("/dashboard");
   return { error: null };
 }
 
@@ -223,14 +222,23 @@ export async function insertTransaction(formData: FormData): Promise<ActionResul
 
   const ticker = formData.get("ticker") as string;
   if (ticker) {
+    const t = ticker.toUpperCase().trim();
     // Find or create security
     const { data: sec } = await supabase
       .from("securities")
       .select("id")
-      .eq("ticker", ticker.toUpperCase())
+      .eq("ticker", t)
       .maybeSingle();
     if (sec) {
       payload.security_id = sec.id;
+    } else {
+      const { data: created } = await supabase.from("securities").insert({
+        ticker: t,
+        sector: "",
+        industry: "",
+        is_active: true,
+      }).select("id").single();
+      if (created) payload.security_id = created.id;
     }
   }
 
@@ -263,7 +271,38 @@ export async function createPortfolio(formData: FormData): Promise<ActionResult>
   if (error) return { error: error.message };
 
   revalidatePath("/portfolios");
-  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function updateTransaction(
+  txId: string, portfolioId: string, formData: FormData,
+): Promise<ActionResult> {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const ticker = (formData.get("ticker") as string)?.toUpperCase().trim();
+  const qty = parseFloat(formData.get("quantity") as string) || 0;
+  const price = parseFloat(formData.get("price") as string) || 0;
+
+  const updates: Record<string, unknown> = {};
+  if (ticker) {
+    const t = ticker.toUpperCase().trim();
+    const { data: sec } = await supabase.from("securities").select("id").eq("ticker", t).maybeSingle();
+    if (sec) updates.security_id = sec.id;
+    else {
+      const { data: created } = await supabase.from("securities").insert({ ticker: t, sector: "", industry: "", is_active: true }).select("id").single();
+      if (created) updates.security_id = created.id;
+    }
+  }
+  if (qty > 0) updates.quantity = qty;
+  if (price > 0) updates.price = price;
+  updates.gross_amount = qty * price;
+
+  const { error } = await supabase.from("transactions").update(updates).eq("id", txId).eq("owner_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/portfolios/${portfolioId}`);
   return { error: null };
 }
 
@@ -281,7 +320,23 @@ export async function deletePortfolio(id: string): Promise<ActionResult> {
   if (error) return { error: error.message };
 
   revalidatePath("/portfolios");
-  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function renamePortfolio(id: string, name: string): Promise<ActionResult> {
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Portfolio name cannot be empty." };
+  if (trimmed.length > 80) return { error: "Portfolio name cannot exceed 80 characters." };
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const { error } = await supabase.from("portfolios").update({ name: trimmed }).eq("id", id).eq("owner_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/portfolios");
+  revalidatePath(`/portfolios/${id}`);
   return { error: null };
 }
 
@@ -316,7 +371,57 @@ export async function recordValuationSnapshot(portfolioId: string): Promise<Acti
 
   if (error) return { error: error.message };
   revalidatePath(`/portfolios/${portfolioId}/performance`);
+  revalidatePath("/performance");
   return { error: null, nav: result.nav, date: today };
+}
+
+export async function refreshPortfolioPrices(portfolioId: string): Promise<ActionResult & { message?: string; results?: Record<string, { ok: boolean; price?: number; error?: string }> }> {
+  const ownerEmail = process.env.OWNER_EMAIL;
+  if (!ownerEmail) return { error: "OWNER_EMAIL not configured." };
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return { error: "SUPABASE_SERVICE_ROLE_KEY not configured." };
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.email?.toLowerCase() !== ownerEmail.toLowerCase()) return { error: "Owner access required." };
+
+  const holdingsResult = await loadHoldings(portfolioId);
+  const tickers = [...holdingsResult.state.holdings.keys()];
+
+  const benchmarkTickers = ["SPY", "QQQ"].filter((b) => !tickers.includes(b));
+  const allTickers = [...tickers, ...benchmarkTickers];
+
+  const today = new Date().toISOString().split("T")[0];
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } });
+
+  const { data: securities } = await supabase.from("securities").select("ticker, id");
+  const secMap = new Map<string, string>();
+  if (securities) for (const s of securities) secMap.set(s.ticker, s.id);
+
+  const results: Record<string, { ok: boolean; price?: number; error?: string }> = {};
+
+  for (const t of allTickers) {
+    try {
+      const resp = await fetch(`${YH_CHART_URL}${encodeURIComponent(t)}?range=5d&interval=1d`);
+      if (!resp.ok) { results[t] = { ok: false, error: `HTTP ${resp.status}` }; continue; }
+      const json = await resp.json();
+      const result = json?.chart?.result?.[0];
+      const close = result?.indicators?.quote?.[0]?.close?.slice(-1)[0];
+      if (!close) { results[t] = { ok: false, error: "No close price" }; continue; }
+      const secId = secMap.get(t);
+      if (!secId) { results[t] = { ok: false, error: "No security_id" }; continue; }
+      const { error } = await db.from("price_observations").upsert({
+        security_id: secId, observation_date: today, close, source: "yahoo-auto",
+      }, { onConflict: "security_id,observation_date" });
+      if (error) { results[t] = { ok: false, error: error.message }; }
+      else { results[t] = { ok: true, price: close }; }
+    } catch (e) { results[t] = { ok: false, error: e instanceof Error ? e.message : "Unknown" }; }
+  }
+
+  const okCount = Object.values(results).filter((r) => r.ok).length;
+  const failedCount = allTickers.length - okCount;
+  revalidatePath("/portfolios");
+  return { error: null, message: `Prices refreshed: ${okCount}/${allTickers.length}`, results };
 }
 
 export async function refreshClosingPrices(): Promise<ActionResult & { message?: string; ok?: number; failed?: number }> {
@@ -368,8 +473,80 @@ export async function refreshClosingPrices(): Promise<ActionResult & { message?:
     } catch (e) { failed.push(t); errors.push(e instanceof Error ? e.message : "Unknown"); }
   }
 
-  revalidatePath("/dashboard"); revalidatePath("/portfolios"); revalidatePath("/model");
+  revalidatePath("/portfolios"); revalidatePath("/model");
   return { error: null, message: `Prices refreshed: ${ok}. Failed: ${failed.length}`, ok, failed: failed.length };
+}
+
+export async function deleteAllAppData(
+  confirm?: boolean,
+): Promise<ActionResult & { counts?: Record<string, number> }> {
+  const ownerEmail = process.env.OWNER_EMAIL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!ownerEmail) return { error: "OWNER_EMAIL env var not configured." };
+  if (!serviceKey) return { error: "SUPABASE_SERVICE_ROLE_KEY env var not configured." };
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  if (user.email?.toLowerCase() !== ownerEmail.toLowerCase()) {
+    return { error: "Owner access required." };
+  }
+
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const tables = [
+    "portfolio_valuations",
+    "owner_decisions",
+    "rebalance_lines",
+    "rebalance_events",
+    "transactions",
+    "model_snapshot_holdings",
+    "model_snapshots",
+    "model_versions",
+    "price_observations",
+    "portfolios",
+    "securities",
+    "app_settings",
+  ];
+
+  const counts: Record<string, number> = {};
+
+  for (const table of tables) {
+    const { count, error: countErr } = await db
+      .from(table)
+      .select("*", { count: "exact", head: true });
+    if (!countErr) {
+      counts[table] = count ?? 0;
+    } else {
+      counts[table] = -1;
+    }
+  }
+
+  if (!confirm) {
+    return { error: null, counts };
+  }
+
+  for (const table of tables) {
+    // Use a filter that matches all rows (Supabase requires WHERE clause for deletes)
+    // For app_settings, use key column; for others, use id column
+    const filterCol = table === "app_settings" ? "key" : "id";
+    const { error: delErr } = await db.from(table).delete().neq(filterCol, "00000000-0000-0000-0000-000000000000");
+    if (delErr) {
+      return { error: `Failed to delete from ${table}: ${delErr.message}`, counts };
+    }
+  }
+
+  revalidatePath("/portfolios");
+  revalidatePath("/model");
+  revalidatePath("/compare");
+  revalidatePath("/settings");
+  return { error: null, counts };
 }
 
 export async function seedAcceptanceData(): Promise<ActionResult & { message?: string }> {
@@ -503,7 +680,7 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
     eligible_count: 1070,
     valid_score_count: 1034,
     integrity_hash: `test-hash-${ts}`,
-    warnings: JSON.stringify({ notice: "Acceptance test data — not a real investment recommendation" }),
+    warnings: { notice: "Acceptance test data — not a real investment recommendation" },
     published_at: new Date().toISOString(),
   }).select("id").single();
   const sid = snapshot!.id;
@@ -524,7 +701,6 @@ export async function seedAcceptanceData(): Promise<ActionResult & { message?: s
     });
   }
 
-  revalidatePath("/dashboard");
   revalidatePath("/portfolios");
   revalidatePath("/model");
   return { error: null, message: "Acceptance test data created successfully." };

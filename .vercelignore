@@ -1,0 +1,10 @@
+scripts/
+outputs/
+data/
+*.csv
+*.py
+*.sh
+*.command
+.agents/
+.hermes/
+.node/

@@ -1,15 +1,6 @@
 name: Database Release Verification
 on:
-  pull_request:
-    paths:
-      - "web/supabase/migrations/**"
-      - "web/scripts/**"
-      - "web/src/lib/**"
-      - "web/package.json"
-      - "web/package-lock.json"
-      - ".github/workflows/database-release.yml"
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 env:
   SUPABASE_CLI_VERSION: "2.19.7"

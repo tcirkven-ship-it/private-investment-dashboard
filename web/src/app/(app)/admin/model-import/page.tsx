@@ -64,7 +64,7 @@ export default function ModelImportPage() {
             <p>Holdings: {Array.isArray(preview.holdings) ? preview.holdings.length : 0} stocks</p>
             <p>Model: {(preview.model_id as string) || "—"}</p>
           </div>
-          <button onClick={handleImport} disabled={importing} className="btn-primary">
+           <button onClick={handleImport} disabled={importing} className="btn btn-primary">
             {importing ? "Importing..." : "Import as Draft"}
           </button>
         </div>

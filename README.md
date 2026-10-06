@@ -18,3 +18,10 @@ The project completed validated contribution benchmarks, a current OEF/yfinance 
 ## Important limitation
 
 Historical outperformance, if later observed, will not guarantee future results. The program permits a fail conclusion and requires point-in-time controls, realistic costs, fair benchmark cash flows, multiple-testing discipline, and adversarial review.
+
+## App URL
+
+Official app URL:
+https://private-investment-dashboard-tcirkven-projects.vercel.app/
+
+Do not use `https://private-investment-dashboard.vercel.app` — it belongs to another Vercel team and points to an old/wrong deployment.

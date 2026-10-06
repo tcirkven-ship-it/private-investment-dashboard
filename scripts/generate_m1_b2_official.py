@@ -23,6 +23,7 @@ INDUSTRY_CAP = 4
 TARGET_COUNT = 30
 TARGET_WEIGHT = round(100.0 / TARGET_COUNT, 4)
 MAX_STALENESS_DAYS = 90
+MAX_SOURCE_AGE_DAYS_AFTER_ASOF = 21
 
 def find_latest_factor_input(allow_legacy: bool = False):
     """Find the most recent dated factor input file.
@@ -47,12 +48,19 @@ def find_latest_factor_input(allow_legacy: bool = False):
         "Or use --allow-legacy to fall back to committed undated input."
     )
 
-def main(allow_legacy: bool = False):
+def main(factor_input: str | None = None, allow_legacy: bool = False):
     output_dir = ROOT / "outputs/quarterly"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    input_file = find_latest_factor_input(allow_legacy)
-    print(f"Stage 2: Reading factor input: {input_file.name}")
+    if factor_input:
+        input_file = Path(factor_input)
+        if not input_file.exists():
+            print(f"ERROR: Factor input file not found: {factor_input}")
+            sys.exit(1)
+    else:
+        input_file = find_latest_factor_input(allow_legacy)
+
+    print(f"Stage 2: Reading factor input: {input_file.name} (from {input_file.parent})")
     df = pd.read_csv(input_file)
     print(f"  Input: {len(df)} tickers")
 
@@ -88,6 +96,26 @@ def main(allow_legacy: bool = False):
         print("ERROR: source_snapshot is missing or empty")
         sys.exit(1)
     print(f"  Source snapshot: {source_snap}")
+
+    # Freshness validation against the REAL source snapshot date (not the relabeled as_of_date).
+    try:
+        source_snapshot_date = date.fromisoformat(str(source_snap)[:10])
+    except ValueError as e:
+        print(f"ERROR: Cannot parse source_snapshot date from '{source_snap}': {e}")
+        sys.exit(1)
+    if source_snapshot_date < as_of_date:
+        print(f"ERROR: STALE SOURCE: source snapshot {source_snap} (data date {source_snapshot_date}) "
+              f"predates as_of_date {as_of_date}. Run a fresh data pull (Stage 0).")
+        sys.exit(1)
+    source_age_days = (source_snapshot_date - as_of_date).days
+    if source_age_days > MAX_SOURCE_AGE_DAYS_AFTER_ASOF:
+        if allow_legacy:
+            print(f"WARNING: Source snapshot is {source_age_days} days after as_of_date (max {MAX_SOURCE_AGE_DAYS_AFTER_ASOF}). Proceeding with --allow-legacy.")
+        else:
+            print(f"ERROR: STALE SOURCE: source snapshot {source_snap} is {source_age_days} days after "
+                  f"as_of_date {as_of_date} (max {MAX_SOURCE_AGE_DAYS_AFTER_ASOF}). Run a fresh data pull (Stage 0).")
+            sys.exit(1)
+    print(f"  Source snapshot date: {source_snapshot_date} ({source_age_days} days after as_of_date)")
 
     # Derive Q_components_ok
     for qf in Q_FACTORS:
@@ -139,27 +167,40 @@ def main(allow_legacy: bool = False):
         return 1
     print(f"  VALIDATION PASSED: {len(selected)} holdings, {len(sector_counts)} sectors")
 
-    # Write CSV
+    # Derive quarter label and generation timestamp
+    gen_ts = datetime.now(timezone.utc).isoformat()
+    quarter_label = f"{as_of_date.year}-Q{((as_of_date.month - 1) // 3) + 1}"
+
+    # Write CSV with metadata columns
     csv_path = output_dir / "m1_b2_quality_veto_targets.csv"
     with open(csv_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["ticker", "B2_score", "Q_percentile", "Q_components_ok", "target_pct", "sector", "industry", "is_missing_q"])
-        for r in selected:
+        w.writerow(["model_id", "quarter_label", "as_of_date", "generated_at", "source", "rank",
+                     "ticker", "company", "sector", "industry", "B2_score", "Q_percentile",
+                     "Q_components_ok", "target_pct", "is_missing_q"])
+        for i, r in enumerate(selected):
             t = str(r["ticker"]).strip().upper()
-            w.writerow([t, f"{float(r['B2_score']):.4f}", f"{round(float(r['q_rank'])*100,4):.4f}",
-                        int(r.get("Q_components_ok", 4)), f"{TARGET_WEIGHT:.4f}",
-                        str(r.get("sector", "")), str(r.get("industry", "")), "False"])
+            company = str(r.get("name", r.get("company", r.get("company_name", "")))) if "name" in r.index or "company" in r.index or "company_name" in r.index else ""
+            w.writerow([MODEL_ID, quarter_label, as_of_str[:10], gen_ts,
+                        "offline notebook official generator", i + 1,
+                        t, company, str(r.get("sector", "")), str(r.get("industry", "")),
+                        f"{float(r['B2_score']):.4f}", f"{round(float(r['q_rank'])*100,4):.4f}",
+                        int(r.get("Q_components_ok", 4)), f"{TARGET_WEIGHT:.4f}", "False"])
 
     # Manifest
-    snapshot_date = str(df["as_of_date"].iloc[0])[:10] if "as_of_date" in df.columns else "unknown"
-    source_snapshot = str(df.iloc[0].get("source_snapshot", "unknown")) if len(df) > 0 else "unknown"
+    snapshot_date = str(source_snap)[:10]
+    source_snapshot = source_snap
     manifest = {
         "model_id": MODEL_ID,
+        "quarter_label": quarter_label,
+        "as_of_date": as_of_str[:10],
         "generation_mode": "official_factor_snapshot",
         "stage": "2",
         "factor_snapshot_date": snapshot_date,
         "factor_snapshot_id": source_snapshot,
         "source_factor_file": str(input_file.name),
+        "source_snapshot_age_days_after_asof": source_age_days,
+        "source_freshness_max_days_after_asof": MAX_SOURCE_AGE_DAYS_AFTER_ASOF,
         "input_row_count": len(df),
         "b2_formula": "mean of M12_1, M6_1, TREND200",
         "quality_formula": f"mean of {', '.join(Q_FACTORS)}",
@@ -170,7 +211,8 @@ def main(allow_legacy: bool = False):
         "validation_passed": ok,
         "tickers": tickers,
         "sectors": {str(k): int(v) for k, v in sector_counts.items()},
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": gen_ts,
+        "source": "offline notebook official generator",
         "staleness_max_days": MAX_STALENESS_DAYS,
     }
     write_json(output_dir / "m1_b2_manifest.json", manifest)
@@ -182,7 +224,9 @@ def main(allow_legacy: bool = False):
     return 0
 
 if __name__ == "__main__":
+    import argparse
     p = argparse.ArgumentParser(description="Stage 2 — Generate M1_B2_QUALITY_VETO_N30 official holdings")
     p.add_argument("--allow-legacy", action="store_true", help="Allow fallback to undated legacy factor input CSV")
+    p.add_argument("--factor-input", type=str, default=None, help="Exact path to factor input CSV from Stage 1")
     args = p.parse_args()
-    sys.exit(main(allow_legacy=args.allow_legacy))
+    sys.exit(main(factor_input=args.factor_input, allow_legacy=args.allow_legacy))

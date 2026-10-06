@@ -38,7 +38,7 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Rebalance Instructions</h1>
         </div>
         <div className="card border-red-500/30 bg-red-500/5">
@@ -52,7 +52,7 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Rebalance Instructions</h1>
         </div>
         <div className="card text-center py-12">
@@ -66,7 +66,7 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Rebalance Instructions</h1>
         </div>
         <div className="card text-center py-12">
@@ -136,7 +136,7 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+        <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
         <div>
           <h1 className="text-xl font-semibold">Rebalance Instructions</h1>
           <p className="text-sm text-neutral-500">Model date: {data.modelDate}{data.hasPrices ? ` · NAV: $${data.nav.toLocaleString()}` : ""}</p>
@@ -166,7 +166,7 @@ export default async function RebalancePage({ params }: { params: Promise<{ id: 
                 <span className="text-xs text-neutral-500 ml-2">{GROUP_LABELS[group]} ({items.length})</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[640px]">
                   <thead>
                     <tr className="border-b border-neutral-800">
                       <th className="table-header">Ticker</th>

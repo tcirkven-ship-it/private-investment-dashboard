@@ -41,15 +41,15 @@ export default function ModelReviewActions({ snapshots }: { snapshots: Snapshot[
           <p className="text-sm text-neutral-400">Snapshot: {selected.snapshot_id} ({selected.status})</p>
           <div className="flex gap-3">
             {selected.status === "DRAFT" && (
-              <button onClick={() => transition(selected.id, "VALIDATED")} className="btn-secondary"><Check className="w-4 h-4 mr-1" /> Validate</button>
+              <button onClick={() => transition(selected.id, "VALIDATED")} className="btn btn-secondary"><Check className="w-4 h-4" /> Validate</button>
             )}
             {selected.status === "VALIDATED" && (
-              <button onClick={() => transition(selected.id, "APPROVED")} className="btn-secondary"><Check className="w-4 h-4 mr-1" /> Approve</button>
+              <button onClick={() => transition(selected.id, "APPROVED")} className="btn btn-secondary"><Check className="w-4 h-4" /> Approve</button>
             )}
             {selected.status === "APPROVED" && (
-              <button onClick={() => transition(selected.id, "PUBLISHED")} className="btn-primary"><Check className="w-4 h-4 mr-1" /> Publish</button>
+              <button onClick={() => transition(selected.id, "PUBLISHED")} className="btn btn-primary"><Check className="w-4 h-4" /> Publish</button>
             )}
-            <button onClick={() => setSelected(null)} className="btn-ghost"><X className="w-4 h-4 mr-1" /> Back</button>
+            <button onClick={() => setSelected(null)} className="btn btn-secondary"><X className="w-4 h-4" /> Back</button>
           </div>
         </div>
       )}

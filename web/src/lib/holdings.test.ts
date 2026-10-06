@@ -111,3 +111,86 @@ describe("holdings engine", () => {
     expect(isFinite(r)).toBe(true);
   });
 });
+
+describe("dust/closed positions and full-exit deletes", () => {
+  it("a holding below the dust threshold is not an active holding", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 1000 }),
+      tx({ event_type: "BUY", ticker: "BAND", quantity: 0.0009, price: 100, gross_amount: 0.09 }),
+    ]);
+    expect(s.holdings.has("BAND")).toBe(false);
+    // cash still reflects the purchase
+    expect(s.cash).toBeCloseTo(999.91);
+  });
+
+  it("a holding of exactly 0.001 stays active", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 1000 }),
+      tx({ event_type: "BUY", ticker: "MINI", quantity: 0.001, price: 100, gross_amount: 0.1 }),
+    ]);
+    expect(s.holdings.get("MINI")?.quantity).toBeCloseTo(0.001);
+  });
+
+  it("a full-exit sell rounded up by NUMERIC(14,6) still closes the position", () => {
+    // Simulates the production DOCN case: held 0.0006899999999996353, sell stored as 0.000690.
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 1000 }),
+      tx({ event_type: "BUY", ticker: "DOCN", quantity: 0.0006899999999996353, price: 100, gross_amount: 0.06899999999996353 }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.00069, price: 100, gross_amount: 0.069 }),
+    ]);
+    expect(s.holdings.has("DOCN")).toBe(false);
+  });
+
+  it("a genuine oversell beyond tolerance is still rejected", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 100000 }),
+      tx({ event_type: "BUY", ticker: "AAPL", quantity: 10, price: 100, gross_amount: 1000 }),
+      tx({ event_type: "SELL", ticker: "AAPL", quantity: 11, price: 100, gross_amount: 1100 }),
+    ]);
+    expect(s.holdings.get("AAPL")?.quantity).toBe(10);
+  });
+
+  it("a partial sell that leaves dust closes the position but keeps realized P/L", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 100000 }),
+      tx({ event_type: "BUY", ticker: "VICR", quantity: 1, price: 100, gross_amount: 100 }),
+      tx({ event_type: "SELL", ticker: "VICR", quantity: 0.9995, price: 110, gross_amount: 109.945 }),
+    ]);
+    expect(s.holdings.has("VICR")).toBe(false);
+    expect(s.total_realized_pl).toBeCloseTo(0.9995 * 10);
+  });
+});
+
+describe("ledger replay ordering and oversell validation", () => {
+  it("user DOCN sequence: buy 7.009, sells 7.008 + 0.001 + 0.001 -> hidden", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "BUY", ticker: "DOCN", quantity: 7.009, price: 142.68, gross_amount: 999.99, event_date: "2026-07-01", created_at: "2026-07-01T21:06:16Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 7.008, price: 135.25, gross_amount: 947.83, event_date: "2026-10-06", created_at: "2026-10-06T18:24:05Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.001, price: 142.68, gross_amount: 0.14, event_date: "2026-10-06", created_at: "2026-10-06T18:30:49Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.001, price: 142.68, gross_amount: 0.14, event_date: "2026-10-06", created_at: "2026-10-06T18:31:06Z" }),
+    ]);
+    expect(s.holdings.has("DOCN")).toBe(false);
+    expect(s.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("replay stays correct when same-date rows arrive in arbitrary database order", () => {
+    // Simulates the production bug: dust sells listed before the main sell.
+    const scrambled = [
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.00069, price: 142.68, gross_amount: 0.098, event_date: "2026-10-06", created_at: "2026-10-06T18:30:49Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.00069, price: 142.68, gross_amount: 0.098, event_date: "2026-10-06", created_at: "2026-10-06T18:31:06Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 7.008, price: 135.25, gross_amount: 947.83, event_date: "2026-10-06", created_at: "2026-10-06T18:24:05Z" }),
+      tx({ event_type: "BUY", ticker: "DOCN", quantity: 7.00869, price: 142.68, gross_amount: 999.99, event_date: "2026-07-01", created_at: "2026-07-01T21:06:16Z" }),
+    ];
+    const s = deriveHoldings(scrambled);
+    expect(s.holdings.has("DOCN")).toBe(false);
+  });
+
+  it("warns when a sell exceeds shares held", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "BUY", ticker: "AAA", quantity: 5, price: 10, gross_amount: 50 }),
+      tx({ event_type: "SELL", ticker: "AAA", quantity: 6, price: 10, gross_amount: 60 }),
+    ]);
+    expect(s.holdings.get("AAA")?.quantity).toBe(5);
+    expect(s.warnings.some((w) => w.includes("exceeds shares held"))).toBe(true);
+  });
+});

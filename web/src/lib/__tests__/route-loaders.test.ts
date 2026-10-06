@@ -332,6 +332,10 @@ describe("owner / second-user / anonymous isolation", () => {
   it("loadTransactions filters by portfolio_id", async () => {
     let capturedCol = "";
     let capturedVal: unknown = null;
+    const result: { order: () => unknown; then: (resolve: (v: unknown) => unknown) => unknown } = {
+      order: () => result,
+      then: (resolve) => Promise.resolve({ data: [], error: null }).then(resolve),
+    };
     const db = {
       from: () => ({
         select: () => ({
@@ -340,8 +344,7 @@ describe("owner / second-user / anonymous isolation", () => {
             capturedVal = val;
             return {
               is: () => ({
-                order: () =>
-                  Promise.resolve({ data: [], error: null }),
+                order: () => result,
               }),
             };
           },

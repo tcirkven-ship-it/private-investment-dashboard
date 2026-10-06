@@ -52,7 +52,8 @@ export async function loadTransactions(portfolioId: string, db?: DB): Promise<Tr
     .select("id, event_type, event_date, quantity, price, gross_amount, commission, tax, notes, created_at, security:security_id(ticker)")
     .eq("portfolio_id", portfolioId)
     .is("corrected_by", null)
-    .order("event_date", { ascending: true });
+    .order("event_date", { ascending: true })
+    .order("created_at", { ascending: true });
   if (error) throw new Error(`Failed to load transactions: ${error.message}`);
   return (data || []).map(getTransaction).filter((t): t is TransactionData => t !== null);
 }
@@ -87,6 +88,7 @@ export async function loadHoldings(portfolioId: string, db?: DB): Promise<Holdin
   const txs: Transaction[] = txData.map((t) => ({
     event_type: t.event_type as Transaction["event_type"],
     event_date: t.event_date,
+    created_at: t.created_at,
     ticker: t.ticker,
     quantity: t.quantity,
     price: t.price,

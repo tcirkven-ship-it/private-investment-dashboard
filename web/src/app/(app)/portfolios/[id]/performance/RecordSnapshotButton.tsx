@@ -24,7 +24,7 @@ export default function RecordSnapshotButton({ portfolioId }: { portfolioId: str
 
   return (
     <div className="flex items-center gap-3">
-      <button onClick={handleRecord} disabled={recording} className="btn-ghost text-sm">
+      <button onClick={handleRecord} disabled={recording} className="btn btn-secondary text-sm">
         {recording ? "Recording..." : "Record Valuation Snapshot"}
       </button>
       {msg && <p className={`text-xs ${msg.startsWith("Cannot") ? "text-amber-400" : "text-green-400"}`}>{msg}</p>}

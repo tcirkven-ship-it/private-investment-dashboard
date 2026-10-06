@@ -511,7 +511,10 @@ def run(args: argparse.Namespace) -> dict:
                    "--output", str(snapshot), "--attempts", str(args.attempts),
                    "--workers", str(args.workers), "--delay-seconds", str(args.delay_seconds),
                    "--endpoint-delay-seconds", str(args.endpoint_delay_seconds),
-                   "--scoring-core-only"]
+                   "--scoring-core-only",
+                   "--maximum-scoring-core-incomplete", str(args.maximum_scoring_core_incomplete)]
+        if args.resume_retrieval:
+            command.append("--resume")
         subprocess.run(command, cwd=ROOT, check=True)
     score_session = latest_completed_session(snapshot / "benchmarks/SPY_history_daily.csv")
     if analysis.exists() and any(analysis.iterdir()) and not args.reuse_analysis:
@@ -660,6 +663,10 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--delay-seconds", type=float, default=0.3)
     value.add_argument("--endpoint-delay-seconds", type=float, default=0.3)
     value.add_argument("--reuse-analysis", action="store_true")
+    value.add_argument("--resume-retrieval", action="store_true",
+                       help="Pass --resume to the raw pull so an existing snapshot can be completed")
+    value.add_argument("--maximum-scoring-core-incomplete", type=int, default=0,
+                       help="Tolerated count of eligible tickers with missing scoring-core files (default 0)")
     return value
 
 

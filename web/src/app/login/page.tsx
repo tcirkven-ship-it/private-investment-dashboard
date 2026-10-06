@@ -23,14 +23,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#09090b] px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-lg">I</span>
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
+            <span className="text-white font-bold text-lg tracking-tight">I</span>
           </div>
-          <h1 className="text-xl font-semibold">Investment Dashboard</h1>
-          <p className="text-sm text-neutral-500 mt-1">Sign in to your account</p>
+          <h1 className="text-xl font-semibold tracking-tight">Private Investment Tracker</h1>
+          <p className="text-sm text-neutral-500 mt-1">Owner access</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
@@ -66,7 +66,7 @@ export default function LoginPage() {
               required
             />
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full">
+          <button type="submit" disabled={loading} className="btn btn-primary w-full">
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>

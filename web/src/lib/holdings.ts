@@ -7,7 +7,8 @@
 export type TransactionEventType =
   | "DEPOSIT" | "WITHDRAWAL" | "BUY" | "SELL" | "DIVIDEND"
   | "FEE" | "TAX" | "INTEREST" | "SPLIT" | "SYMBOL_CHANGE"
-  | "MERGER" | "SPINOFF" | "CORRECTION" | "TRANSFER";
+  | "MERGER" | "SPINOFF" | "CORRECTION" | "TRANSFER"
+  | "OPENING_POSITION";
 
 export interface Transaction {
   id?: string;
@@ -16,6 +17,7 @@ export interface Transaction {
   ticker?: string;
   event_type: TransactionEventType;
   event_date: string;
+  created_at?: string;
   quantity: number;
   price: number;
   gross_amount: number;
@@ -50,7 +52,21 @@ export interface PortfolioState {
   total_fees: number;
   total_taxes: number;
   total_realized_pl: number;
+  warnings: string[];
 }
+
+/**
+ * Positions below this quantity are treated as closed/dust: they are excluded from
+ * active holdings but remain visible in the activity log (transactions stay intact).
+ */
+export const DUST_QUANTITY_THRESHOLD = 0.001;
+
+/**
+ * Sell quantities are stored in NUMERIC(14,6), which can round a sell derived from
+ * the exact held quantity up by up to 5e-7. Allow that much oversell so a full exit
+ * is never skipped by float/quantization noise.
+ */
+const SELL_QUANTITY_EPSILON = 1e-6;
 
 export function deriveHoldings(transactions: Transaction[], prices?: Map<string, number>): PortfolioState {
   const state: PortfolioState = {
@@ -62,11 +78,17 @@ export function deriveHoldings(transactions: Transaction[], prices?: Map<string,
     total_fees: 0,
     total_taxes: 0,
     total_realized_pl: 0,
+    warnings: [],
   };
 
-  const sorted = [...transactions].sort((a, b) =>
-    new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
-  );
+  // Deterministic replay order: by event date, then by entry time. This matters
+  // when several BUY/SELL rows share one event_date — without the secondary key
+  // the database may return them in arbitrary order and a sell can be skipped.
+  const sorted = [...transactions].sort((a, b) => {
+    const byDate = a.event_date.localeCompare(b.event_date);
+    if (byDate !== 0) return byDate;
+    return (a.created_at || "").localeCompare(b.created_at || "");
+  });
 
   for (const tx of sorted) {
     // Skip corrected transactions
@@ -118,8 +140,11 @@ export function deriveHoldings(transactions: Transaction[], prices?: Map<string,
         state.cash += proceeds;
 
         const h = state.holdings.get(ticker);
-        if (!h || h.quantity < qty) {
-          console.warn(`Cannot sell ${qty} of ${ticker}, only ${h?.quantity || 0} held`);
+        if (!h || qty > h.quantity + SELL_QUANTITY_EPSILON) {
+          const held = h?.quantity || 0;
+          const msg = `SELL of ${ticker} on ${tx.event_date} exceeds shares held (sold ${qty}, held ${held.toFixed(6)}); it was skipped. Total sells may exceed buys for this ticker.`;
+          console.warn(`Cannot sell ${qty} of ${ticker}, only ${held} held`);
+          state.warnings.push(msg);
           break;
         }
         const costOfSold = h.average_cost * qty;
@@ -205,8 +230,29 @@ export function deriveHoldings(transactions: Transaction[], prices?: Map<string,
         break;
       }
 
+      case "OPENING_POSITION": {
+        // Set initial holding without affecting cash
+        if (ticker && qty > 0) {
+          const totalCost = qty * price;
+          state.holdings.set(ticker, {
+            ticker, quantity: qty, total_cost: totalCost,
+            average_cost: price, realized_pl: 0, dividends: 0, fees: 0, taxes: 0,
+          });
+        }
+        break;
+      }
+
       default:
         break;
+    }
+  }
+
+  // Closed/dust positions are excluded from active holdings by default.
+  // Transactions, cash and realized P/L remain fully intact; the positions
+  // continue to appear in the activity log and other historical records.
+  for (const [ticker, h] of Array.from(state.holdings.entries())) {
+    if (h.quantity < DUST_QUANTITY_THRESHOLD) {
+      state.holdings.delete(ticker);
     }
   }
 

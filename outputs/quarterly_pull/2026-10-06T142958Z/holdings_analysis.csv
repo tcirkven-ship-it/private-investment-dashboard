@@ -1,0 +1,1 @@
+run_id,retrieval_started_at_utc,retrieval_completed_at_utc,score_session,source_snapshot,eligible_count,scored_count,code_commit,configuration_sha256,output_manifest_sha256
