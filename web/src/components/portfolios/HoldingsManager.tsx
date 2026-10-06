@@ -131,7 +131,7 @@ export default function HoldingsManager({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
         <div className="metric-card metric-primary"><p className="metric-label">Total Value</p><p className="metric-value">${nav.toLocaleString()}</p><p className="metric-sub">Cash + Holdings</p></div>
-        <div className="metric-card"><p className="metric-label">Cash</p><p className="metric-value">${cash.toLocaleString()}</p></div>
+        <div className="metric-card"><p className="metric-label">Cash (uninvested)</p><p className="metric-value">${cash.toLocaleString()}</p></div>
         <div className="metric-card"><p className="metric-label">Holdings</p><p className="metric-value">${totalMarketValue.toLocaleString()}</p></div>
         <div className="metric-card"><p className="metric-label">Unrealized P/L</p><p className={`metric-value ${totalUnrealized >= 0 ? "metric-positive" : "metric-negative"}`}>{totalUnrealized >= 0 ? "+" : "−"}${Math.abs(totalUnrealized).toFixed(2)}</p></div>
         <div className="metric-card"><p className="metric-label">Realized P/L</p><p className={`metric-value ${totalRealized >= 0 ? "metric-positive" : "metric-negative"}`}>{totalRealized >= 0 ? "+" : "−"}${Math.abs(totalRealized).toFixed(2)}</p></div>

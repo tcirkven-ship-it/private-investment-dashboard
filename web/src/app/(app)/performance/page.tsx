@@ -205,7 +205,7 @@ export default async function PerformancePage() {
           <p className={`metric-value ${unrealized >= 0 ? "metric-positive" : "metric-negative"}`}>{fmtSignedMoney(unrealized)}</p>
         </div>
         <div className="metric-card">
-          <p className="metric-label">Cash</p>
+          <p className="metric-label">Cash (uninvested)</p>
           <p className="metric-value">{fmtMoney(state.cash)}</p>
         </div>
         <div className="metric-card">
@@ -297,6 +297,14 @@ export default async function PerformancePage() {
               * No snapshot existed at that quarter end; the latest available valuation is shown instead.
             </p>
           )}
+          <p className="text-xs text-neutral-500">
+            SPY/QQQ show the dividend-adjusted benchmark return over the same period as each row
+            ({valuations.length === 0 ? "inception: Jul 1 to today; quarters: quarter start to quarter end or today" : "quarter start to quarter end or today"}).
+          </p>
+          <p className="text-xs text-neutral-500">
+            Deposits made inside a quarter appear as External Cash Flow; a quarter&apos;s start value is the portfolio value
+            just before the quarter began (empty portfolio = $0).
+          </p>
           <p className="text-xs text-neutral-500">
             {valuations.length === 0
               ? <>No valuation snapshots recorded yet. Use <strong>Record Valuation Snapshot</strong> above — especially at quarter ends — to make quarterly start/end values exact.</>
