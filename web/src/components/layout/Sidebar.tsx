@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  TrendingUp, Briefcase, ArrowLeftRight, FileText, LogOut, ChevronLeft, Settings,
+  TrendingUp, Briefcase, ArrowLeftRight, FileText, LogOut, ChevronLeft, Settings, BarChart3,
 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useState } from "react";
@@ -14,6 +14,7 @@ export default function Sidebar() {
 
   const navItems = [
     { href: "/portfolios", label: "Portfolio", icon: Briefcase },
+    { href: "/performance", label: "Performance", icon: BarChart3 },
     { href: "/model", label: "Top 30", icon: TrendingUp },
     { href: "/compare", label: "Compare", icon: ArrowLeftRight },
     { href: "/instructions", label: "Instructions", icon: FileText },

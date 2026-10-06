@@ -371,6 +371,7 @@ export async function recordValuationSnapshot(portfolioId: string): Promise<Acti
 
   if (error) return { error: error.message };
   revalidatePath(`/portfolios/${portfolioId}/performance`);
+  revalidatePath("/performance");
   return { error: null, nav: result.nav, date: today };
 }
 

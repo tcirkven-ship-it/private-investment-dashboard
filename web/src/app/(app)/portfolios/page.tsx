@@ -1,6 +1,7 @@
 import { createServerSupabase } from "@/lib/supabase";
 import { loadHoldings } from "@/lib/route-loaders";
 import { getLatestModelSnapshot } from "@/lib/supabase-queries";
+import { computeInvestedCapital, totalPnl, totalReturnPct } from "@/lib/performance";
 import Link from "next/link";
 import HoldingsManager from "@/components/portfolios/HoldingsManager";
 import RefreshPricesButton from "@/components/portfolios/RefreshPricesButton";
@@ -77,6 +78,12 @@ export default async function PortfoliosPage() {
   const totalUnrealized = holdings.reduce((s, h) => s + (h.unrealized_pl || 0), 0);
   const unrealizedPct = totalCostBasis > 0 ? (totalUnrealized / totalCostBasis) * 100 : 0;
 
+  const invested = computeInvestedCapital(holdingsData.transactions);
+  const currentValue = state.cash + totalMarketValue;
+  const totalPnlValue = totalPnl(currentValue, invested.value);
+  const totalReturn = totalReturnPct(totalPnlValue, invested.value);
+  const money = (n: number) => `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   return (
     <div className="space-y-5">
       <div className="page-header">
@@ -85,6 +92,33 @@ export default async function PortfoliosPage() {
           <RenamePortfolioButton portfolioId={portfolio.id} currentName={portfolio.name || "Portfolio"} />
         </h1>
       </div>
+
+      <Link href="/performance" className="card flex items-center justify-between gap-4 flex-wrap py-3">
+        <div className="flex items-center gap-x-6 gap-y-1 flex-wrap text-sm">
+          <span>
+            <span className="text-neutral-500">Invested Capital: </span>
+            <span className="font-mono tabular-nums">{money(invested.value)}</span>
+            {invested.estimated && <span className="text-amber-400 text-xs ml-1">(estimated)</span>}
+          </span>
+          <span>
+            <span className="text-neutral-500">Current Value: </span>
+            <span className="font-mono tabular-nums">{money(currentValue)}</span>
+          </span>
+          <span>
+            <span className="text-neutral-500">Total P&L: </span>
+            <span className={`font-mono tabular-nums ${totalPnlValue >= 0 ? "metric-positive" : "metric-negative"}`}>
+              {totalPnlValue >= 0 ? "+" : "−"}{money(totalPnlValue)}
+            </span>
+          </span>
+          <span>
+            <span className="text-neutral-500">Total Return: </span>
+            <span className={`font-mono tabular-nums ${totalReturn === null ? "" : totalReturn >= 0 ? "metric-positive" : "metric-negative"}`}>
+              {totalReturn === null ? "—" : `${totalReturn >= 0 ? "+" : "−"}${Math.abs(totalReturn).toFixed(2)}%`}
+            </span>
+          </span>
+        </div>
+        <span className="text-xs text-neutral-500">Performance &rarr;</span>
+      </Link>
 
       <HoldingsManager
         portfolioId={portfolio.id}
