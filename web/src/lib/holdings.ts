@@ -53,6 +53,19 @@ export interface PortfolioState {
   total_realized_pl: number;
 }
 
+/**
+ * Positions below this quantity are treated as closed/dust: they are excluded from
+ * active holdings but remain visible in the activity log (transactions stay intact).
+ */
+export const DUST_QUANTITY_THRESHOLD = 0.001;
+
+/**
+ * Sell quantities are stored in NUMERIC(14,6), which can round a sell derived from
+ * the exact held quantity up by up to 5e-7. Allow that much oversell so a full exit
+ * is never skipped by float/quantization noise.
+ */
+const SELL_QUANTITY_EPSILON = 1e-6;
+
 export function deriveHoldings(transactions: Transaction[], prices?: Map<string, number>): PortfolioState {
   const state: PortfolioState = {
     cash: 0,
@@ -119,7 +132,7 @@ export function deriveHoldings(transactions: Transaction[], prices?: Map<string,
         state.cash += proceeds;
 
         const h = state.holdings.get(ticker);
-        if (!h || h.quantity < qty) {
+        if (!h || qty > h.quantity + SELL_QUANTITY_EPSILON) {
           console.warn(`Cannot sell ${qty} of ${ticker}, only ${h?.quantity || 0} held`);
           break;
         }
@@ -220,6 +233,15 @@ export function deriveHoldings(transactions: Transaction[], prices?: Map<string,
 
       default:
         break;
+    }
+  }
+
+  // Closed/dust positions are excluded from active holdings by default.
+  // Transactions, cash and realized P/L remain fully intact; the positions
+  // continue to appear in the activity log and other historical records.
+  for (const [ticker, h] of Array.from(state.holdings.entries())) {
+    if (h.quantity < DUST_QUANTITY_THRESHOLD) {
+      state.holdings.delete(ticker);
     }
   }
 

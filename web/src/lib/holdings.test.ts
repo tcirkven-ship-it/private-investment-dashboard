@@ -111,3 +111,52 @@ describe("holdings engine", () => {
     expect(isFinite(r)).toBe(true);
   });
 });
+
+describe("dust/closed positions and full-exit deletes", () => {
+  it("a holding below the dust threshold is not an active holding", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 1000 }),
+      tx({ event_type: "BUY", ticker: "BAND", quantity: 0.0009, price: 100, gross_amount: 0.09 }),
+    ]);
+    expect(s.holdings.has("BAND")).toBe(false);
+    // cash still reflects the purchase
+    expect(s.cash).toBeCloseTo(999.91);
+  });
+
+  it("a holding of exactly 0.001 stays active", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 1000 }),
+      tx({ event_type: "BUY", ticker: "MINI", quantity: 0.001, price: 100, gross_amount: 0.1 }),
+    ]);
+    expect(s.holdings.get("MINI")?.quantity).toBeCloseTo(0.001);
+  });
+
+  it("a full-exit sell rounded up by NUMERIC(14,6) still closes the position", () => {
+    // Simulates the production DOCN case: held 0.0006899999999996353, sell stored as 0.000690.
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 1000 }),
+      tx({ event_type: "BUY", ticker: "DOCN", quantity: 0.0006899999999996353, price: 100, gross_amount: 0.06899999999996353 }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.00069, price: 100, gross_amount: 0.069 }),
+    ]);
+    expect(s.holdings.has("DOCN")).toBe(false);
+  });
+
+  it("a genuine oversell beyond tolerance is still rejected", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 100000 }),
+      tx({ event_type: "BUY", ticker: "AAPL", quantity: 10, price: 100, gross_amount: 1000 }),
+      tx({ event_type: "SELL", ticker: "AAPL", quantity: 11, price: 100, gross_amount: 1100 }),
+    ]);
+    expect(s.holdings.get("AAPL")?.quantity).toBe(10);
+  });
+
+  it("a partial sell that leaves dust closes the position but keeps realized P/L", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "DEPOSIT", gross_amount: 100000 }),
+      tx({ event_type: "BUY", ticker: "VICR", quantity: 1, price: 100, gross_amount: 100 }),
+      tx({ event_type: "SELL", ticker: "VICR", quantity: 0.9995, price: 110, gross_amount: 109.945 }),
+    ]);
+    expect(s.holdings.has("VICR")).toBe(false);
+    expect(s.total_realized_pl).toBeCloseTo(0.9995 * 10);
+  });
+});

@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { insertTransaction } from "@/lib/actions";
+import { DUST_QUANTITY_THRESHOLD } from "@/lib/holdings";
 import { Plus, X, Trash2 } from "lucide-react";
 
 const TX_TYPES = ["DEPOSIT", "WITHDRAWAL", "BUY", "SELL"] as const;
@@ -65,14 +66,24 @@ export default function HoldingsManager({
 
   async function handleDelete(h: Holding) {
     setSaving(true); setError("");
+    // Dust/closed positions cannot be sold (below the ledger's 6-dp resolution).
+    // The holdings engine already treats them as closed; no transaction is recorded.
+    if (h.quantity < DUST_QUANTITY_THRESHOLD) {
+      setDeletingTicker(null);
+      setSaving(false);
+      router.refresh();
+      return;
+    }
     const fd = new FormData();
     fd.set("portfolio_id", portfolioId);
     fd.set("event_type", "SELL");
     fd.set("event_date", new Date().toISOString().split("T")[0]);
     fd.set("ticker", h.ticker);
     fd.set("quantity", String(h.quantity));
-    fd.set("price", String(h.average_cost));
-    fd.set("gross_amount", String(h.quantity * h.average_cost));
+    const avg = Number.isFinite(h.average_cost) ? h.average_cost : 0;
+    const price = Math.max(avg, 0.0001);
+    fd.set("price", String(price));
+    fd.set("gross_amount", String(h.quantity * price));
     const r = await insertTransaction(fd);
     if (r.error) { setError(r.error); setSaving(false); } else { setDeletingTicker(null); router.refresh(); }
   }
