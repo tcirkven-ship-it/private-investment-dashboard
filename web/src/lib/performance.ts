@@ -99,6 +99,13 @@ function nextQuarterLabel(label: string): string {
   return q === 4 ? `${year + 1}-Q1` : `${year}-Q${q + 1}`;
 }
 
+export function previousQuarterLabel(label: string): string {
+  const [yearStr, qStr] = label.split("-Q");
+  const year = Number(yearStr);
+  const q = Number(qStr);
+  return q === 1 ? `${year - 1}-Q4` : `${year}-Q${q - 1}`;
+}
+
 export function enumerateQuarterLabels(firstDate: string, lastLabel: string): string[] {
   const out: string[] = [];
   let label = quarterLabel(firstDate);
@@ -111,8 +118,11 @@ export function enumerateQuarterLabels(firstDate: string, lastLabel: string): st
 
 export interface QuarterRow {
   label: string;
+  isInception?: boolean;
   startValue: number | null;
+  startValueNote?: string | null;
   endValue: number | null;
+  endValueEstimated?: boolean;
   externalFlow: number;
   pnl: number | null;
   returnPct: number | null;
@@ -130,6 +140,7 @@ export function buildQuarterRows(args: {
 }): QuarterRow[] {
   const { transactions, valuations, currentValue, today } = args;
   const currentLabel = quarterLabel(today);
+  const lastCompletedLabel = previousQuarterLabel(currentLabel);
   const dates = [
     ...transactions.map((t) => t.event_date),
     ...valuations.map((v) => v.valuation_date),
@@ -149,15 +160,43 @@ export function buildQuarterRows(args: {
     const { start, end } = quarterBounds(label);
     const isCurrent = label === currentLabel;
 
+    // Start value: snapshot on/before quarter start; exact zero when the
+    // portfolio had no activity yet; otherwise an in-quarter snapshot (noted).
+    let startValue: number | null = null;
+    let startValueNote: string | null = null;
     const startSnap = findLatestOnOrBefore(start);
-    const startValue = startSnap ? Number(startSnap.total_value) : null;
+    if (startSnap) {
+      startValue = Number(startSnap.total_value);
+    } else if (!transactions.some((t) => t.event_date < start)) {
+      startValue = 0;
+    } else {
+      const inQuarter = sorted.find((v) => v.valuation_date >= start && v.valuation_date <= end);
+      if (inQuarter) {
+        startValue = Number(inQuarter.total_value);
+        startValueNote = `as of ${inQuarter.valuation_date}`;
+      }
+    }
 
-    let endValue: number | null;
+    // End value: live value for the current quarter; snapshot on/before quarter
+    // end for past quarters; flagged "latest available" fallback otherwise.
+    let endValue: number | null = null;
+    let endValueEstimated = false;
     if (isCurrent) {
       endValue = currentValue;
     } else {
       const endSnap = findLatestOnOrBefore(end);
-      endValue = endSnap ? Number(endSnap.total_value) : null;
+      if (endSnap) {
+        endValue = Number(endSnap.total_value);
+      } else {
+        const after = sorted.find((v) => v.valuation_date > end);
+        if (after) {
+          endValue = Number(after.total_value);
+          endValueEstimated = true;
+        } else if (sorted.length === 0 && label === lastCompletedLabel) {
+          endValue = currentValue;
+          endValueEstimated = true;
+        }
+      }
     }
 
     let externalFlow = 0;
@@ -169,12 +208,17 @@ export function buildQuarterRows(args: {
     }
 
     const pnl = startValue !== null && endValue !== null ? endValue - startValue - externalFlow : null;
-    const returnPct = pnl !== null && startValue !== null && startValue > 0 ? (pnl / startValue) * 100 : null;
+    // Return denominator: start value, or capital deployed when the quarter
+    // began with an empty portfolio (start = 0).
+    const denominator = startValue !== null && startValue > 0 ? startValue : externalFlow > 0 ? externalFlow : null;
+    const returnPct = pnl !== null && denominator !== null ? (pnl / denominator) * 100 : null;
 
     return {
       label,
       startValue,
+      startValueNote,
       endValue,
+      endValueEstimated,
       externalFlow,
       pnl,
       returnPct,
@@ -183,6 +227,74 @@ export function buildQuarterRows(args: {
       qqqReturnPct: args.benchmarkReturns?.QQQ?.get(label) ?? null,
     };
   });
+}
+
+/**
+ * Lifetime row: start at zero (portfolio inception), current value as end,
+ * external flow = net invested capital, P&L = current - net invested.
+ */
+export function buildInceptionRow(args: {
+  transactions: PerfTransaction[];
+  currentValue: number;
+  netInvested: number;
+  today: string;
+  benchmarkObservations?: {
+    SPY?: { observation_date: string; total_return_index: number | null }[];
+    QQQ?: { observation_date: string; total_return_index: number | null }[];
+  };
+}): QuarterRow {
+  const { transactions, currentValue, netInvested, today } = args;
+  const pnl = currentValue - netInvested;
+  const returnPct = netInvested > 0 ? (pnl / netInvested) * 100 : null;
+
+  const firstDate = transactions.map((t) => t.event_date).filter(Boolean).sort()[0];
+  const spyReturnPct =
+    firstDate && args.benchmarkObservations?.SPY
+      ? benchmarkRangeReturn(args.benchmarkObservations.SPY, firstDate, today)
+      : null;
+  const qqqReturnPct =
+    firstDate && args.benchmarkObservations?.QQQ
+      ? benchmarkRangeReturn(args.benchmarkObservations.QQQ, firstDate, today)
+      : null;
+
+  return {
+    label: "Since inception",
+    isInception: true,
+    startValue: 0,
+    endValue: currentValue,
+    externalFlow: netInvested,
+    pnl,
+    returnPct,
+    isCurrent: false,
+    spyReturnPct,
+    qqqReturnPct,
+  };
+}
+
+/**
+ * Return over an arbitrary date range from total-return index observations.
+ * Base = last observation on or before `from`; close = last on or before `to`.
+ */
+export function benchmarkRangeReturn(
+  obs: { observation_date: string; total_return_index: number | null }[],
+  from: string,
+  to: string,
+): number | null {
+  const sorted = [...obs]
+    .filter((o) => o.total_return_index !== null && Number(o.total_return_index) > 0)
+    .sort((a, b) => a.observation_date.localeCompare(b.observation_date));
+  const findLatestOnOrBefore = (date: string) => {
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if (sorted[i].observation_date <= date) return sorted[i];
+    }
+    return null;
+  };
+  const base = findLatestOnOrBefore(from);
+  const close = findLatestOnOrBefore(to);
+  if (base && close && close.observation_date > base.observation_date) {
+    return (Number(close.total_return_index) / Number(base.total_return_index) - 1) * 100;
+  }
+  return null;
 }
 
 /**

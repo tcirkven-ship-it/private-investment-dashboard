@@ -4,6 +4,7 @@ import {
   totalPnl,
   totalReturnPct,
   buildQuarterRows,
+  buildInceptionRow,
   benchmarkQuarterReturns,
   quarterBounds,
   hasDeposit,
@@ -156,5 +157,73 @@ describe("quarter bounds", () => {
     expect(quarterBounds("2026-Q3")).toEqual({ start: "2026-07-01", end: "2026-09-30" });
     expect(quarterBounds("2026-Q4")).toEqual({ start: "2026-10-01", end: "2026-12-31" });
     expect(quarterBounds("2027-Q1")).toEqual({ start: "2027-01-01", end: "2027-03-31" });
+  });
+});
+
+describe("populated fallbacks and inception row", () => {
+  it("inception quarter start is 0 when the portfolio had no prior activity", () => {
+    const rows = buildQuarterRows({
+      transactions: [tx({ event_type: "DEPOSIT", event_date: "2026-07-01", gross_amount: 15000 })],
+      valuations: [],
+      currentValue: 13239.33,
+      today: "2026-10-06",
+    });
+    const q3 = rows.find((r) => r.label === "2026-Q3")!;
+    expect(q3.startValue).toBe(0);
+    expect(q3.endValue).toBeCloseTo(13239.33);
+    expect(q3.endValueEstimated).toBe(true);
+    expect(q3.pnl).toBeCloseTo(-1760.67);
+    expect(q3.returnPct).toBeCloseTo(-11.7378, 3);
+  });
+
+  it("only the last completed quarter uses the current value when no snapshots exist", () => {
+    const rows = buildQuarterRows({
+      transactions: [
+        tx({ event_type: "DEPOSIT", event_date: "2026-01-05", gross_amount: 1000 }),
+        tx({ event_type: "DEPOSIT", event_date: "2026-07-05", gross_amount: 1000 }),
+      ],
+      valuations: [],
+      currentValue: 2100,
+      today: "2026-10-06",
+    });
+    const q1 = rows.find((r) => r.label === "2026-Q1")!;
+    const q3 = rows.find((r) => r.label === "2026-Q3")!;
+    expect(q3.endValue).toBe(2100);
+    expect(q1.endValue).toBeNull();
+    expect(q1.pnl).toBeNull();
+  });
+
+  it("an in-quarter snapshot is used as start with a date note", () => {
+    const rows = buildQuarterRows({
+      transactions: [tx({ event_type: "DEPOSIT", event_date: "2026-06-15", gross_amount: 5000 })],
+      valuations: [{ valuation_date: "2026-08-01", total_value: 5200 }],
+      currentValue: 5300,
+      today: "2026-10-06",
+    });
+    const q3 = rows.find((r) => r.label === "2026-Q3")!;
+    expect(q3.startValue).toBe(5200);
+    expect(q3.startValueNote).toBe("as of 2026-08-01");
+  });
+
+  it("inception row reports lifetime figures and benchmark range", () => {
+    const row = buildInceptionRow({
+      transactions: [tx({ event_type: "DEPOSIT", event_date: "2026-07-01", gross_amount: 15000 })],
+      currentValue: 13239.33,
+      netInvested: 15000,
+      today: "2026-10-06",
+      benchmarkObservations: {
+        SPY: [
+          { observation_date: "2026-06-30", total_return_index: 100 },
+          { observation_date: "2026-10-06", total_return_index: 102 },
+        ],
+      },
+    });
+    expect(row.label).toBe("Since inception");
+    expect(row.isInception).toBe(true);
+    expect(row.startValue).toBe(0);
+    expect(row.externalFlow).toBe(15000);
+    expect(row.pnl).toBeCloseTo(-1760.67);
+    expect(row.returnPct).toBeCloseTo(-11.7378, 3);
+    expect(row.spyReturnPct).toBeCloseTo(2);
   });
 });

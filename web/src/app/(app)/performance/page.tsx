@@ -5,6 +5,7 @@ import {
   totalPnl,
   totalReturnPct,
   buildQuarterRows,
+  buildInceptionRow,
   benchmarkQuarterReturns,
   type PerfTransaction,
   type ValuationSnapshot,
@@ -116,15 +117,18 @@ export default async function PerformancePage() {
   const unrealized = holdingsList.reduce((s, h) => s + (h.unrealized_pl || 0), 0);
   const missingPrices = holdingsList.some((h) => h.market_value === undefined || h.market_value === null);
 
+  const spyObs = (spyResult.data ?? []).map((o) => ({
+    observation_date: String(o.observation_date),
+    total_return_index: o.total_return_index === null ? null : Number(o.total_return_index),
+  }));
+  const qqqObs = (qqqResult.data ?? []).map((o) => ({
+    observation_date: String(o.observation_date),
+    total_return_index: o.total_return_index === null ? null : Number(o.total_return_index),
+  }));
+
   const benchmarkReturns = {
-    SPY: benchmarkQuarterReturns((spyResult.data ?? []).map((o) => ({
-      observation_date: String(o.observation_date),
-      total_return_index: o.total_return_index === null ? null : Number(o.total_return_index),
-    }))),
-    QQQ: benchmarkQuarterReturns((qqqResult.data ?? []).map((o) => ({
-      observation_date: String(o.observation_date),
-      total_return_index: o.total_return_index === null ? null : Number(o.total_return_index),
-    }))),
+    SPY: benchmarkQuarterReturns(spyObs),
+    QQQ: benchmarkQuarterReturns(qqqObs),
   };
 
   const quarterRows = buildQuarterRows({
@@ -134,6 +138,17 @@ export default async function PerformancePage() {
     today,
     benchmarkReturns,
   });
+
+  const inceptionRow = buildInceptionRow({
+    transactions: perfTxs,
+    currentValue,
+    netInvested: invested.value,
+    today,
+    benchmarkObservations: { SPY: spyObs, QQQ: qqqObs },
+  });
+
+  const allRows = [inceptionRow, ...quarterRows];
+  const hasEstimatedValues = allRows.some((r) => r.endValueEstimated);
 
   const pnlClass = pnl >= 0 ? "metric-positive" : "metric-negative";
 
@@ -203,7 +218,7 @@ export default async function PerformancePage() {
         <div className="flex items-center justify-between p-4 pb-3 flex-wrap gap-2">
           <h2 className="text-sm font-semibold text-neutral-300">Quarterly Performance</h2>
           <p className="text-xs text-neutral-500">
-            Start/end values come from valuation snapshots. Benchmarks show N/A until SPY/QQQ data is loaded.
+            Start/end values come from valuation snapshots. SPY/QQQ use dividend-adjusted benchmark closes.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -235,17 +250,24 @@ export default async function PerformancePage() {
               </tr>
             </thead>
             <tbody>
-              {quarterRows.map((row) => {
+              {allRows.map((row) => {
                 const diffSpy = row.returnPct !== null && row.spyReturnPct !== null ? row.returnPct - row.spyReturnPct : null;
                 const diffQqq = row.returnPct !== null && row.qqqReturnPct !== null ? row.returnPct - row.qqqReturnPct : null;
+                const rowKey = row.isInception ? "inception" : row.label;
                 return (
-                  <tr key={row.label} className="table-row">
+                  <tr key={rowKey} className={`table-row ${row.isInception ? "border-b border-white/10" : ""}`}>
                     <td className="table-cell-text td-left font-semibold text-neutral-200">
                       {row.label}
                       {row.isCurrent && <span className="badge badge-blue ml-2">current</span>}
                     </td>
-                    <td className="table-cell td-right">{fmtMoney(row.startValue)}</td>
-                    <td className="table-cell td-right">{fmtMoney(row.endValue)}</td>
+                    <td className="table-cell td-right">
+                      {fmtMoney(row.startValue)}
+                      {row.startValueNote && <span className="block text-[10px] text-neutral-500">{row.startValueNote}</span>}
+                    </td>
+                    <td className="table-cell td-right">
+                      {fmtMoney(row.endValue)}
+                      {row.endValueEstimated && <span title="Latest available valuation used">*</span>}
+                    </td>
                     <td className={`table-cell td-right ${row.externalFlow > 0 ? "metric-positive" : row.externalFlow < 0 ? "metric-negative" : ""}`}>
                       {row.externalFlow === 0 ? "$0.00" : fmtSignedMoney(row.externalFlow)}
                     </td>
@@ -269,12 +291,18 @@ export default async function PerformancePage() {
             </tbody>
           </table>
         </div>
-        {valuations.length === 0 && (
-          <p className="text-xs text-neutral-500 px-4 pb-4">
-            No valuation snapshots recorded yet. Use <strong>Record Valuation Snapshot</strong> above — especially at quarter
-            ends — to populate start/end values and quarterly P&L.
+        <div className="px-4 pb-4 space-y-1">
+          {hasEstimatedValues && (
+            <p className="text-xs text-neutral-500">
+              * No snapshot existed at that quarter end; the latest available valuation is shown instead.
+            </p>
+          )}
+          <p className="text-xs text-neutral-500">
+            {valuations.length === 0
+              ? <>No valuation snapshots recorded yet. Use <strong>Record Valuation Snapshot</strong> above — especially at quarter ends — to make quarterly start/end values exact.</>
+              : <>Quarter boundaries become exact as snapshots accumulate at quarter ends.</>}
           </p>
-        )}
+        </div>
       </div>
     </div>
   );
