@@ -23,6 +23,7 @@ INDUSTRY_CAP = 4
 TARGET_COUNT = 30
 TARGET_WEIGHT = round(100.0 / TARGET_COUNT, 4)
 MAX_STALENESS_DAYS = 90
+MAX_SOURCE_AGE_DAYS_AFTER_ASOF = 21
 
 def find_latest_factor_input(allow_legacy: bool = False):
     """Find the most recent dated factor input file.
@@ -96,6 +97,26 @@ def main(factor_input: str | None = None, allow_legacy: bool = False):
         sys.exit(1)
     print(f"  Source snapshot: {source_snap}")
 
+    # Freshness validation against the REAL source snapshot date (not the relabeled as_of_date).
+    try:
+        source_snapshot_date = date.fromisoformat(str(source_snap)[:10])
+    except ValueError as e:
+        print(f"ERROR: Cannot parse source_snapshot date from '{source_snap}': {e}")
+        sys.exit(1)
+    if source_snapshot_date < as_of_date:
+        print(f"ERROR: STALE SOURCE: source snapshot {source_snap} (data date {source_snapshot_date}) "
+              f"predates as_of_date {as_of_date}. Run a fresh data pull (Stage 0).")
+        sys.exit(1)
+    source_age_days = (source_snapshot_date - as_of_date).days
+    if source_age_days > MAX_SOURCE_AGE_DAYS_AFTER_ASOF:
+        if allow_legacy:
+            print(f"WARNING: Source snapshot is {source_age_days} days after as_of_date (max {MAX_SOURCE_AGE_DAYS_AFTER_ASOF}). Proceeding with --allow-legacy.")
+        else:
+            print(f"ERROR: STALE SOURCE: source snapshot {source_snap} is {source_age_days} days after "
+                  f"as_of_date {as_of_date} (max {MAX_SOURCE_AGE_DAYS_AFTER_ASOF}). Run a fresh data pull (Stage 0).")
+            sys.exit(1)
+    print(f"  Source snapshot date: {source_snapshot_date} ({source_age_days} days after as_of_date)")
+
     # Derive Q_components_ok
     for qf in Q_FACTORS:
         if qf not in df.columns:
@@ -167,7 +188,7 @@ def main(factor_input: str | None = None, allow_legacy: bool = False):
                         int(r.get("Q_components_ok", 4)), f"{TARGET_WEIGHT:.4f}", "False"])
 
     # Manifest
-    snapshot_date = as_of_str[:10]
+    snapshot_date = str(source_snap)[:10]
     source_snapshot = source_snap
     manifest = {
         "model_id": MODEL_ID,
@@ -178,6 +199,8 @@ def main(factor_input: str | None = None, allow_legacy: bool = False):
         "factor_snapshot_date": snapshot_date,
         "factor_snapshot_id": source_snapshot,
         "source_factor_file": str(input_file.name),
+        "source_snapshot_age_days_after_asof": source_age_days,
+        "source_freshness_max_days_after_asof": MAX_SOURCE_AGE_DAYS_AFTER_ASOF,
         "input_row_count": len(df),
         "b2_formula": "mean of M12_1, M6_1, TREND200",
         "quality_formula": f"mean of {', '.join(Q_FACTORS)}",

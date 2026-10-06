@@ -42,7 +42,7 @@ export default function PriceEntryForm() {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={saving} className="btn-ghost text-xs">{saving ? "Saving..." : "Update Price"}</button>
+        <button type="submit" disabled={saving} className="btn btn-secondary text-xs">{saving ? "Saving..." : "Update Price"}</button>
         {msg && <span className={`text-xs ${msg.startsWith("Error") || msg.startsWith("Security") ? "text-red-400" : "text-green-400"}`}>{msg}</span>}
       </div>
     </form>

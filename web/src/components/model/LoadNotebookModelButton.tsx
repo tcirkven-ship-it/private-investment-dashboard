@@ -35,9 +35,9 @@ export default function LoadNotebookModelButton() {
   return (
     <div>
       <label
-        className={`btn-primary text-sm cursor-pointer inline-flex items-center ${loading ? "opacity-50 pointer-events-none" : ""}`}
+        className={`btn btn-primary ${loading ? "opacity-50 pointer-events-none" : ""}`}
       >
-        <Upload className={`w-4 h-4 mr-1.5 ${loading ? "animate-pulse" : ""}`} />
+        <Upload className={`w-4 h-4 ${loading ? "animate-pulse" : ""}`} />
         {loading ? "Loading..." : "Load Notebook-Generated Top 30"}
         <input
           type="file"

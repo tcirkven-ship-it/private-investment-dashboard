@@ -25,7 +25,7 @@ export default async function ModelHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/model" className="btn-ghost p-1"><span className="text-lg">←</span></Link>
+        <Link href="/model" className="btn-icon btn-ghost"><span className="text-lg">←</span></Link>
         <h1 className="text-xl font-semibold">Model History</h1>
       </div>
 

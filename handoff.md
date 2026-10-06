@@ -6,7 +6,19 @@ Recurring-Contribution Fundamental and Price-Based Stock Strategy Research
 
 ## Last updated
 
-2026-06-26 22:15 CEST (Europe/Zagreb)
+2026-10-06 (Europe/Zagreb)
+
+## 2026-10-06 — Quarterly generator freshness guard; Q3 regeneration; cleanup incident
+
+**Generator freshness guard (DEC-064).** The 2026-Q3 export had been built from the stale `2026-07-01T053352Z` snapshot and relabeled `2026-09-30` because Stage 1 `--as-of` rewrote the factor input's date column and Stage 3 compared the relabeled date against itself. Four gates now block this: launcher early check, Stage 1 `validate_freshness`, Stage 2 source-snapshot-date check, and Stage 3 manifest check. The source snapshot must be on/after the requested as_of date and at most 21 days after it. Final manifest and generation log now carry `source_snapshot_id` and `source_snapshot_date`.
+
+**2026-Q3 regenerated (DEC-067).** Fresh pull `2026-10-06T142958Z` (score session 2026-10-05, 2,157 screened, 1,828 enriched, 1,049 eligible) drives export `outputs/quarterly_exports/2026-Q3_asof-2026-09-30_generated-2026-10-06_1724` with validation PASSED. The stale Q3 export is preserved as `outputs/quarterly_exports/INVALID_stale-source_2026-Q3_..._1328`. The app previously loaded the stale Q3 CSV; the corrected CSV must be loaded to become the latest snapshot.
+
+**Scoring-core tolerance (DEC-065).** XXI (Twenty One Capital, recent listing, no annual income/cashflow on Yahoo) fails the pull's default zero-incomplete rule. The quarterly launcher now passes `--resume-retrieval --maximum-scoring-core-incomplete 1` through `daily_screen.py`; the incomplete ticker is recorded in the pull manifest; Stage 2 drops tickers without Q_score. Scanner default remains strict.
+
+**Cleanup incident (DEC-066).** The approved 2026-10-06 disk cleanup deleted retained evidence: `data/raw/yfinance` (frozen walkforward prices `price_walkforward_2026-06-23`), `data/archive/yfinance_phase1b_cas` (Checkpoint 2 CAS), five June snapshots, `outputs/experiment_runs`, and `outputs/storage_cleanup`. The Trash was emptied before recovery. Recovery: git-tracked `outputs/experiment_runs` files (52) and `outputs/storage_cleanup` evidence (10) restored from Git; EXP-0014 `candidate_composites_current.csv` rebuilt from three independent reconciliation artifacts agreeing on 698 tickers and cross-verified exactly against the restored canonical `checkpoint2_full_universe_manifest.json` (`outputs/experiment_runs/EXP-0014/README_RECONSTRUCTION.md`). Unrecoverable: frozen walkforward reproduction evidence (June snapshot universe file + `price_walkforward_2026-06-23` prices), the Checkpoint 2 CAS, and older raw yfinance pulls.
+
+**Test status.** Python suite: 82 tests, 72 pass, 10 error — all ten are `test_price_walkforward` audit reproductions requiring the deleted June snapshot and walkforward price vintage. They cannot pass until a new frozen walkforward vintage is pulled, re-audited, and published. Do not substitute later vintages to force passes. Web app: frozen working baseline (`WORKING_BASELINE.md`).
 
 ## Active checkpoint
 

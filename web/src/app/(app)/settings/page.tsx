@@ -108,7 +108,7 @@ export default function SettingsPage() {
         <button
           onClick={handleDryRun}
           disabled={loading}
-          className="btn-secondary text-sm"
+          className="btn btn-secondary text-sm"
         >
           {loading ? "Checking..." : "Reset App Data"}
         </button>
@@ -129,7 +129,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleReset}
                 disabled={confirmText !== "RESET" || loading}
-                className="btn-primary text-sm bg-red-600 hover:bg-red-500 disabled:opacity-50"
+                className="btn btn-primary text-sm bg-red-600 hover:bg-red-500 disabled:opacity-50"
               >
                 {loading ? "Deleting..." : "Confirm Reset"}
               </button>

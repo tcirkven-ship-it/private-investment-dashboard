@@ -83,6 +83,7 @@ export const getLatestModelSnapshot = cache(async (): Promise<QueryResult<ModelS
         security:security_id(ticker, company_name, sector, industry)
       )
     `)
+    .eq("status", "PUBLISHED")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -142,6 +143,7 @@ export const getModelSnapshotById = cache(async (id: string): Promise<QueryResul
       )
     `)
     .eq("id", id)
+    .eq("status", "PUBLISHED")
     .maybeSingle();
   if (error) return { data: null, error: `Failed to load snapshot: ${error.message}` };
   return { data: data as ModelSnapshot | null, error: null };

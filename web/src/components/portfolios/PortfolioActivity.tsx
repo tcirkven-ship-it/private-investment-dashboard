@@ -14,24 +14,31 @@ export default async function PortfolioActivity({ portfolioId }: { portfolioId: 
   if (!transactions || transactions.length === 0) {
     return (
       <div className="card">
-        <h2 className="text-sm font-semibold mb-3">Recent Activity</h2>
-        <p className="text-sm text-neutral-500">No activity yet.</p>
+        <h2 className="text-sm font-semibold mb-2 text-neutral-300">Recent Activity</h2>
+        <p className="text-sm text-neutral-500">No transactions recorded yet.</p>
       </div>
     );
   }
 
   return (
     <div className="card p-0 overflow-hidden">
-      <h2 className="text-sm font-semibold p-4 pb-2">Recent Activity</h2>
+      <h2 className="text-sm font-semibold text-neutral-300 p-4 pb-0">Recent Activity</h2>
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full min-w-[560px]">
+          <colgroup>
+            <col style={{ width: "18%" }} />
+            <col style={{ width: "12%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "36%" }} />
+            <col style={{ width: "20%" }} />
+          </colgroup>
           <thead>
-            <tr className="border-b border-neutral-800">
-              <th className="table-header">Date</th>
-              <th className="table-header">Type</th>
-              <th className="table-header">Ticker</th>
-              <th className="table-header">Details</th>
-              <th className="table-header">Actions</th>
+            <tr>
+              <th className="table-header td-left">Date</th>
+              <th className="table-header td-center">Type</th>
+              <th className="table-header td-left">Ticker</th>
+              <th className="table-header td-left">Details</th>
+              <th className="table-header td-right">Actions</th>
             </tr>
           </thead>
           <tbody>

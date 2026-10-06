@@ -6,6 +6,7 @@ import HoldingsManager from "@/components/portfolios/HoldingsManager";
 import RefreshPricesButton from "@/components/portfolios/RefreshPricesButton";
 import PortfolioActivity from "@/components/portfolios/PortfolioActivity";
 import DeletePortfolioButton from "@/components/portfolios/DeletePortfolioButton";
+import RenamePortfolioButton from "@/components/portfolios/RenamePortfolioButton";
 
 export default async function PortfoliosPage() {
   const supabase = await createServerSupabase();
@@ -22,8 +23,8 @@ export default async function PortfoliosPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Portfolio</h1>
         <div className="card text-center py-12">
-          <p className="text-neutral-500">No portfolios yet.</p>
-          <Link href="/portfolios/new" className="btn-primary mt-4 inline-flex items-center">
+          <p className="text-neutral-500 mb-4">No portfolios yet.</p>
+          <Link href="/portfolios/new" className="btn btn-primary">
             Create Portfolio
           </Link>
         </div>
@@ -53,8 +54,8 @@ export default async function PortfoliosPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Portfolio{portfolio.name ? `: ${portfolio.name}` : ""}</h1>
-        <div className="card border-red-500/30 bg-red-500/5">
-          <p className="text-sm text-red-400">{holdingsError || "Failed to load holdings"}</p>
+        <div className="alert alert-error">
+          <p>{holdingsError || "Failed to load holdings"}</p>
         </div>
       </div>
     );
@@ -77,19 +78,12 @@ export default async function PortfoliosPage() {
   const unrealizedPct = totalCostBasis > 0 ? (totalUnrealized / totalCostBasis) * 100 : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
+    <div className="space-y-5">
+      <div className="page-header">
+        <h1>
           Portfolio{portfolio.name ? `: ${portfolio.name}` : ""}
+          <RenamePortfolioButton portfolioId={portfolio.id} currentName={portfolio.name || "Portfolio"} />
         </h1>
-        <DeletePortfolioButton portfolioId={portfolio.id} portfolioName={portfolio.name} />
-      </div>
-
-      <div className="flex items-center gap-4">
-        <RefreshPricesButton portfolioId={portfolio.id} />
-        <Link href="/compare" className="btn-ghost text-sm">
-          Compare to Top 30 &rarr;
-        </Link>
       </div>
 
       <HoldingsManager
@@ -101,6 +95,15 @@ export default async function PortfoliosPage() {
         totalUnrealized={totalUnrealized}
         totalRealized={state.total_realized_pl}
         modelTickers={modelTickers}
+        toolbarActions={
+          <>
+            <RefreshPricesButton portfolioId={portfolio.id} />
+            <Link href="/compare" className="btn btn-ghost text-sm">
+              Compare to Top 30 &rarr;
+            </Link>
+            <DeletePortfolioButton portfolioId={portfolio.id} portfolioName={portfolio.name} />
+          </>
+        }
       />
 
       <PortfolioActivity portfolioId={portfolio.id} />

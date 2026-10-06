@@ -31,7 +31,7 @@ export default function DeletePortfolioButton({ portfolioId, portfolioName }: De
 
   return (
     <>
-      <button onClick={() => setShowConfirm(true)} className="btn-ghost text-red-400 hover:text-red-300 p-1" title="Delete portfolio">
+      <button onClick={() => setShowConfirm(true)} className="btn-icon btn-ghost text-red-400 hover:text-red-300" title="Delete portfolio">
         <Trash2 className="w-4 h-4" />
       </button>
 
@@ -44,10 +44,10 @@ export default function DeletePortfolioButton({ portfolioId, portfolioName }: De
             </p>
             {error && <div className="text-sm text-red-400 bg-red-500/10 rounded px-3 py-2">{error}</div>}
             <div className="flex gap-3 justify-end">
-              <button onClick={() => { setShowConfirm(false); setError(""); }} disabled={deleting} className="btn-ghost">
+              <button onClick={() => { setShowConfirm(false); setError(""); }} disabled={deleting} className="btn btn-secondary">
                 Cancel
               </button>
-              <button onClick={handleDelete} disabled={deleting} className="btn-danger">
+              <button onClick={handleDelete} disabled={deleting} className="btn btn-danger">
                 {deleting ? "Deleting..." : "Delete"}
               </button>
             </div>

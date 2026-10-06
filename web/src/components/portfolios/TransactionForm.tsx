@@ -117,7 +117,7 @@ export default function TransactionForm({ portfolioId }: TransactionFormProps) {
           <input type="number" value={commission} onChange={(e) => setCommission(e.target.value)} className="input" step="0.01" min="0" />
         </div>
       </div>
-      <button type="submit" disabled={saving} className="btn-primary">
+      <button type="submit" disabled={saving} className="btn btn-primary">
         {saving ? "Saving..." : success ? "Saved ✓" : "Record Transaction"}
       </button>
     </form>

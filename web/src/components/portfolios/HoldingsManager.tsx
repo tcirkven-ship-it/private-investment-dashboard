@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { insertTransaction } from "@/lib/actions";
 import { Plus, X, Trash2 } from "lucide-react";
@@ -14,9 +14,11 @@ interface Holding {
 
 export default function HoldingsManager({
   portfolioId, holdings, cash, totalMarketValue, totalCostBasis, totalUnrealized, totalRealized, modelTickers,
+  toolbarActions,
 }: {
   portfolioId: string; holdings: Holding[]; cash: number; totalMarketValue: number;
   totalCostBasis: number; totalUnrealized: number; totalRealized: number; modelTickers: Set<string>;
+  toolbarActions?: ReactNode;
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -79,18 +81,19 @@ export default function HoldingsManager({
   const sorted = [...holdings].sort((a, b) => (b.market_value || 0) - (a.market_value || 0));
 
   return (
-    <>
-      {error && <div className="text-sm text-red-400 bg-red-500/10 rounded px-3 py-2">{error}</div>}
+    <div className="space-y-5">
+      {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <button onClick={() => { setShowForm(!showForm); reset(); }} className="btn-primary text-sm"><Plus className="w-3.5 h-3.5 mr-1" />New Transaction</button>
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+        <button onClick={() => { setShowForm(!showForm); reset(); }} className="btn btn-primary"><Plus className="w-3.5 h-3.5" />New Transaction</button>
+        {toolbarActions && <div className="flex items-center gap-2">{toolbarActions}</div>}
       </div>
 
       {showForm && (
         <form onSubmit={handleSubmit} className="card space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">New Transaction</h3>
-            <button type="button" onClick={() => setShowForm(false)} className="btn-ghost p-1"><X className="w-4 h-4" /></button>
+            <button type="button" onClick={() => setShowForm(false)} className="btn-icon btn-ghost"><X className="w-4 h-4" /></button>
           </div>
           <div className="flex items-center gap-3">
             <div><label className="text-xs text-neutral-500 block mb-1">Type</label>
@@ -103,7 +106,7 @@ export default function HoldingsManager({
             </div>
           </div>
           {needsTicker ? (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div><label className="text-xs text-neutral-500 block mb-1">Ticker</label><input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())} className="input text-sm" placeholder="MU" /></div>
               <div><label className="text-xs text-neutral-500 block mb-1">Shares</label><input type="number" value={shares} onChange={e => setShares(e.target.value)} className="input text-sm" step="any" min="0" /></div>
               <div><label className="text-xs text-neutral-500 block mb-1">Price ($)</label><input type="number" value={price} onChange={e => setPrice(e.target.value)} className="input text-sm" step="0.01" min="0" /></div>
@@ -111,40 +114,50 @@ export default function HoldingsManager({
           ) : (
             <div><label className="text-xs text-neutral-500 block mb-1">Amount ($)</label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input text-sm w-48" step="0.01" min="0" /></div>
           )}
-          <button type="submit" disabled={saving} className="btn-primary text-sm">{saving ? "Saving..." : "Save Transaction"}</button>
+          <button type="submit" disabled={saving} className="btn btn-primary">{saving ? "Saving..." : "Save Transaction"}</button>
         </form>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="card"><p className="metric-label">Total Value</p><p className="metric-value mt-1">${nav.toLocaleString()}</p><p className="text-xs text-neutral-500 mt-0.5">Cash + Holdings</p></div>
-        <div className="card"><p className="metric-label">Cash</p><p className="metric-value mt-1">${cash.toLocaleString()}</p></div>
-        <div className="card"><p className="metric-label">Holdings</p><p className="metric-value mt-1">${totalMarketValue.toLocaleString()}</p></div>
-        <div className="card"><p className="metric-label">Unrealized P/L</p><p className={`metric-value mt-1 ${totalUnrealized >= 0 ? "text-green-400" : "text-red-400"}`}>${totalUnrealized.toFixed(2)}</p></div>
-        <div className="card"><p className="metric-label">Realized P/L</p><p className={`metric-value mt-1 ${totalRealized >= 0 ? "text-green-400" : "text-red-400"}`}>${totalRealized.toFixed(2)}</p></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="metric-card metric-primary"><p className="metric-label">Total Value</p><p className="metric-value">${nav.toLocaleString()}</p><p className="metric-sub">Cash + Holdings</p></div>
+        <div className="metric-card"><p className="metric-label">Cash</p><p className="metric-value">${cash.toLocaleString()}</p></div>
+        <div className="metric-card"><p className="metric-label">Holdings</p><p className="metric-value">${totalMarketValue.toLocaleString()}</p></div>
+        <div className="metric-card"><p className="metric-label">Unrealized P/L</p><p className={`metric-value ${totalUnrealized >= 0 ? "metric-positive" : "metric-negative"}`}>{totalUnrealized >= 0 ? "+" : "−"}${Math.abs(totalUnrealized).toFixed(2)}</p></div>
+        <div className="metric-card"><p className="metric-label">Realized P/L</p><p className={`metric-value ${totalRealized >= 0 ? "metric-positive" : "metric-negative"}`}>{totalRealized >= 0 ? "+" : "−"}${Math.abs(totalRealized).toFixed(2)}</p></div>
       </div>
 
       {sorted.length === 0 ? (
-        <div className="card text-center py-12"><p className="text-neutral-500">No holdings yet.</p></div>
+        <div className="card empty-state">No holdings yet. Add a Buy transaction to get started.</div>
       ) : (
         <div className="card p-0 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead><tr className="border-b border-neutral-800"><th className="table-header">Ticker</th><th className="table-header text-right">Shares</th><th className="table-header text-right">Avg Cost</th><th className="table-header text-right">Price</th><th className="table-header text-right">Mkt Value</th><th className="table-header text-right">P/L</th><th className="table-header text-right">In Top 30?</th><th className="table-header text-right"></th></tr></thead>
+            <table className="w-full min-w-[640px]">
+              <colgroup>
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "8%" }} />
+              </colgroup>
+              <thead><tr><th className="table-header td-left">Ticker</th><th className="table-header td-right">Shares</th><th className="table-header td-right">Avg Cost</th><th className="table-header td-right">Price</th><th className="table-header td-right">Mkt Value</th><th className="table-header td-right">P/L</th><th className="table-header td-center">Top 30</th><th className="table-header td-right">Actions</th></tr></thead>
               <tbody>
                 {sorted.map(h => (
-                  <tr key={h.ticker} className="border-b border-neutral-800/50">
-                    <td className="table-cell-text font-semibold">{h.ticker}</td>
-                    <td className="table-cell text-right">{h.quantity.toFixed(3)}</td>
-                    <td className="table-cell text-right">${h.average_cost.toFixed(2)}</td>
-                    <td className="table-cell text-right">{h.current_price ? `$${h.current_price.toFixed(2)}` : "—"}</td>
-                    <td className="table-cell text-right">{h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}</td>
-                    <td className={`table-cell text-right ${(h.unrealized_pl||0) >= 0 ? "text-green-400" : "text-red-400"}`}>{h.unrealized_pl !== undefined ? `$${h.unrealized_pl.toFixed(2)}` : "—"}</td>
-                    <td className="table-cell text-right">{modelTickers.size > 0 ? (modelTickers.has(h.ticker) ? "Yes" : "No") : "—"}</td>
-                    <td className="table-cell text-right">
+                  <tr key={h.ticker} className="table-row">
+                    <td className="table-cell-text td-left font-semibold text-neutral-200">{h.ticker}</td>
+                    <td className="table-cell td-right">{h.quantity.toFixed(3)}</td>
+                    <td className="table-cell td-right">${h.average_cost.toFixed(2)}</td>
+                    <td className="table-cell td-right">{h.current_price ? `$${h.current_price.toFixed(2)}` : "—"}</td>
+                    <td className="table-cell td-right">{h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}</td>
+                    <td className={`table-cell td-right ${(h.unrealized_pl||0) >= 0 ? "metric-positive" : "metric-negative"}`}>{h.unrealized_pl !== undefined ? `${h.unrealized_pl >= 0 ? "+" : "−"}$${Math.abs(h.unrealized_pl).toFixed(2)}` : "—"}</td>
+                    <td className="table-cell td-center">{modelTickers.size > 0 ? <span className={modelTickers.has(h.ticker) ? "badge badge-green" : "badge badge-red"}>{modelTickers.has(h.ticker) ? "Yes" : "No"}</span> : "—"}</td>
+                    <td className="table-cell td-right">
                       {deletingTicker === h.ticker ? (
-                        <span className="flex items-center gap-1"><button onClick={() => handleDelete(h)} disabled={saving} className="text-red-400 text-xs">Confirm</button><button onClick={() => setDeletingTicker(null)} className="text-neutral-400 text-xs">Cancel</button></span>
+                        <span className="flex items-center gap-1 justify-end"><button onClick={() => handleDelete(h)} disabled={saving} className="text-red-400 text-xs">Confirm</button><button onClick={() => setDeletingTicker(null)} className="text-neutral-400 text-xs">Cancel</button></span>
                       ) : (
-                        <button onClick={() => setDeletingTicker(h.ticker)} className="btn-ghost p-1 text-neutral-400 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                        <button onClick={() => setDeletingTicker(h.ticker)} className="btn-icon btn-ghost text-neutral-400 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
                       )}
                     </td>
                   </tr>
@@ -154,6 +167,6 @@ export default function HoldingsManager({
           </div>
         </div>
       )}
-    </>
+      </div>
   );
 }

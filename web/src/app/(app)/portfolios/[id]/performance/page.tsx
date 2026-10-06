@@ -113,7 +113,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Performance</h1>
         </div>
         <div className="card border-red-500/30 bg-red-500/5"><p className="text-sm text-red-400">{error}</p></div>
@@ -125,7 +125,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Performance</h1>
         </div>
         <div className="card text-center py-12">
@@ -139,7 +139,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Performance</h1>
         </div>
         <div className="card text-center py-12">
@@ -165,7 +165,7 @@ export default async function PerformancePage({ params }: { params: Promise<{ id
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Performance</h1>
         </div>
         <RecordSnapshotButton portfolioId={id as string} />

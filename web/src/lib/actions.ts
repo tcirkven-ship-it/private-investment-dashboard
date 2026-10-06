@@ -323,6 +323,23 @@ export async function deletePortfolio(id: string): Promise<ActionResult> {
   return { error: null };
 }
 
+export async function renamePortfolio(id: string, name: string): Promise<ActionResult> {
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Portfolio name cannot be empty." };
+  if (trimmed.length > 80) return { error: "Portfolio name cannot exceed 80 characters." };
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { error: "Not authenticated" };
+
+  const { error } = await supabase.from("portfolios").update({ name: trimmed }).eq("id", id).eq("owner_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/portfolios");
+  revalidatePath(`/portfolios/${id}`);
+  return { error: null };
+}
+
 export async function recordValuationSnapshot(portfolioId: string): Promise<ActionResult & { nav?: number; date?: string }> {
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();

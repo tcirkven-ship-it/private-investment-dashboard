@@ -96,6 +96,97 @@ export default function InstructionsPage() {
       </section>
 
       <section>
+        <h2 className="text-lg font-semibold mb-4">Investment Strategy</h2>
+
+        <div className="space-y-4 text-sm text-neutral-300">
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Model</p>
+            <p className="text-neutral-400">
+              The model used is <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded">M1_B2_QUALITY_VETO_N30</code>.
+              It selects 30 stocks, targeting equal weight across the selected names.
+              The app does not execute trades or force position sizes.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Rebalance schedule</p>
+            <p className="text-neutral-400">
+              The official review is quarterly, using the final market session of March, June, September, and December.
+              The model should use quarter-end closing data. Mid-quarter snapshots can be loaded for research or comparison,
+              but the official workflow is quarterly.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Ranking — B2 price score</p>
+            <p className="text-neutral-400">
+              Stocks are ranked by the B2 price-strength/trend score, based on
+              <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded mx-1">M12_1</code>
+              <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded mx-1">M6_1</code>
+              <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded mx-1">TREND200</code>.
+              Higher B2 score is better.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Quality veto</p>
+            <p className="text-neutral-400">
+              Before final selection, the bottom 10% of stocks by quality are excluded.
+              Quality is based on
+              <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded mx-1">ROA</code>
+              <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded mx-1">GPA</code>
+              <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded mx-1">FCF_MARGIN</code>
+              <code className="text-xs bg-neutral-800 px-1.5 py-0.5 rounded mx-1">DEBT_ASSETS</code>.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Concentration caps</p>
+            <p className="text-neutral-400">
+              The final 30-stock list applies concentration controls: sector cap at 25%, industry cap at 15%.
+              For 30 names this means approximately max 7 names per sector and max 4 names per industry.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Selection criteria</p>
+            <p className="text-neutral-400">
+              A stock can enter the Top 30 if: it is in the eligible scored universe; required B2 and quality
+              factors are present; it passes the bottom 10% quality veto; it ranks high enough by B2 score;
+              and sector/industry caps allow it.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Buy / Hold / Sell interpretation</p>
+            <div className="space-y-1.5 text-neutral-400 mt-1">
+              <div><span className="font-medium text-green-400">Already Own / In Top 30</span> — stocks you hold that are in the current Top 30 snapshot.</div>
+              <div><span className="font-medium text-blue-400">New in Top 30 / Consider Buying</span> — Top 30 stocks you do not currently own.</div>
+              <div><span className="font-medium text-red-400">Owned but Not in Top 30 / Consider Selling</span> — stocks you own that are not in the current snapshot. This is not an automatic sell order; all decisions are manual.</div>
+            </div>
+          </div>
+
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Snapshots</p>
+            <p className="text-neutral-400">
+              Each loaded CSV creates a separate model snapshot. The latest snapshot is used by default.
+              Historical snapshots can be selected on Top 30 and Compare via the dropdown selector.
+              Loading a new snapshot does not delete old snapshots or change portfolio holdings.
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-neutral-200 mb-1">Important</p>
+            <p className="text-neutral-400">
+              This app is a decision-support tool. It does not place trades, connect to a broker,
+              provide financial advice, guarantee performance, or automatically rebalance.
+              All trades are manual. Historical performance does not guarantee future results.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
         <h2 className="text-lg font-semibold mb-4">Troubleshooting</h2>
         <div className="space-y-3 text-sm">
           <div><p className="font-medium text-amber-400">Scores missing in Top 30</p><p className="text-neutral-400">Re-upload the CSV with B2_score and Q_percentile columns.</p></div>

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0a0a0a",
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="google" content="notranslate" />
       </head>
-      <body className={`${inter.variable} ${mono.variable} font-sans antialiased bg-neutral-950 text-neutral-100`}>
+      <body className={`${inter.variable} ${mono.variable} font-sans antialiased bg-[#09090b] text-neutral-300`}>
         {children}
       </body>
     </html>

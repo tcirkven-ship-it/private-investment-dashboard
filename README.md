@@ -21,14 +21,7 @@ Historical outperformance, if later observed, will not guarantee future results.
 
 ## App URL
 
-Use the latest verified Vercel Preview URL while the app is still being repaired and tested.
+Official app URL:
+https://private-investment-dashboard-tcirkven-projects.vercel.app/
 
-Current verified preview:
-https://private-investment-dashboard-6mqbgabxb-tcirkven-projects.vercel.app/
-
-Do not use the production URL yet:
-https://private-investment-dashboard.vercel.app
-
-That production URL is not currently verified and may point to an older deployment.
-
-Before using production, verify the Vercel production deployment commit or explicitly promote the tested preview deployment to production.
+Do not use `https://private-investment-dashboard.vercel.app` — it belongs to another Vercel team and points to an old/wrong deployment.

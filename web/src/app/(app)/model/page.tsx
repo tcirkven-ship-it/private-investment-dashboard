@@ -172,16 +172,25 @@ export default async function ModelPage({
 
           <div className="card p-0 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
+                <colgroup>
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "28%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "12%" }} />
+                </colgroup>
                 <thead>
-                  <tr className="border-b border-neutral-800">
-                    <th className="table-header">Rank</th>
-                    <th className="table-header">Ticker</th>
-                    <th className="table-header">Company</th>
-                    <th className="table-header text-right">B2 Score</th>
-                    <th className="table-header text-right">Q Percentile</th>
-                    <th className="table-header">Sector</th>
-                    <th className="table-header">Industry</th>
+                  <tr>
+                    <th className="table-header td-right">Rank</th>
+                    <th className="table-header td-left">Ticker</th>
+                    <th className="table-header td-left">Company</th>
+                    <th className="table-header td-right">B2 Score</th>
+                    <th className="table-header td-right">Q Percentile</th>
+                    <th className="table-header td-left">Sector</th>
+                    <th className="table-header td-left">Industry</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,14 +201,14 @@ export default async function ModelPage({
                       return 0;
                     })
                     .map((h) => (
-                      <tr key={h.rank || h.security?.ticker} className="border-b border-neutral-800/50">
-                        <td className="table-cell text-neutral-500">{h.rank || "—"}</td>
-                        <td className="table-cell-text font-semibold">{h.security?.ticker ?? "—"}</td>
-                        <td className="table-cell-text text-sm text-neutral-400">{h.security?.company_name ?? "—"}</td>
-                        <td className="table-cell text-right">{h.b2_score != null && h.b2_score !== 0 ? h.b2_score.toFixed(3) : "—"}</td>
-                        <td className="table-cell text-right">{h.quality_percentile != null && h.quality_percentile !== 0 ? h.quality_percentile.toFixed(3) : "—"}</td>
-                        <td className="table-cell-text text-sm">{h.security?.sector ?? "—"}</td>
-                        <td className="table-cell-text text-sm text-neutral-400">{h.security?.industry ?? "—"}</td>
+                      <tr key={h.rank || h.security?.ticker} className="table-row">
+                        <td className="table-cell td-right text-neutral-500">{h.rank || "—"}</td>
+                        <td className="table-cell-text td-left font-semibold">{h.security?.ticker ?? "—"}</td>
+                        <td className="table-cell-text td-left text-sm text-neutral-400">{h.security?.company_name ?? "—"}</td>
+                        <td className="table-cell td-right">{h.b2_score != null && h.b2_score !== 0 ? h.b2_score.toFixed(3) : "—"}</td>
+                        <td className="table-cell td-right">{h.quality_percentile != null && h.quality_percentile !== 0 ? h.quality_percentile.toFixed(3) : "—"}</td>
+                        <td className="table-cell-text td-left text-sm">{h.security?.sector ?? "—"}</td>
+                        <td className="table-cell-text td-left text-sm text-neutral-400">{h.security?.industry ?? "—"}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -210,7 +219,7 @@ export default async function ModelPage({
       )}
 
       <div className="flex gap-4 mt-4">
-        <Link href="/compare" className="btn-ghost text-sm">Compare to Portfolio →</Link>
+        <Link href="/compare" className="btn btn-ghost text-sm">Compare to Portfolio →</Link>
       </div>
     </div>
   );

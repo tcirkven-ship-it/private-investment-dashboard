@@ -1,86 +1,111 @@
 @import "tailwindcss";
 
+/* ===================================================
+   Design system — Precision Dense Dark
+   Private investment tracker
+   =================================================== */
+
+/* ---- Base ---- */
 * { box-sizing: border-box; }
 
 body {
-  background: #0a0a0a;
+  background: #09090b;
   color: #d4d4d4;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* ---- Surfaces ---- */
 .card {
-  background: #141414;
-  border: 1px solid #1f1f1f;
-  border-radius: 8px;
+  background: #131315;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
   padding: 1.25rem;
 }
 
 .card-elevated {
-  background: #181818;
-  border: 1px solid #252525;
-  border-radius: 8px;
+  background: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   padding: 1.25rem;
 }
 
-.metric-label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #a3a3a3;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+/* ---- Page header ---- */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 1.5rem;
 }
 
-.metric-value {
+.page-header h1 {
   font-size: 1.5rem;
   font-weight: 600;
-  font-family: "JetBrains Mono", monospace;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: #fafafa;
 }
 
-.metric-change-positive {
-  font-size: 0.875rem;
-  font-family: "JetBrains Mono", monospace;
-  color: #4ade80;
+/* ---- Toolbar ---- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.metric-change-negative {
-  font-size: 0.875rem;
-  font-family: "JetBrains Mono", monospace;
-  color: #f87171;
-}
-
+/* ---- Buttons ---- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  padding: 0 1.125rem;
+  height: 2.25rem;
   font-size: 0.8125rem;
-  font-weight: 550;
-  line-height: 1.25;
+  font-weight: 500;
+  line-height: 1;
   transition: all 0.15s ease;
   cursor: pointer;
   outline: none;
   gap: 0.375rem;
+  text-decoration: none;
+  white-space: nowrap;
 }
 .btn:focus-visible {
-  box-shadow: 0 0 0 2px #0a0a0a, 0 0 0 4px #60a5fa;
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
 }
 
 .btn-primary {
-  background: #2563eb;
+  background: #1e40af;
   color: #fff;
   border: none;
 }
-.btn-primary:hover { background: #3b82f6; }
-.btn-primary:active { background: #1d4ed8; }
+.btn-primary:hover { background: #2563eb; }
+.btn-primary:active { background: #1e3a8a; }
 
 .btn-secondary {
   background: transparent;
-  color: #c0c0c0;
-  border: 1px solid #404040;
+  color: #a3a3a3;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
-.btn-secondary:hover { background: rgba(255, 255, 255, 0.05); border-color: #525252; color: #d4d4d4; }
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.05); color: #d4d4d4; border-color: rgba(255, 255, 255, 0.2); }
 .btn-secondary:active { background: rgba(255, 255, 255, 0.08); }
 
 .btn-ghost {
@@ -88,72 +113,217 @@ body {
   background: transparent;
   border: none;
 }
-.btn-ghost:hover { color: #c0c0c0; background: rgba(255, 255, 255, 0.04); }
-.btn-ghost:active { color: #d4d4d4; background: rgba(255, 255, 255, 0.08); }
+.btn-ghost:hover { color: #d4d4d4; background: rgba(255, 255, 255, 0.05); }
+.btn-ghost:active { color: #e5e5e5; background: rgba(255, 255, 255, 0.08); }
 
+.btn-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
+.btn-danger:active { background: rgba(239, 68, 68, 0.3); }
+
+/* ---- Inputs ---- */
 .input {
   width: 100%;
-  border-radius: 6px;
-  border: 1px solid #404040;
-  background: #171717;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #18181b;
+  padding: 0 0.75rem;
+  height: 2.25rem;
+  font-size: 0.8125rem;
   color: #d4d4d4;
 }
-.input::placeholder { color: #666666; }
+.input::placeholder { color: #52525b; }
+.input:focus {
+  outline: none;
+  border-color: rgba(96, 165, 250, 0.4);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.15);
+}
 
-.table-header {
-  font-size: 0.75rem;
+select.input {
+  padding-right: 2rem;
+}
+
+/* ---- Metric cards ---- */
+.metric-card {
+  background: #131315;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+}
+.metric-card.metric-primary {
+  background: #18181b;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.metric-label {
+  font-size: 0.6875rem;
   font-weight: 500;
-  color: #a3a3a3;
+  color: #737373;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0.75rem 1rem;
-  text-align: left;
+  margin-bottom: 0.25rem;
+}
+
+.metric-value {
+  font-size: 1.375rem;
+  font-weight: 600;
+  font-family: "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  color: #fafafa;
+  line-height: 1.2;
+}
+
+.metric-sub {
+  font-size: 0.75rem;
+  color: #737373;
+  margin-top: 0.125rem;
+}
+
+.metric-positive { color: #4ade80; }
+.metric-negative { color: #f87171; }
+
+/* ---- Tables ---- */
+.td-left { text-align: left; }
+.td-right { text-align: right; }
+.td-center { text-align: center; }
+
+.table-header {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.625rem 0.75rem;
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #141414;
-}
-
-.table-header::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: #262626;
+  background: #131315;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .table-cell {
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
   color: #d4d4d4;
   font-family: "JetBrains Mono", monospace;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .table-cell-text {
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
   color: #d4d4d4;
 }
 
+.table-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.1s ease;
+}
+.table-row:hover { background: rgba(255, 255, 255, 0.02); }
+
+/* ---- Navigation ---- */
 .nav-link {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  border-radius: 10px;
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: #a3a3a3;
-  transition: all 0.15s ease;
+  color: #737373;
+  transition: all 0.12s ease;
 }
-.nav-link:hover { color: #d4d4d4; background: #1f1f1f; }
+.nav-link:hover { color: #d4d4d4; background: rgba(255, 255, 255, 0.04); }
 
 .nav-link-active {
-  color: #60a5fa;
-  background: color-mix(in srgb, #2563eb 10%, transparent);
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* ---- Alerts ---- */
+.alert {
+  border-radius: 10px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.alert-warning {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.15);
+  color: #fde68a;
+}
+.alert-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+.alert-success {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  color: #86efac;
+}
+.alert-info {
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.15);
+  color: #93c5fd;
+}
+
+/* ---- Empty state ---- */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: #52525b;
+  font-size: 0.8125rem;
+}
+
+/* ---- Badge ---- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+.badge-green { background: rgba(34, 197, 94, 0.1); color: #86efac; }
+.badge-red { background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
+.badge-amber { background: rgba(251, 191, 36, 0.1); color: #fde68a; }
+.badge-blue { background: rgba(96, 165, 250, 0.1); color: #93c5fd; }
+
+/* ---- Divider ---- */
+.section-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 1.5rem 0;
+}
+
+/* ---- Scrollbar (dark) ---- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* ---- Responsive ---- */
+@media (max-width: 767px) {
+  .page-header {
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .page-header h1 {
+    font-size: 1.25rem;
+  }
+  .card {
+    padding: 1rem;
+  }
+  .card-elevated {
+    padding: 1rem;
+  }
+  .page-content {
+    padding: 1rem;
+  }
 }

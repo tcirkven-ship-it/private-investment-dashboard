@@ -37,7 +37,7 @@ export default function RefreshPricesButton({ portfolioId }: { portfolioId: stri
       <button
         onClick={handleClick}
         disabled={loading}
-        className="btn-primary text-sm"
+        className="btn btn-secondary"
       >
         <RefreshCw className={`w-4 h-4 mr-1.5 inline ${loading ? "animate-spin" : ""}`} />
         Refresh Current Prices

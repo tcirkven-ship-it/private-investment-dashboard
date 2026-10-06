@@ -18,7 +18,7 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <h1 className="text-xl font-semibold">Holdings</h1>
         </div>
         <div className="card border-red-500/30 bg-red-500/5">
@@ -39,7 +39,7 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href={`/portfolios/${id}`} className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+          <Link href={`/portfolios/${id}`} className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
           <div>
             <h1 className="text-xl font-semibold">Holdings</h1>
             <p className="text-sm text-neutral-500">
@@ -64,7 +64,7 @@ export default async function HoldingsPage({ params }: { params: Promise<{ id: s
       ) : (
         <div className="card p-0 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-neutral-800">
                   <th className="table-header">Ticker</th>

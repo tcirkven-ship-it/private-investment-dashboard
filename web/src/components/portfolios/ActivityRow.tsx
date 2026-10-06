@@ -50,15 +50,15 @@ export default function ActivityRow({ tx, portfolioId }: { tx: Record<string, un
   }
 
   return (
-    <tr className="border-b border-neutral-800/50">
-      <td className="table-cell text-sm">{dateStr}</td>
-      <td className="table-cell text-sm">
-        <span className={type === "BUY" || type === "OPENING_POSITION" ? "text-green-400" : type === "SELL" ? "text-red-400" : "text-neutral-200"}>
+    <tr className="table-row">
+      <td className="table-cell td-left text-sm">{dateStr}</td>
+      <td className="table-cell td-center text-sm">
+        <span className={type === "BUY" || type === "OPENING_POSITION" ? "badge badge-green" : type === "SELL" ? "badge badge-red" : ""}>
           {type}
         </span>
       </td>
-      <td className="table-cell-text font-semibold text-sm">{ticker || "—"}</td>
-      <td className="table-cell-text text-sm text-neutral-400">
+      <td className="table-cell-text td-left font-semibold text-neutral-200">{ticker || "—"}</td>
+      <td className="table-cell-text td-left text-sm text-neutral-400">
         {editing ? (
           <span className="flex items-center gap-2">
             <input type="number" value={editQty} onChange={e => setEditQty(e.target.value)} className="input text-xs w-16" step="any" />
@@ -67,22 +67,22 @@ export default function ActivityRow({ tx, portfolioId }: { tx: Record<string, un
           </span>
         ) : details}
       </td>
-      <td className="table-cell text-sm">
+      <td className="table-cell td-right text-sm">
         {editing ? (
-          <span className="flex items-center gap-1">
-            <button onClick={handleSave} disabled={saving} className="btn-ghost p-1 text-green-400"><Check className="w-3.5 h-3.5" /></button>
-            <button onClick={() => setEditing(false)} className="btn-ghost p-1 text-red-400"><X className="w-3.5 h-3.5" /></button>
+          <span className="flex items-center gap-1 justify-end">
+            <button onClick={handleSave} disabled={saving} className="btn-icon btn-ghost text-green-400"><Check className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setEditing(false)} className="btn-icon btn-ghost text-red-400"><X className="w-3.5 h-3.5" /></button>
           </span>
         ) : deleting ? (
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 justify-end">
             <span className="text-xs text-red-400">Delete?</span>
             <button onClick={handleDelete} className="text-red-400 text-xs">Yes</button>
             <button onClick={() => setDeleting(false)} className="text-neutral-400 text-xs">No</button>
           </span>
         ) : (
-          <span className="flex items-center gap-1">
-            <button onClick={() => setEditing(true)} className="btn-ghost p-1 text-neutral-400 hover:text-blue-400"><Pencil className="w-3.5 h-3.5" /></button>
-            <button onClick={() => setDeleting(true)} className="btn-ghost p-1 text-neutral-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+          <span className="flex items-center gap-1 justify-end">
+            <button onClick={() => setEditing(true)} className="btn-icon btn-ghost text-neutral-400 hover:text-blue-400"><Pencil className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setDeleting(true)} className="btn-icon btn-ghost text-neutral-400 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
           </span>
         )}
       </td>

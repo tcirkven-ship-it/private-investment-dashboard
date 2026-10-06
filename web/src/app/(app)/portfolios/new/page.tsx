@@ -36,7 +36,7 @@ export default function NewPortfolioPage() {
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/portfolios" className="btn-ghost p-1">
+        <Link href="/portfolios" className="btn-icon btn-ghost">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <h1 className="text-xl font-semibold">New Portfolio</h1>
@@ -55,7 +55,7 @@ export default function NewPortfolioPage() {
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <button type="submit" disabled={saving} className="btn-primary w-full">{saving ? "Creating..." : "Create Portfolio"}</button>
+        <button type="submit" disabled={saving} className="btn btn-primary w-full">{saving ? "Creating..." : "Create Portfolio"}</button>
       </form>
     </div>
   );

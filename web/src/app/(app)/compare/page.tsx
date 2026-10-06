@@ -146,14 +146,21 @@ export default async function ComparePage({
           <p className="p-4 text-sm text-neutral-500">No portfolio holdings match the latest Top 30.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[640px]">
+              <colgroup>
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "26%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "20%" }} />
+              </colgroup>
               <thead>
-                <tr className="border-b border-neutral-800">
-                  <th className="table-header">Ticker</th>
-                  <th className="table-header text-right">Shares</th>
-                  <th className="table-header text-right">Current Value</th>
-                  <th className="table-header text-right">Rank</th>
-                  <th className="table-header text-right">B2 Score</th>
+                <tr>
+                  <th className="table-header td-left">Ticker</th>
+                  <th className="table-header td-right">Shares</th>
+                  <th className="table-header td-right">Current Value</th>
+                  <th className="table-header td-right">Rank</th>
+                  <th className="table-header td-right">B2 Score</th>
                 </tr>
               </thead>
               <tbody>
@@ -163,14 +170,14 @@ export default async function ComparePage({
                     const h = state.holdings.get(ticker)!;
                     const m = modelMap.get(ticker);
                     return (
-                      <tr key={ticker} className="border-b border-neutral-800/50">
-                        <td className="table-cell-text font-semibold">{ticker}</td>
-                        <td className="table-cell text-right">{h.quantity.toFixed(3)}</td>
-                        <td className="table-cell text-right">
+                      <tr key={ticker} className="table-row">
+                        <td className="table-cell-text td-left font-semibold">{ticker}</td>
+                        <td className="table-cell td-right">{h.quantity.toFixed(3)}</td>
+                        <td className="table-cell td-right">
                           {h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}
                         </td>
-                        <td className="table-cell text-right">{m?.rank ?? "—"}</td>
-                        <td className="table-cell text-right">{m?.b2_score?.toFixed(3) ?? "—"}</td>
+                        <td className="table-cell td-right">{m?.rank ?? "—"}</td>
+                        <td className="table-cell td-right">{m?.b2_score?.toFixed(3) ?? "—"}</td>
                       </tr>
                     );
                   })}
@@ -189,15 +196,23 @@ export default async function ComparePage({
           <p className="p-4 text-sm text-neutral-500">Your portfolio covers all Top 30 stocks.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[640px]">
+              <colgroup>
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "28%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "20%" }} />
+              </colgroup>
               <thead>
-                <tr className="border-b border-neutral-800">
-                  <th className="table-header">Rank</th>
-                  <th className="table-header">Ticker</th>
-                  <th className="table-header">Company</th>
-                  <th className="table-header text-right">B2 Score</th>
-                  <th className="table-header">Sector</th>
-                  <th className="table-header">Industry</th>
+                <tr>
+                  <th className="table-header td-right">Rank</th>
+                  <th className="table-header td-left">Ticker</th>
+                  <th className="table-header td-left">Company</th>
+                  <th className="table-header td-right">B2 Score</th>
+                  <th className="table-header td-left">Sector</th>
+                  <th className="table-header td-left">Industry</th>
                 </tr>
               </thead>
               <tbody>
@@ -206,13 +221,13 @@ export default async function ComparePage({
                   .map((ticker) => {
                     const m = modelMap.get(ticker)!;
                     return (
-                      <tr key={ticker} className="border-b border-neutral-800/50">
-                        <td className="table-cell-text text-neutral-500">{m.rank}</td>
-                        <td className="table-cell-text font-semibold">{ticker}</td>
-                        <td className="table-cell-text text-sm text-neutral-400">{m.company ?? "—"}</td>
-                        <td className="table-cell text-right">{m.b2_score?.toFixed(3) ?? "—"}</td>
-                        <td className="table-cell-text text-sm">{m.sector ?? "—"}</td>
-                        <td className="table-cell-text text-sm text-neutral-400">{m.industry ?? "—"}</td>
+                      <tr key={ticker} className="table-row">
+                        <td className="table-cell td-right text-neutral-500">{m.rank}</td>
+                        <td className="table-cell-text td-left font-semibold">{ticker}</td>
+                        <td className="table-cell-text td-left text-sm text-neutral-400">{m.company ?? "—"}</td>
+                        <td className="table-cell td-right">{m.b2_score?.toFixed(3) ?? "—"}</td>
+                        <td className="table-cell-text td-left text-sm">{m.sector ?? "—"}</td>
+                        <td className="table-cell-text td-left text-sm text-neutral-400">{m.industry ?? "—"}</td>
                       </tr>
                     );
                   })}
@@ -231,14 +246,21 @@ export default async function ComparePage({
           <p className="p-4 text-sm text-neutral-500">All holdings are in the Top 30.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[640px]">
+              <colgroup>
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "26%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "18%" }} />
+              </colgroup>
               <thead>
-                <tr className="border-b border-neutral-800">
-                  <th className="table-header">Ticker</th>
-                  <th className="table-header text-right">Shares</th>
-                  <th className="table-header text-right">Current Value</th>
-                  <th className="table-header text-right">Unrealized P/L</th>
-                  <th className="table-header">Reason</th>
+                <tr>
+                  <th className="table-header td-left">Ticker</th>
+                  <th className="table-header td-right">Shares</th>
+                  <th className="table-header td-right">Current Value</th>
+                  <th className="table-header td-right">Unrealized P/L</th>
+                  <th className="table-header td-left">Reason</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,16 +269,16 @@ export default async function ComparePage({
                   .map((ticker) => {
                     const h = state.holdings.get(ticker)!;
                     return (
-                      <tr key={ticker} className="border-b border-neutral-800/50">
-                        <td className="table-cell-text font-semibold">{ticker}</td>
-                        <td className="table-cell text-right">{h.quantity.toFixed(3)}</td>
-                        <td className="table-cell text-right">
+                      <tr key={ticker} className="table-row">
+                        <td className="table-cell-text td-left font-semibold">{ticker}</td>
+                        <td className="table-cell td-right">{h.quantity.toFixed(3)}</td>
+                        <td className="table-cell td-right">
                           {h.market_value ? `$${h.market_value.toLocaleString()}` : "—"}
                         </td>
-                        <td className={`table-cell text-right ${(h.unrealized_pl || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        <td className={`table-cell td-right ${(h.unrealized_pl || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
                           {h.unrealized_pl !== undefined ? `$${h.unrealized_pl.toFixed(2)}` : "—"}
                         </td>
-                        <td className="table-cell-text text-sm text-neutral-400">Not in latest Top 30</td>
+                        <td className="table-cell-text td-left text-sm text-neutral-400">Not in latest Top 30</td>
                       </tr>
                     );
                   })}

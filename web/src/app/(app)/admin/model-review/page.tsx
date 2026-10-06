@@ -22,7 +22,7 @@ export default async function ModelReviewPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-4">
-        <Link href="/model" className="btn-ghost p-1"><ArrowLeft className="w-4 h-4" /></Link>
+        <Link href="/model" className="btn-icon btn-ghost"><ArrowLeft className="w-4 h-4" /></Link>
         <h1 className="text-xl font-semibold">Model Review</h1>
       </div>
       {error ? (

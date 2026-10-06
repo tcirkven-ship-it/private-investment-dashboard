@@ -7,11 +7,35 @@ from pathlib import Path
 from datetime import datetime, timezone, date, timedelta
 
 ROOT = Path(__file__).resolve().parents[1]
+MAX_SOURCE_AGE_DAYS_AFTER_ASOF = 21
 
 def quarter_label(as_of: str) -> str:
     d = date.fromisoformat(as_of)
     q = (d.month - 1) // 3 + 1
     return f"{d.year}-Q{q}"
+
+def snapshot_date_from_id(snapshot_id: str) -> date:
+    return date.fromisoformat(snapshot_id[:10])
+
+def check_snapshot_freshness(snapshot_id: str, as_of: str) -> tuple[bool, str]:
+    """Return (ok, message) for whether snapshot is fresh for the requested as_of date."""
+    try:
+        snap_date = snapshot_date_from_id(snapshot_id)
+        asof_date = date.fromisoformat(as_of)
+    except ValueError as e:
+        return False, f"Cannot parse snapshot id '{snapshot_id}' or as_of '{as_of}': {e}"
+    if snap_date < asof_date:
+        return False, (
+            f"Snapshot {snapshot_id} (data date {snap_date}) predates as_of_date {asof_date}. "
+            f"It cannot cover the quarter-end session."
+        )
+    age = (snap_date - asof_date).days
+    if age > MAX_SOURCE_AGE_DAYS_AFTER_ASOF:
+        return False, (
+            f"Snapshot {snapshot_id} (data date {snap_date}) is {age} days after as_of_date {asof_date} "
+            f"(max {MAX_SOURCE_AGE_DAYS_AFTER_ASOF})."
+        )
+    return True, f"Snapshot {snapshot_id} (data date {snap_date}, {age} days after as_of_date) is fresh."
 
 def default_as_of() -> str:
     today = date.today()
@@ -32,21 +56,42 @@ def main():
     ql = quarter_label(as_of)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M")
     out_dir = ROOT / f"outputs/quarterly_exports/{ql}_asof-{as_of}_generated-{now}"
-    out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\n{'='*60}")
     print(f"  M1_B2_QUALITY_VETO_N30 — Quarterly Top 30 Generator")
     print(f"  Quarter: {ql}   as_of_date: {as_of}")
-    print(f"  Output: {out_dir.name}")
+    print(f"  Output: {out_dir.name} (created only after freshness check passes)")
     print(f"{'='*60}\n")
+
+    # Early freshness gate for quick runs: fail before doing any work.
+    if args.skip_fresh and not args.skip_build:
+        snap_root = ROOT / "data/prospective/daily_qvp/snapshots"
+        snap_dirs = sorted(snap_root.glob("2*"), reverse=True)
+        if snap_dirs:
+            early_fresh, early_msg = check_snapshot_freshness(snap_dirs[0].name, as_of)
+            if not early_fresh:
+                print(f"{'='*60}")
+                print("HARD STOP: STALE SOURCE SNAPSHOT (nothing was generated)")
+                print(f"{'='*60}")
+                print(f"  {early_msg}")
+                print(f"  A snapshot from before {as_of} cannot be relabeled as {ql}.")
+                print(f"\n  For a new quarter you must run the FULL pull (removes --skip-fresh):")
+                print(f'    python scripts/run_quarterly_top30_generator.py --as-of "{as_of}"')
+                print(f"  (takes 1-2 hours; downloads fresh market data)")
+                sys.exit(1)
 
     # Stage 0: Fresh data pull
     if not args.skip_fresh:
         print("[0/3] Pulling fresh market data...")
         print("  This may take 1–2 hours. Waiting for daily_screen.py...")
+        print("  Resumable: a partial pull is completed on retry (--resume-retrieval).")
+        print("  Tolerance: up to 1 eligible ticker may lack scoring-core annual files")
+        print("  (e.g. newly listed companies). The pull manifest records which tickers.")
         r = subprocess.run([sys.executable, "src/daily_screen.py",
                            "--output-root", "outputs/quarterly_pull",
-                           "--workers", "2", "--attempts", "5", "--delay-seconds", "1.5"],
+                           "--workers", "2", "--attempts", "5", "--delay-seconds", "1.5",
+                           "--resume-retrieval",
+                           "--maximum-scoring-core-incomplete", "1"],
                            cwd=str(ROOT))
         if r.returncode != 0:
             print("STAGE 0 FAILED: Fresh data pull failed. Try again or use --skip-fresh.")
@@ -59,15 +104,38 @@ def main():
     factor_input_path = None
     if not args.skip_build:
         print("[1/3] Building factor snapshot...")
-        snap_dirs = sorted(Path("data/prospective/daily_qvp/snapshots").glob("2*"), reverse=True)
+        snap_root = ROOT / "data/prospective/daily_qvp/snapshots"
+        snap_dirs = sorted(snap_root.glob("2*"), reverse=True)
         if not snap_dirs:
-            snap_dirs = sorted(Path("outputs/quarterly_pull/daily_qvp_runs").rglob("analysis/factor_level_current.csv"), reverse=True)
+            pull_root = ROOT / "outputs/quarterly_pull"
+            snap_dirs = sorted(pull_root.rglob("analysis/factor_level_current.csv"), reverse=True)
             snap_dirs = [d.parent.parent.parent for d in snap_dirs]
         if not snap_dirs:
             print("ERROR: No raw snapshot data found. Run Stage 0 first (data pull).")
             sys.exit(1)
         snap_id = snap_dirs[0].name
         print(f"  Using snapshot: {snap_id}")
+
+        # Freshness gate: refuse stale source data before doing any work.
+        fresh, fresh_msg = check_snapshot_freshness(snap_id, as_of)
+        if not fresh:
+            print(f"\n{'='*60}")
+            print("HARD STOP: STALE SOURCE SNAPSHOT (nothing was generated)")
+            print(f"{'='*60}")
+            print(f"  {fresh_msg}")
+            print(f"  A snapshot from before {as_of} cannot be relabeled as {ql}.")
+            if args.skip_fresh:
+                print(f"\n  You used --skip-fresh (quick run). For a new quarter you must run the FULL pull:")
+                print(f'    python scripts/run_quarterly_top30_generator.py --as-of "{as_of}"')
+                print(f"  (takes 1-2 hours; downloads fresh market data)")
+            else:
+                print(f"\n  A fresh pull did not produce a usable snapshot. Check Stage 0 output.")
+            sys.exit(1)
+        print(f"  Freshness: {fresh_msg}")
+
+        # Create the export folder only after the freshness gate passes.
+        out_dir.mkdir(parents=True, exist_ok=True)
+
         r = subprocess.run([sys.executable, "scripts/build_m1_b2_factor_snapshot.py",
                            "--snapshot-id", snap_id, "--output-dir", str(out_dir),
                            "--as-of", as_of],
@@ -101,16 +169,27 @@ def main():
     source_csv = ROOT / "outputs/quarterly/m1_b2_quality_veto_targets.csv"
     source_manifest = ROOT / "outputs/quarterly/m1_b2_manifest.json"
 
-    # Date validation
+    # Source snapshot freshness validation (against the REAL snapshot date, not the relabeled as_of).
+    src_snap_id = ""
+    src_snap_date = ""
     if source_manifest.exists():
         with open(source_manifest) as f:
             mf = json.load(f)
-        snap_date = mf.get("factor_snapshot_date", "")
-        if snap_date and snap_date != as_of:
-            print(f"HARD STOP: Factor snapshot date ({snap_date}) != as_of_date ({as_of}).")
+        src_snap_id = str(mf.get("factor_snapshot_id", ""))
+        src_snap_date = str(mf.get("factor_snapshot_date", ""))
+        if not src_snap_id or not src_snap_date:
+            print("HARD STOP: Stage 2 manifest is missing factor_snapshot_id / factor_snapshot_date.")
+            sys.exit(1)
+        fresh, fresh_msg = check_snapshot_freshness(src_snap_id, as_of)
+        if not fresh:
+            print(f"HARD STOP: STALE SOURCE — {fresh_msg}")
             print("Generation aborted. Run Stage 0 (fresh data pull) to get current quarter-end data.")
             sys.exit(1)
-        print(f"  Date check: factor_snapshot_date ({snap_date}) == as_of_date ({as_of}) PASSED")
+        print(f"  Freshness check: {fresh_msg}")
+        print(f"  Source snapshot: {src_snap_id} (data date {src_snap_date})")
+    else:
+        print("HARD STOP: Stage 2 manifest not found.")
+        sys.exit(1)
     print(f"  Stage 2 input: {factor_input_path}")
 
     if source_csv.exists():
@@ -160,6 +239,9 @@ def main():
         "model_id": "M1_B2_QUALITY_VETO_N30",
         "quarter_label": ql,
         "as_of_date": as_of,
+        "source_snapshot_id": src_snap_id,
+        "source_snapshot_date": src_snap_date,
+        "source_freshness_max_days_after_asof": MAX_SOURCE_AGE_DAYS_AFTER_ASOF,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "generation_mode": "offline_notebook_official_generator",
         "source": "local_generator",
@@ -182,6 +264,8 @@ def main():
         f.write(f"M1_B2_QUALITY_VETO_N30 Generation Log\n")
         f.write(f"Quarter: {ql}\n")
         f.write(f"as_of_date: {as_of}\n")
+        f.write(f"source_snapshot_id: {src_snap_id}\n")
+        f.write(f"source_snapshot_date: {src_snap_date}\n")
         f.write(f"generated_at: {manifest['generated_at']}\n")
         f.write(f"holdings: {manifest['holdings']}\n")
         f.write(f"validation: {'PASSED' if manifest['validation_passed'] else 'FAILED'}\n")
@@ -191,7 +275,7 @@ def main():
     with open(out_dir / "README_LOAD_IN_APP.txt", "w") as f:
         f.write("HOW TO LOAD IN APP\n")
         f.write("==================\n\n")
-        f.write("1. Open the latest Vercel Preview URL for the app.\n")
+        f.write("1. Open the app: https://private-investment-dashboard-tcirkven-projects.vercel.app\n")
         f.write("2. Sign in.\n")
         f.write("3. Go to Top 30 page.\n")
         f.write("4. Click 'Load Notebook-Generated Top 30'.\n")
@@ -201,6 +285,7 @@ def main():
         f.write(f"Model: M1_B2_QUALITY_VETO_N30\n")
         f.write(f"Quarter: {ql}\n")
         f.write(f"as_of_date: {as_of}\n")
+        f.write(f"source_snapshot: {src_snap_id} (data date {src_snap_date})\n")
         f.write(f"Holdings: {manifest['holdings']}\n")
         f.write(f"Validation: {'PASSED' if manifest['validation_passed'] else 'FAILED'}\n")
         if errors:
@@ -214,6 +299,7 @@ def main():
     print(f"Model:  M1_B2_QUALITY_VETO_N30")
     print(f"Quarter: {ql}")
     print(f"As-of:   {as_of}")
+    print(f"Source:  {src_snap_id} (data date {src_snap_date})")
     print(f"Output:  {out_dir}")
     print(f"Holdings: {manifest['holdings']}")
     print(f"Validation: {'PASSED' if manifest['validation_passed'] else 'FAILED'}")
