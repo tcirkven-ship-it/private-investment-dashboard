@@ -160,3 +160,37 @@ describe("dust/closed positions and full-exit deletes", () => {
     expect(s.total_realized_pl).toBeCloseTo(0.9995 * 10);
   });
 });
+
+describe("ledger replay ordering and oversell validation", () => {
+  it("user DOCN sequence: buy 7.009, sells 7.008 + 0.001 + 0.001 -> hidden", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "BUY", ticker: "DOCN", quantity: 7.009, price: 142.68, gross_amount: 999.99, event_date: "2026-07-01", created_at: "2026-07-01T21:06:16Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 7.008, price: 135.25, gross_amount: 947.83, event_date: "2026-10-06", created_at: "2026-10-06T18:24:05Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.001, price: 142.68, gross_amount: 0.14, event_date: "2026-10-06", created_at: "2026-10-06T18:30:49Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.001, price: 142.68, gross_amount: 0.14, event_date: "2026-10-06", created_at: "2026-10-06T18:31:06Z" }),
+    ]);
+    expect(s.holdings.has("DOCN")).toBe(false);
+    expect(s.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("replay stays correct when same-date rows arrive in arbitrary database order", () => {
+    // Simulates the production bug: dust sells listed before the main sell.
+    const scrambled = [
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.00069, price: 142.68, gross_amount: 0.098, event_date: "2026-10-06", created_at: "2026-10-06T18:30:49Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 0.00069, price: 142.68, gross_amount: 0.098, event_date: "2026-10-06", created_at: "2026-10-06T18:31:06Z" }),
+      tx({ event_type: "SELL", ticker: "DOCN", quantity: 7.008, price: 135.25, gross_amount: 947.83, event_date: "2026-10-06", created_at: "2026-10-06T18:24:05Z" }),
+      tx({ event_type: "BUY", ticker: "DOCN", quantity: 7.00869, price: 142.68, gross_amount: 999.99, event_date: "2026-07-01", created_at: "2026-07-01T21:06:16Z" }),
+    ];
+    const s = deriveHoldings(scrambled);
+    expect(s.holdings.has("DOCN")).toBe(false);
+  });
+
+  it("warns when a sell exceeds shares held", () => {
+    const s = deriveHoldings([
+      tx({ event_type: "BUY", ticker: "AAA", quantity: 5, price: 10, gross_amount: 50 }),
+      tx({ event_type: "SELL", ticker: "AAA", quantity: 6, price: 10, gross_amount: 60 }),
+    ]);
+    expect(s.holdings.get("AAA")?.quantity).toBe(5);
+    expect(s.warnings.some((w) => w.includes("exceeds shares held"))).toBe(true);
+  });
+});

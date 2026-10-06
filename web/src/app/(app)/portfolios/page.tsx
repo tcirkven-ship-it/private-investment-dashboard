@@ -120,6 +120,15 @@ export default async function PortfoliosPage() {
         <span className="text-xs text-neutral-500">Performance &rarr;</span>
       </Link>
 
+      {state.warnings.length > 0 && (
+        <div className="alert alert-warning">
+          <p className="font-medium">Holdings validation</p>
+          {state.warnings.map((w, i) => (
+            <p key={i} className="text-xs mt-1">{w}</p>
+          ))}
+        </div>
+      )}
+
       <HoldingsManager
         portfolioId={portfolio.id}
         holdings={holdings}
