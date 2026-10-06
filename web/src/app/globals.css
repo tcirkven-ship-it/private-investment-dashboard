@@ -176,6 +176,22 @@ select.input {
   line-height: 1.2;
 }
 
+.metric-value-xl {
+  font-size: 1.75rem;
+}
+
+.metric-quiet {
+  background: #101012;
+}
+.metric-quiet .metric-label {
+  color: #52525b;
+}
+.metric-quiet .metric-value {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
 .metric-sub {
   font-size: 0.75rem;
   color: #737373;

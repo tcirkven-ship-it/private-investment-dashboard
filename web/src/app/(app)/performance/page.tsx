@@ -177,38 +177,41 @@ export default async function PerformancePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="metric-card metric-primary">
           <p className="metric-label">Invested Capital{invested.estimated ? " (est.)" : ""}</p>
-          <p className="metric-value">{fmtMoney(invested.value)}</p>
+          <p className="metric-value metric-value-xl">{fmtMoney(invested.value)}</p>
           <p className="metric-sub">{invested.estimated ? "estimated from buy/sell activity" : "deposits − withdrawals"}</p>
         </div>
-        <div className="metric-card">
+        <div className="metric-card metric-primary">
           <p className="metric-label">Current Value</p>
-          <p className="metric-value">{fmtMoney(currentValue)}</p>
+          <p className="metric-value metric-value-xl">{fmtMoney(currentValue)}</p>
           <p className="metric-sub">Cash + Holdings</p>
         </div>
-        <div className="metric-card">
+        <div className="metric-card metric-primary">
           <p className="metric-label">Total P&L</p>
-          <p className={`metric-value ${pnlClass}`}>{fmtSignedMoney(pnl)}</p>
+          <p className={`metric-value metric-value-xl ${pnlClass}`}>{fmtSignedMoney(pnl)}</p>
         </div>
-        <div className="metric-card">
+        <div className="metric-card metric-primary">
           <p className="metric-label">Total Return</p>
-          <p className={`metric-value ${returnPct === null ? "" : returnPct >= 0 ? "metric-positive" : "metric-negative"}`}>{fmtPct(returnPct)}</p>
+          <p className={`metric-value metric-value-xl ${returnPct === null ? "" : returnPct >= 0 ? "metric-positive" : "metric-negative"}`}>{fmtPct(returnPct)}</p>
         </div>
-        <div className="metric-card">
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="metric-card metric-quiet">
           <p className="metric-label">Realized P/L</p>
           <p className={`metric-value ${state.total_realized_pl >= 0 ? "metric-positive" : "metric-negative"}`}>{fmtSignedMoney(state.total_realized_pl)}</p>
         </div>
-        <div className="metric-card">
+        <div className="metric-card metric-quiet">
           <p className="metric-label">Unrealized P/L</p>
           <p className={`metric-value ${unrealized >= 0 ? "metric-positive" : "metric-negative"}`}>{fmtSignedMoney(unrealized)}</p>
         </div>
-        <div className="metric-card">
+        <div className="metric-card metric-quiet">
           <p className="metric-label">Cash (uninvested)</p>
           <p className="metric-value">{fmtMoney(state.cash)}</p>
         </div>
-        <div className="metric-card">
+        <div className="metric-card metric-quiet">
           <p className="metric-label">Holdings Value</p>
           <p className="metric-value">{fmtMoney(holdingsValue)}</p>
         </div>
